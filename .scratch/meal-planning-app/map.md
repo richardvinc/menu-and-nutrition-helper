@@ -22,12 +22,13 @@ Produce an implementation-ready v1 specification for the two-member household me
 - [Define v1 product boundaries](issues/00-define-v1-product-boundaries.md) — Set the calorie-budget, meal-scheduling, reusable-menu, ingredient, recommendation, dashboard, visual, backup, and deployment boundaries for v1.
 - [Define nutrition calculation guardrails](issues/01-define-nutrition-calculation-guardrails.md) — Chose transparent Mifflin-St Jeor calculations, editable activity and deficit settings, advisory safety warnings, AMDR-aware macro targets, age/sex fiber targets, and explicit Apply or Keep reviews.
 - [Choose nutrition sources and seed catalog](issues/02-choose-nutrition-sources-and-seed-catalog.md) — Set identity-first source precedence, provenance and alias requirements, a small reviewed catalog, and a public-safe boundary for TKPI and package-label data.
+- [Specify workbook import and normalization](issues/03-specify-workbook-import-and-normalization.md) — Defined a read-only, auditable one-time migration with reviewed aliases and quantity bases, deterministic menu deduplication, member-history handling, and transactional commit.
 
 ## Not yet specified
 
 - The final implementation-ready specification structure and acceptance criteria depend on the research, migration, and prototype decisions.
 - The exact original illustration set and visual tokens depend on the responsive UI prototypes.
-- The exact seed catalog size and import reconciliation report depend on nutrition-source and workbook-migration findings.
+- The exact reviewed seed rows and completed reconciliation report will be produced when the importer and local catalog are implemented.
 
 ## Out of scope
 
