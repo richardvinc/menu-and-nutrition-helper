@@ -1,16 +1,18 @@
 {
-  "name": "piring-kita",
-  "private": true,
-  "workspaces": ["app/*"],
-  "scripts": {
-    "dev": "bun run --parallel dev:backend dev:frontend",
-    "dev:frontend": "bun --cwd app/frontend dev",
-    "dev:backend": "bun --cwd app/backend dev",
-    "build": "bun --cwd app/frontend build && bun --cwd app/backend build",
-    "test": "bun test app",
-    "test:e2e": "playwright test"
-  },
-  "devDependencies": {
-    "@playwright/test": "latest"
-  }
+	"name": "piring-kita",
+	"private": true,
+	"workspaces": [
+		"app/*"
+	],
+	"scripts": {
+		"dev": "bun run --parallel dev:backend dev:frontend",
+		"dev:frontend": "bun --cwd app/frontend dev",
+		"dev:backend": "bun --cwd app/backend dev",
+		"build": "bun --cwd app/frontend build && bun --cwd app/backend build",
+		"test": "bun test app",
+		"test:e2e": "playwright test"
+	},
+	"devDependencies": {
+		"@playwright/test": "latest"
+	}
 }

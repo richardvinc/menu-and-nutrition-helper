@@ -109,7 +109,7 @@
 	min-height: 70px;
 }
 .pk-meal-card__label {
-	margin-bottom: 8px !important;
+	margin-bottom: 8px;
 	color: var(--green);
 	font-size: 12px;
 	font-weight: 800;
@@ -332,7 +332,7 @@
 		padding: 10px 12px;
 	}
 	.pk-meal-card__label {
-		margin-bottom: 4px !important;
+		margin-bottom: 4px;
 	}
 	.pk-meal-card__nutrition {
 		margin-bottom: 6px;

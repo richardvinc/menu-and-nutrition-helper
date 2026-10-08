@@ -1,17 +1,17 @@
 {
-  "name": "@piring-kita/backend",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "bun --watch src/server.ts",
-    "build": "bun build src/server.ts --outdir dist --target bun",
-    "start": "bun dist/server.js"
-  },
-  "dependencies": {
-    "@piring-kita/shared": "workspace:*",
-    "express": "latest"
-  },
-  "devDependencies": {
-    "@types/express": "latest"
-  }
+	"name": "@piring-kita/backend",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "bun --watch src/server.ts",
+		"build": "bun build src/server.ts --outdir dist --target bun",
+		"start": "bun dist/server.js"
+	},
+	"dependencies": {
+		"@piring-kita/shared": "workspace:*",
+		"express": "latest"
+	},
+	"devDependencies": {
+		"@types/express": "latest"
+	}
 }

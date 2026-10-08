@@ -1,1146 +1,904 @@
 {
-  "source": "C:\\Users\\vincr\\Downloads\\Meal plan.xlsx",
-  "sha256": "be1b57655d78f761409265e75e4b8f6996a1795757aeb9da95388aba29eac7a1",
-  "sheet_count": 26,
-  "weekly_sheet_count": 22,
-  "weekly_sheets": [
-    "Week 6",
-    "Week 7",
-    "Feb week 3",
-    "March 26 week 1",
-    "Aug week 3",
-    "Aug week 4",
-    "Sep week 1",
-    "Sep week 5",
-    "Sep week 4",
-    "Sep week 3",
-    "Sep week 2",
-    "March 26 week 2",
-    "Feb 26 week 4",
-    "Nov week 2",
-    "Jul week 3",
-    "Mar week 1",
-    "Mar week 2",
-    "Feb week 4",
-    "Week 3",
-    "Week 4",
-    "Week 1",
-    "Week 2"
-  ],
-  "weekly_sheet_stats": [
-    {
-      "sheet": "Week 6",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 46
-    },
-    {
-      "sheet": "Week 7",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 47
-    },
-    {
-      "sheet": "Feb week 3",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 90
-    },
-    {
-      "sheet": "March 26 week 1",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 91
-    },
-    {
-      "sheet": "Aug week 3",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 98
-    },
-    {
-      "sheet": "Aug week 4",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 104
-    },
-    {
-      "sheet": "Sep week 1",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 96
-    },
-    {
-      "sheet": "Sep week 5",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 98
-    },
-    {
-      "sheet": "Sep week 4",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 97
-    },
-    {
-      "sheet": "Sep week 3",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 86
-    },
-    {
-      "sheet": "Sep week 2",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 69
-    },
-    {
-      "sheet": "March 26 week 2",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 95
-    },
-    {
-      "sheet": "Feb 26 week 4",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 77
-    },
-    {
-      "sheet": "Nov week 2",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 86
-    },
-    {
-      "sheet": "Jul week 3",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 50
-    },
-    {
-      "sheet": "Mar week 1",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 99
-    },
-    {
-      "sheet": "Mar week 2",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 90
-    },
-    {
-      "sheet": "Feb week 4",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 100
-    },
-    {
-      "sheet": "Week 3",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 39
-    },
-    {
-      "sheet": "Week 4",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 40
-    },
-    {
-      "sheet": "Week 1",
-      "columns": {
-        "user": 3,
-        "time": 9,
-        "menu": 10,
-        "ingredient": 11,
-        "quantity": 12
-      },
-      "used_ingredient_rows": 96
-    },
-    {
-      "sheet": "Week 2",
-      "columns": {
-        "user": 3,
-        "time": 10,
-        "menu": 11,
-        "ingredient": 12,
-        "quantity": 13
-      },
-      "used_ingredient_rows": 113
-    }
-  ],
-  "date_range": [
-    "2024-02-20",
-    "2026-10-04"
-  ],
-  "undated_weekly_sheets": [
-    "Week 3",
-    "Week 4",
-    "Week 6",
-    "Week 7"
-  ],
-  "nutrition": {
-    "rows": 156,
-    "exact_duplicate_names": [],
-    "embedded_or_non_100g_basis_count": 53
-  },
-  "usage": {
-    "ingredient_rows": 1807,
-    "distinct_ingredient_labels": 107,
-    "unmatched_distinct": 8,
-    "unmatched": [
-      [
-        "Eggs (white only)",
-        10
-      ],
-      [
-        "Olive oil (1 tablespoon)",
-        10
-      ],
-      [
-        "Egg (whole)",
-        9
-      ],
-      [
-        "Ikan rebon",
-        3
-      ],
-      [
-        "Corn starch",
-        2
-      ],
-      [
-        "Lettuce",
-        2
-      ],
-      [
-        "Pear (1 medium)",
-        2
-      ],
-      [
-        "Egg Yolk (1 yolk)",
-        2
-      ]
-    ],
-    "top_ingredients": [
-      [
-        "Olive oil, extra light (1 tablespoon, 17 gram)",
-        243
-      ],
-      [
-        "Eggs, large, whole, each",
-        236
-      ],
-      [
-        "White rice",
-        217
-      ],
-      [
-        "Chicken breast, skinless, cooked",
-        94
-      ],
-      [
-        "Chinese cabbage",
-        52
-      ],
-      [
-        "Shirataki + white rice",
-        50
-      ],
-      [
-        "Tofu (firm)",
-        45
-      ],
-      [
-        "Milk (full fat)",
-        42
-      ],
-      [
-        "CAPD 2.5% (1 bag)",
-        41
-      ],
-      [
-        "Apple (1 medium)",
-        35
-      ],
-      [
-        "Shirataki",
-        30
-      ],
-      [
-        "Pear (1 medium, around 250 gram)",
-        30
-      ],
-      [
-        "Mushroom, white button",
-        29
-      ],
-      [
-        "Onion",
-        27
-      ],
-      [
-        "Tomatoes (1 medium)",
-        27
-      ],
-      [
-        "Miso (1 tablespoon)",
-        27
-      ],
-      [
-        "Eggs, large, white, each",
-        25
-      ],
-      [
-        "Pak choi",
-        25
-      ],
-      [
-        "Carrot, mature, raw",
-        23
-      ],
-      [
-        "Mushroom, shimeji",
-        23
-      ],
-      [
-        "Milk (semi-skimmed)",
-        21
-      ],
-      [
-        "Beef lean shabu, low fat prime beef",
-        16
-      ],
-      [
-        "Corn starch (1 tablespoon)",
-        15
-      ],
-      [
-        "Greek yogurt",
-        12
-      ],
-      [
-        "Banana (1 medium)",
-        12
-      ],
-      [
-        "Potato",
-        11
-      ],
-      [
-        "Papaya",
-        11
-      ],
-      [
-        "Chili oil (1 tablespoon)",
-        11
-      ],
-      [
-        "Lettuce, romain, raw",
-        10
-      ],
-      [
-        "Beef, ground, 90% lean:10% fat, raw",
-        10
-      ]
-    ],
-    "distinct_menu_labels": 120,
-    "top_menus": [
-      [
-        "nasi + telur",
-        466
-      ],
-      [
-        "nasi + ayam",
-        52
-      ],
-      [
-        "telur tomat",
-        36
-      ],
-      [
-        "mash potato + chicken breast",
-        34
-      ],
-      [
-        "sourdough + telur",
-        33
-      ],
-      [
-        "nasi + capcay",
-        32
-      ],
-      [
-        "nasi + nugget richeese",
-        28
-      ],
-      [
-        "tteoppoki",
-        28
-      ],
-      [
-        "Menu",
-        26
-      ],
-      [
-        "mie skippy + chili oil",
-        22
-      ],
-      [
-        "ayam saus inggris",
-        22
-      ],
-      [
-        "nasi hainam",
-        21
-      ],
-      [
-        "nasi + telur balado",
-        20
-      ],
-      [
-        "nasi + curry jepang",
-        20
-      ],
-      [
-        "omurice",
-        19
-      ],
-      [
-        "nasi + nugget",
-        19
-      ],
-      [
-        "telur + tahu",
-        18
-      ],
-      [
-        "bubur",
-        18
-      ],
-      [
-        "Hotpot mala",
-        18
-      ],
-      [
-        "potato + chicken",
-        17
-      ],
-      [
-        "Mazeudon",
-        16
-      ],
-      [
-        "dori miso",
-        16
-      ],
-      [
-        "nasi goreng",
-        16
-      ],
-      [
-        "Hanbaga kare",
-        16
-      ],
-      [
-        "udang saus padang + capcay",
-        16
-      ],
-      [
-        "fussili tuna tomat",
-        15
-      ],
-      [
-        "nasi goreng telur asin",
-        15
-      ],
-      [
-        "ayam saus telur asin",
-        15
-      ],
-      [
-        "okonomiyaki",
-        15
-      ],
-      [
-        "nasi pontianak",
-        14
-      ],
-      [
-        "nasi + tofu sawi putih",
-        14
-      ],
-      [
-        "omelette",
-        14
-      ],
-      [
-        "Telur tomat",
-        14
-      ],
-      [
-        "Nasi+omellete",
-        14
-      ],
-      [
-        "nasi goreng chahan",
-        13
-      ],
-      [
-        "chicken + potato",
-        12
-      ],
-      [
-        "telur + ubi",
-        12
-      ],
-      [
-        "kare udon",
-        12
-      ],
-      [
-        "nasi tim ayam + shiitake",
-        12
-      ],
-      [
-        "nasi odeng + champignon + sawi putih",
-        12
-      ]
-    ]
-  },
-  "weekly_needs": {
-    "rows": 44,
-    "entries": [
-      {
-        "row": 2,
-        "week": "Week 1 (19 - 25 Feb)",
-        "user": "Richard",
-        "weight_kg": 80.0,
-        "height_cm": 165.0,
-        "age": 31.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 3,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 54.0,
-        "height_cm": 159.0,
-        "age": 29.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 4,
-        "week": "Week 2 (26 Feb - 3 Mar)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 77.5,
-        "height_cm": 165.0,
-        "age": 31.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 5,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 51.9,
-        "height_cm": 159.0,
-        "age": 29.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 6,
-        "week": "Week 3 (4 Mar- 10 Mar)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 78.5,
-        "height_cm": 165.0,
-        "age": 31.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 7,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 51.3,
-        "height_cm": 159.0,
-        "age": 29.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.6,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 8,
-        "week": "Week 5 (18 Mar- 24 Mar)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 78.0,
-        "height_cm": 165.0,
-        "age": 31.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 9,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 52.5,
-        "height_cm": 159.0,
-        "age": 29.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.6,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 10,
-        "week": "Week 6 (3 Jun - 9 Jun)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 80.0,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 11,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 53.35,
-        "height_cm": 159.0,
-        "age": 29.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.6,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 12,
-        "week": "Week 7 (23 Sep - 29 Sep)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 81.15,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 13,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 54.75,
-        "height_cm": 159.0,
-        "age": 29.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.6,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 14,
-        "week": "Feb week 3 (17 Feb - 21 Feb)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 82.0,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 15,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 58.0,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 16,
-        "week": "Feb week 4 (24 Feb - 2 Mar)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 77.3,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 17,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 55.9,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 18,
-        "week": "Mar week 1 (3 - 9 Mar)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 78.2,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 19,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 56.7,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 20,
-        "week": "Mar week 2 (10 - 16 Mar)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 80.6,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 21,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 56.6,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 22,
-        "week": "Jul week 3 (21 - 25 Jul)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 80.6,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 23,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 58.2,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 24,
-        "week": "Nov week 3 (10 - 14 Nov)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 85.0,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 25,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 58.2,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 26,
-        "week": "Feb week 4 (23 - 1 Mar)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 73.9,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.9,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 27,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 60.0,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.9,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 28,
-        "week": "Feb week 4 (23 - 1 Mar)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 72.9,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.9,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 29,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 58.1,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.9,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 30,
-        "week": "Feb week 4 (23 - 1 Mar)",
-        "user": "Richard (-2 kg)",
-        "weight_kg": 72.8,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.9,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 31,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 59.0,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.9,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 32,
-        "week": "Aug week 3 (17 - 21 Aug)",
-        "user": "Richard",
-        "weight_kg": 69.0,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 33,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 57.0,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 34,
-        "week": "Aug week 4 (24 - 29 Aug)",
-        "user": "Richard",
-        "weight_kg": 69.0,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 35,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 55.9,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.75,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 36,
-        "week": "Sep week 1 (31 Aug - 4 Sep)",
-        "user": "Richard",
-        "weight_kg": 68.5,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 37,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 55.75,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 38,
-        "week": "Sep week 2 (7 - 10 Sep)",
-        "user": "Richard",
-        "weight_kg": 67.7,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 39,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 55.75,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 40,
-        "week": "Sep week 3 (14 - 19 Sep)",
-        "user": "Richard",
-        "weight_kg": 68.0,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 41,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 55.75,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 42,
-        "week": "Sep week 4 (21 - 26 Sep)",
-        "user": "Richard",
-        "weight_kg": 68.0,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 43,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 55.5,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 44,
-        "week": "Sep week 5 (28 Sep - 2 Oct)",
-        "user": "Richard",
-        "weight_kg": 67.6,
-        "height_cm": 165.0,
-        "age": 32.0,
-        "sex_code": "L",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.8,
-        "fiber_g": 24.0
-      },
-      {
-        "row": 45,
-        "week": null,
-        "user": "Michelle",
-        "weight_kg": 54.6,
-        "height_cm": 159.0,
-        "age": 30.0,
-        "sex_code": "P",
-        "activity_in_formula": 1.2,
-        "deficit_factor": 0.7,
-        "fiber_g": 24.0
-      }
-    ]
-  }
+	"source": "C:\\Users\\vincr\\Downloads\\Meal plan.xlsx",
+	"sha256": "be1b57655d78f761409265e75e4b8f6996a1795757aeb9da95388aba29eac7a1",
+	"sheet_count": 26,
+	"weekly_sheet_count": 22,
+	"weekly_sheets": [
+		"Week 6",
+		"Week 7",
+		"Feb week 3",
+		"March 26 week 1",
+		"Aug week 3",
+		"Aug week 4",
+		"Sep week 1",
+		"Sep week 5",
+		"Sep week 4",
+		"Sep week 3",
+		"Sep week 2",
+		"March 26 week 2",
+		"Feb 26 week 4",
+		"Nov week 2",
+		"Jul week 3",
+		"Mar week 1",
+		"Mar week 2",
+		"Feb week 4",
+		"Week 3",
+		"Week 4",
+		"Week 1",
+		"Week 2"
+	],
+	"weekly_sheet_stats": [
+		{
+			"sheet": "Week 6",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 46
+		},
+		{
+			"sheet": "Week 7",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 47
+		},
+		{
+			"sheet": "Feb week 3",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 90
+		},
+		{
+			"sheet": "March 26 week 1",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 91
+		},
+		{
+			"sheet": "Aug week 3",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 98
+		},
+		{
+			"sheet": "Aug week 4",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 104
+		},
+		{
+			"sheet": "Sep week 1",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 96
+		},
+		{
+			"sheet": "Sep week 5",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 98
+		},
+		{
+			"sheet": "Sep week 4",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 97
+		},
+		{
+			"sheet": "Sep week 3",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 86
+		},
+		{
+			"sheet": "Sep week 2",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 69
+		},
+		{
+			"sheet": "March 26 week 2",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 95
+		},
+		{
+			"sheet": "Feb 26 week 4",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 77
+		},
+		{
+			"sheet": "Nov week 2",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 86
+		},
+		{
+			"sheet": "Jul week 3",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 50
+		},
+		{
+			"sheet": "Mar week 1",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 99
+		},
+		{
+			"sheet": "Mar week 2",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 90
+		},
+		{
+			"sheet": "Feb week 4",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 100
+		},
+		{
+			"sheet": "Week 3",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 39
+		},
+		{
+			"sheet": "Week 4",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 40
+		},
+		{
+			"sheet": "Week 1",
+			"columns": {
+				"user": 3,
+				"time": 9,
+				"menu": 10,
+				"ingredient": 11,
+				"quantity": 12
+			},
+			"used_ingredient_rows": 96
+		},
+		{
+			"sheet": "Week 2",
+			"columns": {
+				"user": 3,
+				"time": 10,
+				"menu": 11,
+				"ingredient": 12,
+				"quantity": 13
+			},
+			"used_ingredient_rows": 113
+		}
+	],
+	"date_range": ["2024-02-20", "2026-10-04"],
+	"undated_weekly_sheets": ["Week 3", "Week 4", "Week 6", "Week 7"],
+	"nutrition": {
+		"rows": 156,
+		"exact_duplicate_names": [],
+		"embedded_or_non_100g_basis_count": 53
+	},
+	"usage": {
+		"ingredient_rows": 1807,
+		"distinct_ingredient_labels": 107,
+		"unmatched_distinct": 8,
+		"unmatched": [
+			["Eggs (white only)", 10],
+			["Olive oil (1 tablespoon)", 10],
+			["Egg (whole)", 9],
+			["Ikan rebon", 3],
+			["Corn starch", 2],
+			["Lettuce", 2],
+			["Pear (1 medium)", 2],
+			["Egg Yolk (1 yolk)", 2]
+		],
+		"top_ingredients": [
+			["Olive oil, extra light (1 tablespoon, 17 gram)", 243],
+			["Eggs, large, whole, each", 236],
+			["White rice", 217],
+			["Chicken breast, skinless, cooked", 94],
+			["Chinese cabbage", 52],
+			["Shirataki + white rice", 50],
+			["Tofu (firm)", 45],
+			["Milk (full fat)", 42],
+			["CAPD 2.5% (1 bag)", 41],
+			["Apple (1 medium)", 35],
+			["Shirataki", 30],
+			["Pear (1 medium, around 250 gram)", 30],
+			["Mushroom, white button", 29],
+			["Onion", 27],
+			["Tomatoes (1 medium)", 27],
+			["Miso (1 tablespoon)", 27],
+			["Eggs, large, white, each", 25],
+			["Pak choi", 25],
+			["Carrot, mature, raw", 23],
+			["Mushroom, shimeji", 23],
+			["Milk (semi-skimmed)", 21],
+			["Beef lean shabu, low fat prime beef", 16],
+			["Corn starch (1 tablespoon)", 15],
+			["Greek yogurt", 12],
+			["Banana (1 medium)", 12],
+			["Potato", 11],
+			["Papaya", 11],
+			["Chili oil (1 tablespoon)", 11],
+			["Lettuce, romain, raw", 10],
+			["Beef, ground, 90% lean:10% fat, raw", 10]
+		],
+		"distinct_menu_labels": 120,
+		"top_menus": [
+			["nasi + telur", 466],
+			["nasi + ayam", 52],
+			["telur tomat", 36],
+			["mash potato + chicken breast", 34],
+			["sourdough + telur", 33],
+			["nasi + capcay", 32],
+			["nasi + nugget richeese", 28],
+			["tteoppoki", 28],
+			["Menu", 26],
+			["mie skippy + chili oil", 22],
+			["ayam saus inggris", 22],
+			["nasi hainam", 21],
+			["nasi + telur balado", 20],
+			["nasi + curry jepang", 20],
+			["omurice", 19],
+			["nasi + nugget", 19],
+			["telur + tahu", 18],
+			["bubur", 18],
+			["Hotpot mala", 18],
+			["potato + chicken", 17],
+			["Mazeudon", 16],
+			["dori miso", 16],
+			["nasi goreng", 16],
+			["Hanbaga kare", 16],
+			["udang saus padang + capcay", 16],
+			["fussili tuna tomat", 15],
+			["nasi goreng telur asin", 15],
+			["ayam saus telur asin", 15],
+			["okonomiyaki", 15],
+			["nasi pontianak", 14],
+			["nasi + tofu sawi putih", 14],
+			["omelette", 14],
+			["Telur tomat", 14],
+			["Nasi+omellete", 14],
+			["nasi goreng chahan", 13],
+			["chicken + potato", 12],
+			["telur + ubi", 12],
+			["kare udon", 12],
+			["nasi tim ayam + shiitake", 12],
+			["nasi odeng + champignon + sawi putih", 12]
+		]
+	},
+	"weekly_needs": {
+		"rows": 44,
+		"entries": [
+			{
+				"row": 2,
+				"week": "Week 1 (19 - 25 Feb)",
+				"user": "Richard",
+				"weight_kg": 80.0,
+				"height_cm": 165.0,
+				"age": 31.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 3,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 54.0,
+				"height_cm": 159.0,
+				"age": 29.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 4,
+				"week": "Week 2 (26 Feb - 3 Mar)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 77.5,
+				"height_cm": 165.0,
+				"age": 31.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 5,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 51.9,
+				"height_cm": 159.0,
+				"age": 29.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 6,
+				"week": "Week 3 (4 Mar- 10 Mar)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 78.5,
+				"height_cm": 165.0,
+				"age": 31.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 7,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 51.3,
+				"height_cm": 159.0,
+				"age": 29.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.6,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 8,
+				"week": "Week 5 (18 Mar- 24 Mar)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 78.0,
+				"height_cm": 165.0,
+				"age": 31.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 9,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 52.5,
+				"height_cm": 159.0,
+				"age": 29.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.6,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 10,
+				"week": "Week 6 (3 Jun - 9 Jun)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 80.0,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 11,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 53.35,
+				"height_cm": 159.0,
+				"age": 29.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.6,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 12,
+				"week": "Week 7 (23 Sep - 29 Sep)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 81.15,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 13,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 54.75,
+				"height_cm": 159.0,
+				"age": 29.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.6,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 14,
+				"week": "Feb week 3 (17 Feb - 21 Feb)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 82.0,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 15,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 58.0,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 16,
+				"week": "Feb week 4 (24 Feb - 2 Mar)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 77.3,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 17,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 55.9,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 18,
+				"week": "Mar week 1 (3 - 9 Mar)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 78.2,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 19,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 56.7,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 20,
+				"week": "Mar week 2 (10 - 16 Mar)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 80.6,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 21,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 56.6,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 22,
+				"week": "Jul week 3 (21 - 25 Jul)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 80.6,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 23,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 58.2,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 24,
+				"week": "Nov week 3 (10 - 14 Nov)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 85.0,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 25,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 58.2,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 26,
+				"week": "Feb week 4 (23 - 1 Mar)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 73.9,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.9,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 27,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 60.0,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.9,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 28,
+				"week": "Feb week 4 (23 - 1 Mar)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 72.9,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.9,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 29,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 58.1,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.9,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 30,
+				"week": "Feb week 4 (23 - 1 Mar)",
+				"user": "Richard (-2 kg)",
+				"weight_kg": 72.8,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.9,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 31,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 59.0,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.9,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 32,
+				"week": "Aug week 3 (17 - 21 Aug)",
+				"user": "Richard",
+				"weight_kg": 69.0,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 33,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 57.0,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 34,
+				"week": "Aug week 4 (24 - 29 Aug)",
+				"user": "Richard",
+				"weight_kg": 69.0,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 35,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 55.9,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.75,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 36,
+				"week": "Sep week 1 (31 Aug - 4 Sep)",
+				"user": "Richard",
+				"weight_kg": 68.5,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 37,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 55.75,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 38,
+				"week": "Sep week 2 (7 - 10 Sep)",
+				"user": "Richard",
+				"weight_kg": 67.7,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 39,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 55.75,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 40,
+				"week": "Sep week 3 (14 - 19 Sep)",
+				"user": "Richard",
+				"weight_kg": 68.0,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 41,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 55.75,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 42,
+				"week": "Sep week 4 (21 - 26 Sep)",
+				"user": "Richard",
+				"weight_kg": 68.0,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 43,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 55.5,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 44,
+				"week": "Sep week 5 (28 Sep - 2 Oct)",
+				"user": "Richard",
+				"weight_kg": 67.6,
+				"height_cm": 165.0,
+				"age": 32.0,
+				"sex_code": "L",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.8,
+				"fiber_g": 24.0
+			},
+			{
+				"row": 45,
+				"week": null,
+				"user": "Michelle",
+				"weight_kg": 54.6,
+				"height_cm": 159.0,
+				"age": 30.0,
+				"sex_code": "P",
+				"activity_in_formula": 1.2,
+				"deficit_factor": 0.7,
+				"fiber_g": 24.0
+			}
+		]
+	}
 }
