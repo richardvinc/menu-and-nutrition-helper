@@ -8,7 +8,7 @@ import type {
 	ScheduledMeal,
 } from "@piring-kita/shared";
 import { useEffect, useMemo, useState } from "react";
-import "./editor.css";
+
 
 type EditorData = Pick<
 	AppData,
@@ -118,9 +118,9 @@ function IngredientRow({
 		[catalog, query],
 	);
 	return (
-		<div className="pk-editor-row">
+		<div className="relative grid grid-cols-1 items-start gap-2.5 border-t border-[var(--app-line)] py-3 sm:grid-cols-[minmax(0,1fr)_145px_auto]">
 			<div
-				className="pk-editor-row__ingredient"
+				className="relative grid gap-1.5"
 				onFocus={() => setFocused(true)}
 				onBlur={(event) => {
 					if (!event.currentTarget.contains(event.relatedTarget as Node))
@@ -140,7 +140,7 @@ function IngredientRow({
 				/>
 				{focused && (
 					<div
-						className="pk-editor-row__results"
+						className="absolute left-0 right-0 top-full z-10 grid max-h-[210px] overflow-auto rounded-lg border border-[var(--app-line)] bg-[var(--app-surface)] shadow-lg"
 						role="listbox"
 						aria-label="Ingredient suggestions"
 					>
@@ -165,12 +165,12 @@ function IngredientRow({
 					</div>
 				)}
 				{selected && (
-					<small className="pk-editor-row__basis">
+					<small className="text-[9px] text-[var(--app-muted)]">
 						Per {selected.basisAmount} {selected.unit}
 					</small>
 				)}
 			</div>
-			<div className="pk-editor-row__quantity">
+			<div className="relative grid grid-cols-[1fr_auto] gap-1.5">
 				<label>Quantity</label>
 				<input
 					aria-label="Ingredient quantity"
@@ -186,7 +186,7 @@ function IngredientRow({
 			</div>
 			<button
 				type="button"
-				className="pk-editor-row__remove"
+				className="mt-[15px] min-h-10 border-0 bg-transparent px-2 text-[10px] text-[#946557] underline"
 				aria-label={`Remove ${selected?.name ?? "ingredient"}`}
 				onClick={onRemove}
 			>
@@ -436,37 +436,37 @@ export function ScheduledMealEditor({
 
 	return (
 		<div
-			className="pk-editor-scrim"
+			className="fixed inset-0 z-20 flex justify-center overflow-auto bg-[#211a578c] p-4"
 			onMouseDown={(event) => {
 				if (event.target === event.currentTarget) onCancel();
 			}}
 		>
 			<form
-				className="pk-editor"
+				className="relative flex min-h-[calc(100vh-32px)] w-full max-w-[1120px] flex-col rounded-[22px] bg-[var(--app-surface)] text-[var(--app-ink)] shadow-[0_28px_90px_rgba(35,28,86,.3)]"
 				onSubmit={save}
 				aria-labelledby="pk-editor-title"
 			>
-				<header className="pk-editor__header">
-					<button type="button" className="pk-editor__back" onClick={onCancel}>
+				<header className="grid grid-cols-1 items-center gap-[18px] rounded-t-[22px] border-b border-[var(--app-line)] bg-[var(--app-surface)] px-6 py-5 sm:grid-cols-[1fr_auto_1fr]">
+					<button type="button" className="justify-self-start border-0 bg-transparent text-[13px] font-semibold text-[var(--app-purple)]" onClick={onCancel}>
 						← <span>Cancel</span>
 					</button>
 					<div>
-						<p className="pk-editor__eyebrow">
+						<p className="mb-1.5 text-[9px] font-bold uppercase tracking-[1.2px] text-[var(--app-purple)]">
 							{initialMeal ? "SCHEDULED MEAL" : "NEW SCHEDULED MEAL"}
 						</p>
 						<h1 id="pk-editor-title">
 							{initialMeal ? "Edit meal" : "Plan a meal"}
 						</h1>
 					</div>
-					<span className="pk-editor__header-note">
+					<span className="justify-self-end text-[11px] text-[var(--app-muted)]">
 						A saved copy for this day
 					</span>
 				</header>
-				<div className="pk-editor__body">
-					<section className="pk-editor__form">
-						<div className="pk-editor__fields">
+				<div className="grid flex-1 items-start gap-[22px] px-6 py-5 sm:grid-cols-[minmax(0,1.5fr)_minmax(290px,.8fr)]">
+					<section className="grid content-start gap-[18px]">
+						<div className="grid grid-cols-1 gap-3.5 rounded-[18px] border border-[var(--app-line)] bg-[var(--app-surface)] p-[18px] shadow-[0_10px_28px_rgba(47,43,89,.06)] sm:grid-cols-2">
 							<div
-								className="pk-editor__meal-name"
+								className="relative grid gap-1.5"
 								onFocus={() => setNameFocused(true)}
 								onBlur={(event) => {
 									if (
@@ -490,7 +490,7 @@ export function ScheduledMealEditor({
 								/>
 								{nameFocused && (
 									<div
-										className="pk-editor__menu-results"
+										className="absolute left-0 right-0 top-full z-10 grid max-h-[210px] overflow-auto rounded-lg border border-[var(--app-line)] bg-[var(--app-surface)] shadow-lg"
 										role="listbox"
 										aria-label="Saved menu suggestions"
 									>
@@ -558,17 +558,17 @@ export function ScheduledMealEditor({
 								</label>
 							)}
 						</div>
-						<section className="pk-editor__ingredients">
-							<p className="pk-editor__eyebrow">THE DISH</p>
+						<section className="rounded-[18px] border border-[var(--app-line)] bg-[var(--app-surface)] p-[18px] shadow-[0_10px_28px_rgba(47,43,89,.06)]">
+							<p className="mb-1.5 text-[9px] font-bold uppercase tracking-[1.2px] text-[var(--app-purple)]">THE DISH</p>
 							{mealSlot === "dinner" && (
 								<section
-									className="pk-editor__carbs"
+									className="my-2 rounded-[14px] border border-[var(--app-line)] bg-[#f7f5ff] p-4"
 									aria-labelledby="pk-carbs-title"
 								>
 									<h2 id="pk-carbs-title">Carbohydrates</h2>
 									<p>Optional portions for each person.</p>
 									{data.members.map((member) => (
-										<div className="pk-editor__carb-row" key={member.id}>
+										<div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-[minmax(0,1fr)_150px]" key={member.id}>
 											<label>
 												{member.name}
 												<select
@@ -615,12 +615,12 @@ export function ScheduledMealEditor({
 									))}
 								</section>
 							)}
-							<div className="pk-editor__section-heading">
+							<div className="mb-2.5 flex items-center justify-between gap-2.5">
 								<h2>Ingredients</h2>
 							</div>
 							{rows.map((row, index) => (
 								<div
-									className="pk-editor__row-wrap"
+									className="border-t border-[var(--app-line)]"
 									key={`${index}-${row.ingredientId}`}
 								>
 									<IngredientRow
@@ -635,11 +635,11 @@ export function ScheduledMealEditor({
 									/>
 								</div>
 							))}
-							<button type="button" className="pk-editor__add" onClick={addRow}>
+							<button type="button" className="min-h-[42px] w-full rounded-lg border border-dashed border-[#d6ddd2] bg-[#fbfcf9] text-[11px] text-[var(--app-purple)]" onClick={addRow}>
 								＋ Add ingredient
 							</button>
 						</section>
-						<label className="pk-editor__notes">
+						<label className="grid gap-1.5 rounded-[18px] border border-[var(--app-line)] bg-[var(--app-surface)] p-[17px] text-[11px]">
 							Cooking notes
 							<textarea
 								value={notes}
@@ -649,11 +649,11 @@ export function ScheduledMealEditor({
 							/>
 						</label>
 					</section>
-					<aside className="pk-editor__summary">
-						<section className="pk-editor__totals">
-							<p className="pk-editor__eyebrow">LIVE MEAL TOTALS</p>
+					<aside className="grid content-start gap-[18px]">
+						<section className="rounded-[18px] border border-[var(--app-line)] bg-[var(--app-surface)] p-[18px]">
+							<p className="mb-1.5 text-[9px] font-bold uppercase tracking-[1.2px] text-[var(--app-purple)]">LIVE MEAL TOTALS</p>
 							<h2>Nutrition in this meal</h2>
-							<div className="pk-editor__calories">
+							<div className="text-2xl font-bold">
 								<strong>{pretty(mealTotal.calories)}</strong>
 								<span>kcal</span>
 							</div>
@@ -673,12 +673,12 @@ export function ScheduledMealEditor({
 								))}
 							</dl>
 						</section>
-						<section className="pk-editor__after">
-							<p className="pk-editor__eyebrow">
+						<section className="rounded-[18px] border border-[var(--app-line)] bg-[var(--app-surface)] p-[18px]">
+							<p className="mb-1.5 text-[9px] font-bold uppercase tracking-[1.2px] text-[var(--app-purple)]">
 								{weekend ? "WEEKEND PLAN" : "PLANNED TARGET PROGRESS"}
 							</p>
 							<h2>Lunch + dinner</h2>
-							<p className="pk-editor__caption">
+							<p className="text-xs text-[var(--app-muted)]">
 								Each member’s lunch and half of shared dinner are included.
 								Planned nutrition is not actual intake.
 								{weekend ? " Weekend targets are self-managed." : ""}
@@ -689,7 +689,7 @@ export function ScheduledMealEditor({
 										mealSlot === "dinner" || entry.member.id === mealMember,
 								)
 								.map(({ member, proposed, target, remaining }) => (
-									<div className="pk-editor__member" key={member.id}>
+									<div className="text-sm" key={member.id}>
 										<div>
 											<strong>{member.name}</strong>
 											<span>
@@ -702,7 +702,7 @@ export function ScheduledMealEditor({
 											</span>
 										</div>
 										{target && (
-											<div className="pk-editor__bar">
+											<div className="flex items-center justify-between">
 												<span
 													style={{
 														width: `${Math.min(
@@ -715,7 +715,7 @@ export function ScheduledMealEditor({
 												/>
 											</div>
 										)}
-										<div className="pk-editor__macro-list">
+										<div className="grid gap-1 text-sm">
 											<span>
 												Protein{" "}
 												{nutrientProgress(
@@ -751,8 +751,8 @@ export function ScheduledMealEditor({
 						</section>
 					</aside>
 				</div>
-				<footer className="pk-editor__footer">
-					<div className="pk-editor__master">
+				<footer className="sticky bottom-0 flex justify-end gap-2 border-t border-[var(--app-line)] bg-[var(--app-surface)] p-4">
+					<div className="grid gap-2">
 						<button
 							type="button"
 							onClick={saveToMasterMenu}

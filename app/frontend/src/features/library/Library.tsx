@@ -7,7 +7,7 @@ import type {
 } from "@piring-kita/shared";
 import type { FormEvent } from "react";
 import { useMemo, useState } from "react";
-import "./library.css";
+
 
 export type LibraryProps = {
 	menus: SavedMenu[];
@@ -211,14 +211,14 @@ export function Library({
 	}
 
 	return (
-		<main className="library-page">
-			<header className="feature-heading">
-				<p className="feature-eyebrow">Reusable planning collection</p>
+		<main className="mx-auto w-[calc(100%-24px)] max-w-[1120px] py-[18px] text-[var(--app-ink)] sm:w-[calc(100%-32px)] sm:py-7">
+			<header className="mb-5">
+				<p className="text-[0.82rem] font-extrabold uppercase tracking-[0.08em] text-[var(--app-purple)]">Reusable planning collection</p>
 				<h1>Library</h1>
 				<p>Keep saved menus and the canonical ingredient catalog here.</p>
 			</header>
 			<div
-				className="library-tabs"
+				className="my-5 flex gap-2 border-b border-[#dedbea]"
 				role="tablist"
 				aria-label="Library collections"
 			>
@@ -246,14 +246,14 @@ export function Library({
 				</button>
 			</div>
 			{error && (
-				<p className="feature-error" role="alert">
+				<p className="border-l-4 border-[#b93442] bg-[#fff0f1] px-3 py-2 text-[#7d202a]" role="alert">
 					{error}
 				</p>
 			)}
 
 			{section === "menus" && (
 				<section role="tabpanel" aria-label="Saved menus">
-					<div className="library-toolbar">
+					<div className="my-[18px] flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-end">
 						<label>
 							Search saved menus
 							<input
@@ -274,7 +274,7 @@ export function Library({
 					</div>
 					{menuDraft && (
 						<form
-							className="library-editor"
+							className="my-[18px] rounded-[20px] border border-[var(--app-line)] bg-[var(--app-surface)] p-5 shadow-[var(--app-shadow)]"
 							onSubmit={saveMenu}
 							aria-label={menuDraft.name ? "Edit saved menu" : "New saved menu"}
 						>
@@ -293,7 +293,7 @@ export function Library({
 									}
 								/>
 							</label>
-							<div className="feature-form-grid">
+							<div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
 								<label>
 									Meal type
 									<select
@@ -336,7 +336,7 @@ export function Library({
 								<legend>Ingredients</legend>
 								{menuDraft.ingredients.map((row, index) => (
 									<div
-										className="library-row"
+										className="my-2.5 grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(180px,1fr)_minmax(120px,.5fr)_auto]"
 										key={`${row.ingredientId}-${index}`}
 									>
 										<label>
@@ -423,14 +423,14 @@ export function Library({
 								</button>
 							</fieldset>
 							{!menuDraft.ingredients.length && (
-								<p className="feature-hint">
+								<p className="text-[0.9rem] text-[#625f76]">
 									Add at least one ingredient before saving.
 								</p>
 							)}
-							<div className="feature-actions">
+							<div className="flex flex-wrap justify-end gap-2">
 								<button
 									type="button"
-									className="secondary"
+									className="border border-[#c9c5d6] bg-white text-[#39354e]"
 									onClick={() => setMenuDraft(null)}
 								>
 									Cancel
@@ -448,14 +448,14 @@ export function Library({
 							</div>
 						</form>
 					)}
-					<div className="library-card-list">
+					<div className="grid gap-3">
 						{visibleMenus.map((menu) => (
-							<article className="library-card" key={menu.id}>
+							<article className="flex flex-col justify-between gap-[18px] rounded-[18px] border border-[var(--app-line)] bg-[var(--app-surface)] p-5 shadow-[0_10px_28px_rgba(47,43,89,.06)] sm:flex-row" key={menu.id}>
 								<div>
 									<h2>
-										<span className="library-card__badge">{menu.slot}</span>
+										<span className="rounded-full bg-[#f0edff] px-2 py-1 text-[.68rem] font-extrabold uppercase tracking-[.05em] text-[var(--app-purple-dark)]">{menu.slot}</span>
 										{menu.memberId && (
-											<span className="library-card__badge">
+											<span className="rounded-full bg-[#f0edff] px-2 py-1 text-[.68rem] font-extrabold uppercase tracking-[.05em] text-[var(--app-purple-dark)]">
 												{menu.memberId}
 											</span>
 										)}
@@ -475,10 +475,10 @@ export function Library({
 										})}
 									</ul>
 								</div>
-								<div className="feature-actions">
+								<div className="flex flex-wrap justify-end gap-2">
 									<button
 										type="button"
-										className="secondary"
+										className="border border-[#c9c5d6] bg-white text-[#39354e]"
 										onClick={() => {
 											setMenuDraft({
 												id: menu.id,
@@ -496,7 +496,7 @@ export function Library({
 									</button>
 									<button
 										type="button"
-										className="danger"
+										className="border border-[#d9a4a8] bg-white text-[#a52935]"
 										onClick={async () => {
 											if (
 												window.confirm(
@@ -521,7 +521,7 @@ export function Library({
 							</article>
 						))}
 						{visibleMenus.length === 0 && (
-							<p className="feature-hint">No saved menus match that search.</p>
+							<p className="text-[0.9rem] text-[#625f76]">No saved menus match that search.</p>
 						)}
 					</div>
 				</section>
@@ -529,7 +529,7 @@ export function Library({
 
 			{section === "ingredients" && (
 				<section role="tabpanel" aria-label="Ingredient catalog">
-					<div className="library-toolbar">
+					<div className="my-[18px] flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-end">
 						<label>
 							Search ingredients and aliases
 							<input
@@ -548,13 +548,13 @@ export function Library({
 							New ingredient
 						</button>
 					</div>
-					<p className="feature-hint">
+					<p className="text-[0.9rem] text-[#625f76]">
 						Nutrition values use each ingredient’s listed basis. Equivalent
 						grams affect quantity display only.
 					</p>
 					{ingredientDraftState && (
 						<form
-							className="library-editor"
+							className="my-[18px] rounded-[20px] border border-[var(--app-line)] bg-[var(--app-surface)] p-5 shadow-[var(--app-shadow)]"
 							onSubmit={saveIngredient}
 							aria-label={
 								ingredients.some((item) => item.id === ingredientDraftState.id)
@@ -567,7 +567,7 @@ export function Library({
 									? "Edit ingredient"
 									: "New ingredient"}
 							</h2>
-							<div className="feature-form-grid">
+							<div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
 								<label>
 									Primary ingredient name
 									<input
@@ -675,7 +675,7 @@ export function Library({
 									Nutrition per {ingredientDraftState.basisAmount || "basis"}{" "}
 									{ingredientDraftState.unit}
 								</legend>
-								<div className="feature-form-grid">
+								<div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
 									{(
 										["calories", "protein", "carbs", "fat", "fiber"] as const
 									).map((key) => (
@@ -700,7 +700,7 @@ export function Library({
 									))}
 								</div>
 							</fieldset>
-							<label className="feature-check">
+							<label className="flex items-center gap-2">
 								<input
 									type="checkbox"
 									checked={ingredientDraftState.suggestible}
@@ -713,10 +713,10 @@ export function Library({
 								/>
 								Allow this ingredient in macro suggestions
 							</label>
-							<div className="feature-actions">
+							<div className="flex flex-wrap justify-end gap-2">
 								<button
 									type="button"
-									className="secondary"
+									className="border border-[#c9c5d6] bg-white text-[#39354e]"
 									onClick={() => setIngredientDraftState(null)}
 								>
 									Cancel
@@ -727,9 +727,9 @@ export function Library({
 							</div>
 						</form>
 					)}
-					<div className="library-card-list">
+					<div className="grid gap-3">
 						{visibleIngredients.map((item) => (
-							<article className="library-card" key={item.id}>
+							<article className="flex flex-col justify-between gap-[18px] rounded-[18px] border border-[var(--app-line)] bg-[var(--app-surface)] p-5 shadow-[0_10px_28px_rgba(47,43,89,.06)] sm:flex-row" key={item.id}>
 								<div>
 									<h2>{item.name}</h2>
 									<p>
@@ -748,10 +748,10 @@ export function Library({
 										{item.unit}
 									</p>
 								</div>
-								<div className="feature-actions">
+								<div className="flex flex-wrap justify-end gap-2">
 									<button
 										type="button"
-										className="secondary"
+										className="border border-[#c9c5d6] bg-white text-[#39354e]"
 										onClick={() => {
 											setIngredientDraftState(ingredientDraft(item));
 											setError("");
@@ -761,7 +761,7 @@ export function Library({
 									</button>
 									<button
 										type="button"
-										className="danger"
+										className="border border-[#d9a4a8] bg-white text-[#a52935]"
 										onClick={async () => {
 											if (
 												window.confirm(
@@ -786,7 +786,7 @@ export function Library({
 							</article>
 						))}
 						{visibleIngredients.length === 0 && (
-							<p className="feature-hint">
+							<p className="text-[0.9rem] text-[#625f76]">
 								No ingredients or aliases match that search.
 							</p>
 						)}

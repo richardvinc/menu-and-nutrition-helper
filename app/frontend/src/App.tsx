@@ -83,8 +83,8 @@ export function App() {
 
 	if (!data)
 		return (
-			<main className="app-state">
-				<span className="brand-mark">
+			<main className="grid min-h-screen place-content-center justify-items-center p-6 text-center">
+				<span className="grid h-[46px] w-[46px] place-items-center overflow-hidden rounded-[14px] bg-white p-[5px] shadow-[0_8px_18px_rgba(85,66,204,0.18)]">
 					<img src="/cooking.png" alt="" />
 				</span>
 				<h1>Piring Kita</h1>
@@ -157,10 +157,10 @@ export function App() {
 		);
 
 	return (
-		<div className="app-shell">
-			<header className="app-header">
-				<button className="app-brand" onClick={() => setPage("today")}>
-					<span className="brand-mark">
+		<div className="min-h-screen bg-[var(--app-canvas)] px-3 py-[14px] pb-[88px] text-[var(--app-ink)] sm:px-7 sm:py-[18px] sm:pb-10">
+			<header className="mx-auto mb-[18px] flex max-w-[1500px] items-center justify-between gap-6 rounded-[22px] border border-[var(--app-line)] bg-[var(--app-surface)]/95 p-2.5 shadow-[var(--app-shadow)] sm:mb-6">
+				<button className="flex items-center gap-3 border-0 bg-transparent text-left text-inherit" onClick={() => setPage("today")}>
+					<span className="grid h-[46px] w-[46px] place-items-center overflow-hidden rounded-[14px] bg-white p-[5px] shadow-[0_8px_18px_rgba(85,66,204,0.18)]">
 						<img src="/cooking.png" alt="" />
 					</span>
 					<span>
@@ -168,12 +168,12 @@ export function App() {
 						<small>Simple meal planning for the week</small>
 					</span>
 				</button>
-				<div className="app-header__actions">
+				<div className="ml-auto flex items-center gap-2">
 					<nav aria-label="Primary navigation">
 						{navigation.map((item) => (
 							<button
 								key={item.id}
-								className={page === item.id ? "is-current" : ""}
+								className={`rounded-[13px] border px-[18px] font-bold ${page === item.id ? "border-[var(--app-purple)] bg-[var(--app-purple)] text-white shadow-[0_8px_18px_rgba(85,66,204,0.2)]" : "border-transparent bg-transparent text-[var(--app-muted)]"}`}
 								aria-current={page === item.id ? "page" : undefined}
 								onClick={() => setPage(item.id)}
 							>
@@ -183,7 +183,7 @@ export function App() {
 					</nav>
 					<button
 						type="button"
-						className="theme-toggle"
+						className="min-w-[92px] rounded-[13px] border border-[var(--app-line)] bg-[var(--app-surface)] px-3 font-bold text-[var(--app-ink)]"
 						aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
 						title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
 						onClick={() => setTheme(toggleTheme())}
@@ -193,7 +193,7 @@ export function App() {
 				</div>
 			</header>
 			{error && (
-				<div className="app-error" role="alert">
+				<div className="sticky top-2.5 z-20 mx-auto mb-[18px] flex max-w-[900px] justify-between gap-4 rounded-xl border border-[#efb3a6] bg-[#fff1ed] px-4 py-3" role="alert">
 					{error}
 					<button aria-label="Dismiss error" onClick={() => setError("")}>
 						×
@@ -201,11 +201,11 @@ export function App() {
 				</div>
 			)}
 			{content}
-			<nav className="app-mobile-nav" aria-label="Primary navigation">
+			<nav className="fixed bottom-2 left-2 right-2 z-30 grid grid-cols-4 gap-1 rounded-[20px] border border-[var(--app-line)] bg-[var(--app-surface)]/95 p-1.5 shadow-[0_14px_42px_rgba(47,43,89,0.18)] sm:hidden" aria-label="Primary navigation">
 				{navigation.map((item) => (
 					<button
 						key={item.id}
-						className={page === item.id ? "is-current" : ""}
+						className={`min-w-0 rounded-[13px] border px-1 text-[0.8rem] font-bold ${page === item.id ? "border-[var(--app-purple)] bg-[var(--app-purple)] text-white" : "border-transparent bg-transparent text-[var(--app-muted)]"}`}
 						aria-current={page === item.id ? "page" : undefined}
 						onClick={() => setPage(item.id)}
 					>
