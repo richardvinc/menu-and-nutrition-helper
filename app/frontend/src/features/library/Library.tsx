@@ -43,14 +43,14 @@ type IngredientDraft = {
 };
 
 const blankMenu = (): MenuDraft => ({
-	id: crypto.randomUUID(),
+	id: Date.now().toString(),
 	name: "",
 	slot: "lunch",
 	memberId: "richard",
 	ingredients: [],
 });
 const blankIngredient = (): IngredientDraft => ({
-	id: crypto.randomUUID(),
+	id: Date.now().toString(),
 	name: "",
 	aliases: "",
 	unit: "g",

@@ -402,7 +402,7 @@ export function ScheduledMealEditor({
 					name.trim().toLocaleLowerCase(),
 		);
 		const menu: SavedMenu = {
-			id: existing?.id ?? crypto.randomUUID(),
+			id: existing?.id ?? Date.now().toString(),
 			name: name.trim(),
 			slot: mealSlot,
 			...(mealSlot === "dinner" || !mealMember ? {} : { memberId: mealMember }),
@@ -426,7 +426,7 @@ export function ScheduledMealEditor({
 		try {
 			await onSave({
 				...meal,
-				id: initialMeal?.id ?? crypto.randomUUID(),
+				id: initialMeal?.id ?? Date.now().toString(),
 				name: name.trim(),
 			});
 		} finally {
