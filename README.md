@@ -28,12 +28,85 @@ bun run build
 bun run test:e2e
 ```
 
-## Raspberry Pi / Docker
+## Raspberry Pi 3 production
 
-```powershell
-docker compose up --build -d
+Use a 64-bit Raspberry Pi OS installation. Bun and the `oven/bun` image support
+Linux ARM64; the Pi 3's limited memory also makes a 64-bit Lite image preferable.
+
+### Docker (recommended)
+
+Install Docker Engine and the Compose plugin using Docker's
+[Raspberry Pi OS instructions](https://docs.docker.com/engine/install/raspberry-pi-os/),
+then clone this repository on the Pi and run:
+
+```bash
+cd menu-and-nutrition-helper
+sudo systemctl enable --now docker
+sudo docker compose up --build -d
+sudo docker compose logs -f piring-kita
 ```
 
-Open `http://<raspberry-pi-address>:3000`. SQLite data is stored in the `piring-kita-data` volume. JSON backup, JSON restore, and raw SQLite download are available from the application API.
+Open `http://<raspberry-pi-address>:3000`. SQLite data is stored in the
+`piring-kita-data` volume. The Compose file uses `restart: unless-stopped`, so
+Docker starts the app again after a reboot unless you explicitly stopped it.
+
+Update the deployment with:
+
+```bash
+git pull
+sudo docker compose up --build -d
+```
+
+### Build and run directly
+
+Install Bun, build both workspaces, and start the production server:
+
+```bash
+sudo apt update
+sudo apt install -y curl unzip
+curl -fsSL https://bun.com/install | bash
+source "$HOME/.bashrc"
+cd menu-and-nutrition-helper
+bun install --frozen-lockfile
+bun run build
+mkdir -p app/backend/data
+PORT=3000 DB_PATH="$PWD/app/backend/data/piring-kita.sqlite" bun --cwd app/backend start
+```
+
+To run the direct build automatically at boot, replace `pi` and the two
+`/home/pi/...` paths below with the output of `whoami` and the absolute path to
+your checkout, then create `/etc/systemd/system/piring-kita.service`:
+
+```ini
+[Unit]
+Description=Piring Kita meal planner
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/menu-and-nutrition-helper
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=DB_PATH=/home/pi/menu-and-nutrition-helper/app/backend/data/piring-kita.sqlite
+ExecStart=/home/pi/.bun/bin/bun run --cwd app/backend start
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable it and inspect its logs:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now piring-kita
+sudo systemctl status piring-kita
+journalctl -u piring-kita -f
+```
+
+JSON backup, JSON restore, and raw SQLite download are available from the
+application API for both deployment methods.
 
 The original dependency-free prototype remains under `.scratch/meal-planning-app/prototypes/dashboard-prototype/` as a reference.

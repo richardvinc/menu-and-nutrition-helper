@@ -1,5 +1,69 @@
 import { expect, test } from "@playwright/test";
 
+const testMeals = [
+	{
+		id: "seed-1005-r-lunch",
+		date: "2026-10-05",
+		slot: "lunch",
+		memberId: "richard",
+		name: "Ginger chicken rice",
+		notes: "",
+		ingredients: [
+			{ ingredientId: "chicken", quantity: 150 },
+			{ ingredientId: "rice", quantity: 180 },
+			{ ingredientId: "broccoli", quantity: 100 },
+		],
+	},
+	{
+		id: "seed-1008-r-lunch",
+		date: "2026-10-08",
+		slot: "lunch",
+		memberId: "richard",
+		name: "Sesame chicken bowl",
+		notes: "",
+		ingredients: [
+			{ ingredientId: "chicken", quantity: 150 },
+			{ ingredientId: "rice", quantity: 170 },
+			{ ingredientId: "broccoli", quantity: 100 },
+		],
+	},
+	{
+		id: "seed-1008-m-lunch",
+		date: "2026-10-08",
+		slot: "lunch",
+		memberId: "michelle",
+		name: "Green tofu bowl",
+		notes: "",
+		ingredients: [
+			{ ingredientId: "tofu", quantity: 160 },
+			{ ingredientId: "rice", quantity: 120 },
+			{ ingredientId: "avocado", quantity: 50 },
+		],
+	},
+	{
+		id: "seed-1008-dinner",
+		date: "2026-10-08",
+		slot: "dinner",
+		name: "Egg fried rice",
+		notes: "",
+		ingredients: [
+			{ ingredientId: "egg", quantity: 2 },
+			{ ingredientId: "broccoli", quantity: 100 },
+			{ ingredientId: "rice", quantity: 110, memberId: "richard" },
+			{ ingredientId: "rice", quantity: 70, memberId: "michelle" },
+		],
+	},
+] as const;
+
+test.beforeAll(async ({ request }) => {
+	for (const meal of testMeals)
+		expect((await request.post("/api/meals", { data: meal })).status()).toBe(201);
+});
+
+test.afterAll(async ({ request }) => {
+	for (const meal of testMeals) await request.delete(`/api/meals/${meal.id}`);
+});
+
 test("dashboard shows static today, tomorrow, and weekly meal cards", async ({
 	page,
 }) => {
@@ -177,25 +241,25 @@ test("planned target progress combines lunch with half of shared dinner", async 
 	const progress = page.locator(".pk-editor__after");
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Richard" }),
-	).toContainText("715 /");
+	).toContainText("696 /");
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Richard" }),
-	).toContainText(/Protein 64 \/ [\d,]+ g/);
+	).toContainText(/Protein 66 \/ [\d,]+ g/);
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Richard" }),
 	).toContainText(/Carbs 84 \/ [\d,]+ g/);
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Richard" }),
-	).toContainText(/Fat 12 \/ [\d,]+ g/);
+	).toContainText(/Fat 11 \/ [\d,]+ g/);
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Richard" }),
 	).toContainText(/Fiber 5 \/ [\d,]+ g/);
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Michelle" }),
-	).toContainText("678 /");
+	).toContainText("672 /");
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Michelle" }),
-	).toContainText(/Protein 38 \/ [\d,]+ g/);
+	).toContainText(/Protein 42 \/ [\d,]+ g/);
 });
 
 test("dinner uses two fixed optional carbohydrate portions", async ({
@@ -249,10 +313,10 @@ test("meal name recalls a saved menu and suggestions only show on focus", async 
 		.click();
 
 	const name = page.getByLabel("Meal name");
-	await name.fill("green tofu");
+	await name.fill("nasi telur miso");
 	const menuOption = page
 		.getByRole("listbox", { name: "Saved menu suggestions" })
-		.getByRole("option", { name: /Green tofu bowl/ });
+		.getByRole("option", { name: /Nasi telur miso/ });
 	await expect(menuOption).toBeVisible();
 	await page.getByLabel("Meal slot").selectOption("dinner");
 	await expect(menuOption).toHaveCount(0);
@@ -268,12 +332,12 @@ test("meal name recalls a saved menu and suggestions only show on focus", async 
 	await name.focus();
 	await page
 		.getByRole("listbox", { name: "Saved menu suggestions" })
-		.getByRole("option", { name: /Green tofu bowl/ })
+		.getByRole("option", { name: /Nasi telur miso/ })
 		.click();
-	await expect(name).toHaveValue("Green tofu bowl");
+	await expect(name).toHaveValue("Nasi telur miso");
 	await expect(
 		page.getByLabel("Search ingredient catalog").first(),
-	).toHaveValue("Firm tofu");
+	).toHaveValue("Telur ayam besar");
 	await expect(
 		page.getByRole("listbox", { name: "Ingredient suggestions" }),
 	).toHaveCount(0);

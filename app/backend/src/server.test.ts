@@ -10,6 +10,14 @@ describe("backend API", () => {
 	let db: Database;
 	let server: ReturnType<ReturnType<typeof createApp>["listen"]>;
 	let base: string;
+	const addMeal = async (meal: AppData["scheduledMeals"][number]) => {
+		const response = await fetch(`${base}/api/meals`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(meal),
+		});
+		expect(response.status).toBe(201);
+	};
 
 	beforeEach(async () => {
 		db = createDatabase(":memory:");
@@ -28,23 +36,35 @@ describe("backend API", () => {
 		db.close();
 	});
 
-	test("returns useful prototype data in the shared AppData shape", async () => {
+	test("returns the production seed in the shared AppData shape", async () => {
 		const data = (await (await fetch(`${base}/api/data`)).json()) as AppData;
 		expect(data.members.map((x) => x.id)).toEqual(["richard", "michelle"]);
 		expect(data.ingredients.find((x) => x.id === "rice")?.aliases).toContain(
 			"beras",
 		);
-		expect(data.savedMenus).toHaveLength(2);
-		expect(data.savedMenus.every((menu) => menu.slot === "lunch")).toBe(true);
-		expect(data.savedMenus.map((menu) => menu.memberId)).toEqual([
-			"richard",
-			"michelle",
+		expect(data.ingredients).toHaveLength(35);
+		expect(data.ingredients.every((x) => x.source.includes("FoodData Central"))).toBe(
+			true,
+		);
+		expect(data.savedMenus).toHaveLength(13);
+		expect(data.savedMenus.find((x) => x.id === "workbook-r-nasi-telur-miso"))
+			.toMatchObject({ name: "Nasi telur miso", memberId: "richard" });
+		expect(data.savedMenus.find((x) => x.id === "workbook-d-hotpot-mala"))
+			.toMatchObject({ name: "Hotpot mala", slot: "dinner" });
+		expect(data.members).toMatchObject([
+			{ id: "richard", birthday: "1993-05-22", heightCm: 165, currentWeightKg: 68 },
+			{
+				id: "michelle",
+				birthday: "1995-01-30",
+				heightCm: 159,
+				currentWeightKg: 54.65,
+			},
 		]);
 		expect(
-			data.scheduledMeals.some(
-				(x) => x.date === "2026-10-08" && x.slot === "dinner",
+			data.scheduledMeals.filter(
+				(x) => x.date >= "2026-10-05" && x.date <= "2026-10-11",
 			),
-		).toBe(true);
+		).toEqual([]);
 		expect(data.targets.every((x) => x.weekdayCalories > 0)).toBe(true);
 	});
 
@@ -55,14 +75,32 @@ describe("backend API", () => {
 	});
 
 	test("moves to an empty slot and swaps with an occupied matching slot", async () => {
-		const first = await fetch(`${base}/api/meals/seed-1008-r-lunch/move`, {
+		await addMeal({
+			id: "move-r-lunch",
+			date: "2026-10-08",
+			slot: "lunch",
+			memberId: "richard",
+			name: "Move fixture",
+			notes: "",
+			ingredients: [{ ingredientId: "rice", quantity: 100 }],
+		});
+		await addMeal({
+			id: "swap-r-lunch",
+			date: "2026-10-09",
+			slot: "lunch",
+			memberId: "richard",
+			name: "Swap fixture",
+			notes: "",
+			ingredients: [{ ingredientId: "rice", quantity: 100 }],
+		});
+		const first = await fetch(`${base}/api/meals/move-r-lunch/move`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ date: "2026-10-10" }),
 		});
 		expect(first.status).toBe(200);
 		expect((await first.json()).swapped).toBeNull();
-		const second = await fetch(`${base}/api/meals/seed-1008-r-lunch/move`, {
+		const second = await fetch(`${base}/api/meals/move-r-lunch/move`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
 			body: JSON.stringify({ date: "2026-10-09" }),
@@ -70,14 +108,32 @@ describe("backend API", () => {
 		expect(second.status).toBe(200);
 		const data = (await (await fetch(`${base}/api/data`)).json()) as AppData;
 		expect(
-			data.scheduledMeals.find((x) => x.id === "seed-1008-r-lunch")?.date,
+			data.scheduledMeals.find((x) => x.id === "move-r-lunch")?.date,
 		).toBe("2026-10-09");
 		expect(
-			data.scheduledMeals.find((x) => x.id === "seed-1009-r-lunch")?.date,
+			data.scheduledMeals.find((x) => x.id === "swap-r-lunch")?.date,
 		).toBe("2026-10-10");
 	});
 
 	test("swaps every scheduled meal between two days atomically", async () => {
+		await addMeal({
+			id: "first-r-lunch",
+			date: "2026-10-05",
+			slot: "lunch",
+			memberId: "richard",
+			name: "First day fixture",
+			notes: "",
+			ingredients: [{ ingredientId: "rice", quantity: 100 }],
+		});
+		await addMeal({
+			id: "second-m-lunch",
+			date: "2026-10-07",
+			slot: "lunch",
+			memberId: "michelle",
+			name: "Second day fixture",
+			notes: "",
+			ingredients: [{ ingredientId: "rice", quantity: 100 }],
+		});
 		const response = await fetch(`${base}/api/days/swap`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -93,18 +149,13 @@ describe("backend API", () => {
 				.filter((meal) => meal.date === "2026-10-05")
 				.map((meal) => meal.id)
 				.sort(),
-		).toEqual([
-			"seed-1007-dinner",
-			"seed-1007-m-lunch",
-			"seed-1007-r-lunch",
-			"seed-1007-r-snack",
-		]);
+		).toEqual(["second-m-lunch"]);
 		expect(
 			data.scheduledMeals
 				.filter((meal) => meal.date === "2026-10-07")
 				.map((meal) => meal.id)
 				.sort(),
-		).toEqual(["seed-1005-dinner", "seed-1005-m-lunch", "seed-1005-r-lunch"]);
+		).toEqual(["first-r-lunch"]);
 	});
 
 	test("rejects invalid meals and leaves persisted data unchanged", async () => {
@@ -123,7 +174,7 @@ describe("backend API", () => {
 		expect(response.status).toBe(400);
 		expect(await response.json()).toHaveProperty("error");
 		const data = (await (await fetch(`${base}/api/data`)).json()) as AppData;
-		expect(data.scheduledMeals).toHaveLength(17);
+		expect(data.scheduledMeals).toHaveLength(1);
 	});
 
 	test("only deletes ingredients that are not in use", async () => {
@@ -180,7 +231,7 @@ describe("backend API", () => {
 		expect(preview.recommendation).toContain("suggested starting point");
 		let data = (await (await fetch(`${base}/api/data`)).json()) as AppData;
 		expect(data.members.find((x) => x.id === "richard")?.currentWeightKg).toBe(
-			78,
+			68,
 		);
 		expect(
 			data.targets.find(
@@ -220,7 +271,7 @@ describe("backend API", () => {
 		expect(
 			((await (await fetch(`${base}/api/data`)).json()) as AppData)
 				.scheduledMeals,
-		).toHaveLength(17);
+		).toHaveLength(1);
 		const legacy = {
 			...data,
 			savedMenus: data.savedMenus.map(({ slot: _slot, ...menu }) => menu),

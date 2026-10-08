@@ -22,7 +22,9 @@ test.describe("Library and next-week targets", () => {
 		await page
 			.getByRole("searchbox", { name: "Search ingredients and aliases" })
 			.fill("ayam");
-		await expect(page.getByRole("heading", { name: /chicken/i })).toBeVisible();
+		await expect(
+			page.getByRole("heading", { name: "Dada ayam tanpa kulit" }),
+		).toBeVisible();
 
 		await page.getByRole("tab", { name: "Saved menus" }).click();
 		await page.getByRole("button", { name: "New saved menu" }).click();
@@ -30,7 +32,7 @@ test.describe("Library and next-week targets", () => {
 		await page.getByRole("button", { name: "Add ingredient" }).click();
 		await page
 			.getByLabel("Ingredient 1", { exact: true })
-			.selectOption({ label: "Chicken breast" });
+			.selectOption({ label: "Dada ayam tanpa kulit" });
 		await page.getByLabel("Quantity 1").fill("150");
 		const menuRequest = page.waitForRequest(
 			(request) =>
@@ -49,7 +51,7 @@ test.describe("Library and next-week targets", () => {
 		await expect(saved.locator(".library-card__badge").first()).toHaveText(
 			"lunch",
 		);
-		await expect(saved.getByText("Chicken breast · 150 g")).toBeVisible();
+		await expect(saved.getByText("Dada ayam tanpa kulit · 150 g")).toBeVisible();
 	});
 
 	test("desktop: target changes stay staged until the single Apply action", async ({
