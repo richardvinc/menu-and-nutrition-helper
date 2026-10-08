@@ -1,0 +1,32 @@
+.targets-page { max-width: 920px; }
+.target-panel { margin: 18px 0; padding: 22px; border: 1px solid #dedbea; border-radius: 16px; background: #fff; box-shadow: 0 8px 28px #21174b0c; }
+.target-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin: 18px 0; }
+.target-form-grid small, .target-help { color: #625f76; font-weight: 400; line-height: 1.45; }
+.target-disclosure { margin-top: 18px; padding: 14px 16px; border: 1px solid #dedbea; border-radius: 12px; background: #fff; }
+.target-disclosure summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: #39354e; font-weight: 700; }
+.target-disclosure h2 { margin-top: 16px; font-size: 1.2rem; }
+.target-disclosure h3 { margin: 20px 0 5px; font-size: 1rem; }
+.target-disclosure p, .target-disclosure li { color: #625f76; line-height: 1.5; }
+.target-disclosure a { color: #49347e; }
+.target-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
+.target-actions button, .targets-page button { min-height: 46px; border: 0; border-radius: 8px; padding: 10px 16px; background: #55408f; color: #fff; font-weight: 700; cursor: pointer; }
+.target-actions button.secondary { border: 1px solid #c9c5d6; background: #fff; color: #39354e; }
+.target-error { display: block; color: #9e2632 !important; font-weight: 650 !important; }
+.target-advisory { border-left: 4px solid #c78d2b; padding: 10px 12px; background: #fff8e8; color: #5b4219; }
+.target-preview-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.target-preview-heading h2 { margin: 4px 0 10px; }
+.target-table-wrap { overflow-x: auto; }
+.target-table-wrap table { width: 100%; border-collapse: collapse; text-align: left; }
+.target-table-wrap caption { padding: 10px 0; color: #625f76; text-align: left; }
+.target-table-wrap th, .target-table-wrap td { padding: 11px 10px; border-bottom: 1px solid #e6e3ed; }
+.target-table-wrap thead th { color: #55516a; font-size: .88rem; }
+.target-table-wrap tbody th { font-weight: 650; }
+@media (max-width: 600px) {
+  .target-panel { padding: 16px; }
+  .target-form-grid { grid-template-columns: 1fr; gap: 14px; }
+  .target-actions { display: grid; grid-template-columns: 1fr; }
+  .target-actions button { width: 100%; }
+  .target-preview-heading { align-items: flex-start; flex-direction: column; }
+  .target-preview-heading button { width: 100%; }
+  .target-table-wrap th, .target-table-wrap td { padding: 9px 7px; font-size: .88rem; }
+}
