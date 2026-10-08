@@ -3,4 +3,5 @@ dist/
 app/backend/data/
 test-results/
 playwright-report/
+*.tsbuildinfo
 .env

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
-import type { Ingredient, MenuIngredient, SavedMenu } from "@piring-kita/shared";
+import type { Ingredient, MealSlot, MemberId, MenuIngredient, SavedMenu } from "@piring-kita/shared";
 import "./library.css";
 
 export type LibraryProps = {
@@ -12,14 +12,14 @@ export type LibraryProps = {
   onDeleteIngredient: (id: string) => Promise<void>;
 };
 
-type MenuDraft = { id: string; name: string; ingredients: MenuIngredient[] };
+type MenuDraft = { id: string; name: string; slot: MealSlot; memberId?: MemberId; ingredients: MenuIngredient[] };
 type IngredientDraft = {
   id: string; name: string; aliases: string; unit: Ingredient["unit"];
   basisAmount: string; equivalentGrams: string; preparation: string; source: string;
   suggestible: boolean; calories: string; protein: string; carbs: string; fat: string; fiber: string;
 };
 
-const blankMenu = (): MenuDraft => ({ id: crypto.randomUUID(), name: "", ingredients: [] });
+const blankMenu = (): MenuDraft => ({ id: crypto.randomUUID(), name: "", slot: "lunch", memberId: "richard", ingredients: [] });
 const blankIngredient = (): IngredientDraft => ({
   id: crypto.randomUUID(), name: "", aliases: "", unit: "g", basisAmount: "100", equivalentGrams: "",
   preparation: "", source: "", suggestible: false, calories: "0", protein: "0", carbs: "0", fat: "0", fiber: "0",
@@ -55,7 +55,7 @@ export function Library({ menus, ingredients, onSaveMenu, onDeleteMenu, onSaveIn
     event.preventDefault();
     if (!menuDraft || !menuDraft.name.trim() || !menuDraft.ingredients.length) return;
     setSaving(true); setError("");
-    try { await onSaveMenu({ ...menuDraft, name: menuDraft.name.trim() }); setMenuDraft(null); }
+    try { await onSaveMenu({ ...menuDraft, name: menuDraft.name.trim(), ...(menuDraft.slot === "dinner" ? { memberId: undefined } : {}) }); setMenuDraft(null); }
     catch (reason) { setError(reason instanceof Error ? reason.message : "Could not save the menu."); }
     finally { setSaving(false); }
   }
@@ -94,6 +94,7 @@ export function Library({ menus, ingredients, onSaveMenu, onDeleteMenu, onSaveIn
       {menuDraft && <form className="library-editor" onSubmit={saveMenu} aria-label={menuDraft.name ? "Edit saved menu" : "New saved menu"}>
         <h2>{menus.some(menu => menu.id === menuDraft.id) ? "Edit saved menu" : "New saved menu"}</h2>
         <label>Menu name<input autoFocus required value={menuDraft.name} onChange={event => setMenuDraft({ ...menuDraft, name: event.target.value })} /></label>
+        <div className="feature-form-grid"><label>Meal type<select value={menuDraft.slot} onChange={event => { const slot = event.target.value as MealSlot; setMenuDraft({ ...menuDraft, slot, ...(slot === "dinner" ? { memberId: undefined } : { memberId: menuDraft.memberId ?? "richard" }) }); }}><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="snack">Snack</option></select></label>{menuDraft.slot !== "dinner" && <label>Member indicator<select value={menuDraft.memberId ?? "richard"} onChange={event => setMenuDraft({ ...menuDraft, memberId: event.target.value as MemberId })}><option value="richard">Richard</option><option value="michelle">Michelle</option></select></label>}</div>
         <fieldset><legend>Ingredients</legend>
           {menuDraft.ingredients.map((row, index) => <div className="library-row" key={`${row.ingredientId}-${index}`}>
             <label>Ingredient<select aria-label={`Ingredient ${index + 1}`} required value={row.ingredientId} onChange={event => setMenuDraft({ ...menuDraft, ingredients: menuDraft.ingredients.map((item, i) => i === index ? { ...item, ingredientId: event.target.value } : item) })}><option value="">Choose ingredient</option>{ingredients.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
@@ -106,8 +107,8 @@ export function Library({ menus, ingredients, onSaveMenu, onDeleteMenu, onSaveIn
         <div className="feature-actions"><button type="button" className="secondary" onClick={() => setMenuDraft(null)}>Cancel</button><button type="submit" disabled={saving || !menuDraft.name.trim() || !menuDraft.ingredients.length}>{saving ? "Saving…" : "Save menu"}</button></div>
       </form>}
       <div className="library-card-list">{visibleMenus.map(menu => <article className="library-card" key={menu.id}>
-        <div><h2>{menu.name}</h2><ul>{menu.ingredients.map((row, index) => { const item = ingredients.find(entry => entry.id === row.ingredientId); return <li key={`${row.ingredientId}-${index}`}>{item?.name ?? "Unknown ingredient"} · {row.quantity} {item?.unit ?? "unit"}</li>; })}</ul></div>
-        <div className="feature-actions"><button type="button" className="secondary" onClick={() => { setMenuDraft({ id: menu.id, name: menu.name, ingredients: menu.ingredients.map(row => ({ ...row })) }); setError(""); }}>Edit</button><button type="button" className="danger" onClick={async () => { if (window.confirm(`Delete saved menu “${menu.name}”? Scheduled meals already copied from it stay unchanged.`)) { try { await onDeleteMenu(menu.id); } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not delete the menu."); } } }}>Delete</button></div>
+        <div><h2><span className="library-card__badge">{menu.slot}</span>{menu.memberId && <span className="library-card__badge">{menu.memberId}</span>}{menu.name}</h2><ul>{menu.ingredients.map((row, index) => { const item = ingredients.find(entry => entry.id === row.ingredientId); return <li key={`${row.ingredientId}-${index}`}>{item?.name ?? "Unknown ingredient"} · {row.quantity} {item?.unit ?? "unit"}</li>; })}</ul></div>
+        <div className="feature-actions"><button type="button" className="secondary" onClick={() => { setMenuDraft({ id: menu.id, name: menu.name, slot: menu.slot, memberId: menu.memberId, ingredients: menu.ingredients.map(row => ({ ...row })) }); setError(""); }}>Edit</button><button type="button" className="danger" onClick={async () => { if (window.confirm(`Delete saved menu “${menu.name}”? Scheduled meals already copied from it stay unchanged.`)) { try { await onDeleteMenu(menu.id); } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not delete the menu."); } } }}>Delete</button></div>
       </article>)}{visibleMenus.length === 0 && <p className="feature-hint">No saved menus match that search.</p>}</div>
     </section>}
 

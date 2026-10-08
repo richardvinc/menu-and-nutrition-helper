@@ -32,6 +32,8 @@ export interface MenuIngredient {
 export interface SavedMenu {
   id: string;
   name: string;
+  slot: MealSlot;
+  memberId?: MemberId;
   ingredients: MenuIngredient[];
 }
 

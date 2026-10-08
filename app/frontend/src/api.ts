@@ -31,6 +31,10 @@ export const api = {
     method: "POST",
     body: JSON.stringify({ date }),
   }),
+  swapDays: (firstDate: string, secondDate: string) => request<ScheduledMeal[]>("/api/days/swap", {
+    method: "POST",
+    body: JSON.stringify({ firstDate, secondDate }),
+  }),
   saveMenu: (menu: SavedMenu, exists: boolean) => request<SavedMenu>(`/api/menus${exists ? `/${menu.id}` : ""}`, {
     method: exists ? "PUT" : "POST",
     body: JSON.stringify(menu),

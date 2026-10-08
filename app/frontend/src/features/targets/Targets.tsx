@@ -8,22 +8,19 @@ export type TargetsProps = {
   effectiveWeek: string;
   onPreview: (request: TargetPreviewRequest) => Promise<TargetPreview>;
   onApply: (request: TargetPreviewRequest) => Promise<void>;
-  history?: { memberId: MemberProfile["id"]; date: string; weightKg: number }[];
 };
 
 const activityFactors: Record<Exclude<MemberProfile["activityLevel"], "custom">, number> = {
   inactive: 1.4, low: 1.6, active: 1.75, very: 2.05,
 };
-const activityNames: Record<MemberProfile["activityLevel"], string> = {
-  inactive: "Inactive", low: "Low active", active: "Active", very: "Very active", custom: "Custom",
-};
+const suggestedTargets = { deficitPercent: 20, proteinPercent: 25, carbsPercent: 45, fatPercent: 30 };
 
 function targetForWeek(targets: WeeklyTarget[], memberId: MemberProfile["id"], effectiveWeek: string) {
   return targets.filter(target => target.memberId === memberId && target.weekStart < effectiveWeek)
     .sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
 }
 
-export function Targets({ members, targets, effectiveWeek, onPreview, onApply, history = [] }: TargetsProps) {
+export function Targets({ members, targets, effectiveWeek, onPreview, onApply }: TargetsProps) {
   const [memberId, setMemberId] = useState<MemberProfile["id"]>(members[0]?.id ?? "richard");
   const member = members.find(item => item.id === memberId) ?? members[0];
   const current = member && targetForWeek(targets, member.id, effectiveWeek);
@@ -85,15 +82,18 @@ export function Targets({ members, targets, effectiveWeek, onPreview, onApply, h
 
   if (!member || !current || !draft) return <main className="targets-page"><h1>Targets</h1><p>No target settings are available for this member and week.</p></main>;
   const macroTotal = draft.proteinPercent + draft.carbsPercent + draft.fatPercent;
-  const memberHistory = history.filter(item => item.memberId === member.id);
 
   return <main className="targets-page">
     <header className="feature-heading"><p className="feature-eyebrow">Next-week review</p><h1>Targets</h1><p>Stage changes for the week of <time dateTime={effectiveWeek}>{new Date(`${effectiveWeek}T12:00:00`).toLocaleDateString(undefined, { dateStyle: "long" })}</time>. Current-week targets stay in place until then.</p></header>
     <section className="target-panel">
       <label>Member<select value={member.id} onChange={event => setMemberId(event.target.value as MemberProfile["id"])}>{members.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+      <aside className="target-recommendation" aria-label="Suggested targets">
+        <div><p className="feature-eyebrow">Suggested starting point</p><strong>20% deficit · 25% protein · 45% carbohydrate · 30% fat</strong><p>Use this balanced starting point, or choose the values that work best for you.</p></div>
+        <button type="button" className="secondary" onClick={() => { setDraft({ ...draft, ...suggestedTargets }); setPreview(null); setFieldErrors({}); setError(""); }}>Use suggestion</button>
+      </aside>
       <div className="target-form-grid">
         <label>Weight check-in for next Monday (kg)<input type="number" min="30" max="300" step="0.1" value={draft.weightKg} aria-invalid={!!fieldErrors.weightKg} aria-describedby={fieldErrors.weightKg ? "weight-error" : "weight-help"} onChange={event => update("weightKg", Number(event.target.value))} />{fieldErrors.weightKg ? <small className="target-error" id="weight-error">{fieldErrors.weightKg}</small> : <small id="weight-help">This measurement changes the next-week projection.</small>}</label>
-        <label>Activity level<select value={draft.activityLevel} onChange={event => { const level = event.target.value as MemberProfile["activityLevel"]; setDraft({ ...draft, activityLevel: level, activityFactor: level === "custom" ? draft.activityFactor : activityFactors[level] }); setPreview(null); setFieldErrors({}); }}><option value="inactive">Inactive</option><option value="low">Low active</option><option value="active">Active</option><option value="very">Very active</option><option value="custom">Custom</option></select></label>
+        <label>Activity level<select value={draft.activityLevel} onChange={event => { const level = event.target.value as MemberProfile["activityLevel"]; setDraft({ ...draft, activityLevel: level, activityFactor: level === "custom" ? draft.activityFactor : activityFactors[level] }); setPreview(null); setFieldErrors({}); }}><option value="inactive">Inactive (×1.4)</option><option value="low">Low active (×1.6)</option><option value="active">Active (×1.75)</option><option value="very">Very active (×2.05)</option><option value="custom">Custom multiplier</option></select></label>
         {draft.activityLevel === "custom" && <label>Custom activity factor<input type="number" min="1" max="2.5" step="0.01" value={draft.activityFactor} aria-invalid={!!fieldErrors.activityFactor} aria-describedby={fieldErrors.activityFactor ? "activity-error" : undefined} onChange={event => update("activityFactor", Number(event.target.value))} />{fieldErrors.activityFactor && <small className="target-error" id="activity-error">{fieldErrors.activityFactor}</small>}</label>}
         <label>Deficit target (%)<input type="number" min="0" max="60" step="1" value={draft.deficitPercent} aria-invalid={!!fieldErrors.deficitPercent} aria-describedby={fieldErrors.deficitPercent ? "deficit-error" : "deficit-help"} onChange={event => update("deficitPercent", Number(event.target.value))} />{fieldErrors.deficitPercent ? <small className="target-error" id="deficit-error">{fieldErrors.deficitPercent}</small> : <small id="deficit-help">A larger deficit lowers the estimated weekday calorie target.</small>}</label>
       </div>
@@ -103,7 +103,7 @@ export function Targets({ members, targets, effectiveWeek, onPreview, onApply, h
           <label>Carbohydrate (%)<input type="number" min="0" max="100" step="1" value={draft.carbsPercent} onChange={event => update("carbsPercent", Number(event.target.value))} /></label>
           <label>Fat (%)<input type="number" min="0" max="100" step="1" value={draft.fatPercent} onChange={event => update("fatPercent", Number(event.target.value))} /></label>
           <label>Fiber target (g/day)<input type="number" min="0" step="1" value={draft.fiberGrams} aria-invalid={!!fieldErrors.fiberGrams} aria-describedby={fieldErrors.fiberGrams ? "fiber-error" : undefined} onChange={event => update("fiberGrams", Number(event.target.value))} />{fieldErrors.fiberGrams && <small className="target-error" id="fiber-error">{fieldErrors.fiberGrams}</small>}</label>
-          <label>Weekend reserve (kcal/week)<input type="number" min="0" step="50" value={draft.weekendReserve} aria-invalid={!!fieldErrors.weekendReserve} aria-describedby={fieldErrors.weekendReserve ? "reserve-error" : undefined} onChange={event => update("weekendReserve", Number(event.target.value))} />{fieldErrors.weekendReserve && <small className="target-error" id="reserve-error">{fieldErrors.weekendReserve}</small>}</label>
+          <label>Weekend reserve (kcal/week)<input type="number" min="0" step="50" value={draft.weekendReserve} aria-invalid={!!fieldErrors.weekendReserve} aria-describedby={fieldErrors.weekendReserve ? "reserve-error" : "reserve-help"} onChange={event => update("weekendReserve", Number(event.target.value))} />{fieldErrors.weekendReserve ? <small className="target-error" id="reserve-error">{fieldErrors.weekendReserve}</small> : <small id="reserve-help">Extra calories for Saturday and Sunday combined. A 400 kcal reserve adds 200 kcal to each day when split evenly.</small>}</label>
         </div>
         <p className={macroTotal === 100 ? "target-help" : "target-error"} role={macroTotal === 100 ? undefined : "status"}>{macroTotal === 100 ? "Macro percentages total 100%." : `Macro percentages total ${macroTotal}%; they must equal 100%.`}</p>
         {fieldErrors.macros && <small className="target-error" role="alert">{fieldErrors.macros}</small>}
@@ -118,6 +118,7 @@ export function Targets({ members, targets, effectiveWeek, onPreview, onApply, h
       {advisory && <p className="target-advisory" role="status">{advisory}</p>}
       <div className="target-table-wrap"><table><caption>Current versus proposed next-week targets</caption><thead><tr><th scope="col">Target</th><th scope="col">Current</th><th scope="col">Proposed</th></tr></thead><tbody>
         <tr><th scope="row">Weekday calories</th><td>{Math.round(preview.current.weekdayCalories)} kcal</td><td>{Math.round(preview.proposed.weekdayCalories)} kcal</td></tr>
+        <tr><th scope="row">Weekend calories per day</th><td>{Math.round(preview.current.weekdayCalories + preview.current.weekendReserve / 2)} kcal</td><td>{Math.round(preview.proposed.weekdayCalories + preview.proposed.weekendReserve / 2)} kcal</td></tr>
         <tr><th scope="row">Weekly calorie budget</th><td>{Math.round(preview.current.weeklyCalories)} kcal</td><td>{Math.round(preview.proposed.weeklyCalories)} kcal</td></tr>
         <tr><th scope="row">Protein</th><td>{preview.current.macroGrams.protein.toFixed(0)} g</td><td>{preview.proposed.macroGrams.protein.toFixed(0)} g</td></tr>
         <tr><th scope="row">Carbohydrate</th><td>{preview.current.macroGrams.carbs.toFixed(0)} g</td><td>{preview.proposed.macroGrams.carbs.toFixed(0)} g</td></tr>
@@ -128,12 +129,5 @@ export function Targets({ members, targets, effectiveWeek, onPreview, onApply, h
       <div className="target-actions"><button type="button" onClick={apply} disabled={busy}>{busy ? "Applying…" : "Apply next-week targets"}</button></div>
     </section>}
 
-    <details className="target-disclosure target-method"><summary>Profile, calculation, guidance, and history</summary>
-      <h2>{member.name}</h2><p>Birthday: {member.birthday} · Sex setting: {member.sex} · Height: {member.heightCm} cm · Current weight: {member.currentWeightKg} kg · Activity: {activityNames[member.activityLevel]} (×{member.activityFactor})</p>
-      <h3>Calorie budget breakdown</h3><p>Estimated resting calories use the Mifflin–St Jeor equation for supported adult profiles, then activity level estimates maintenance. The deficit sets a weekly calorie budget; weekend reserve is allocated before dividing the remaining budget across five weekdays.</p>
-      <h3>Planning guidance and sources</h3><p>These are planning estimates, not medical advice. Needs vary. Seek qualified guidance for medical conditions, pregnancy or breastfeeding, people under 19, eating-disorder concerns, or very low calorie targets.</p>
-      <ul><li><a href="https://pubmed.ncbi.nlm.nih.gov/2305711/" target="_blank" rel="noreferrer">Mifflin–St Jeor equation</a></li><li><a href="https://www.nice.org.uk/guidance/ng246/chapter/Physical-activity-and-diet" target="_blank" rel="noreferrer">NICE: physical activity and diet guidance</a></li></ul>
-      <h3>Weight check-ins</h3>{memberHistory.length ? <ul>{memberHistory.map(item => <li key={`${item.date}-${item.weightKg}`}>{item.date}: {item.weightKg} kg</li>)}</ul> : <p>No recorded weight check-ins.</p>}
-    </details>
   </main>;
 }

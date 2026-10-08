@@ -6,6 +6,7 @@ import { ScheduledMealEditor } from "./features/editor/ScheduledMealEditor";
 import { Library } from "./features/library";
 import { Targets } from "./features/targets";
 import { WeeklyPlanner } from "./features/week/WeeklyPlanner";
+import { toggleTheme, type AppTheme } from "./theme";
 
 type Page = "today" | "week" | "library" | "targets";
 type EditorState = { meal?: ScheduledMeal; date: string; slot: ScheduledMeal["slot"]; memberId?: MemberId };
@@ -24,7 +25,7 @@ export function App() {
   const [page, setPage] = useState<Page>("today");
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [error, setError] = useState("");
-
+  const [theme, setTheme] = useState<AppTheme>("dark");
   const reload = async () => { setData(await api.data()); };
   useEffect(() => { reload().catch((reason) => setError(reason instanceof Error ? reason.message : "Could not load the meal plan.")); }, []);
 
@@ -43,11 +44,11 @@ export function App() {
     { id: "library", label: "Library" }, { id: "targets", label: "Targets" },
   ];
 
-  if (!data) return <main className="app-state"><div className="brand-mark">P</div><h1>Piring Kita</h1><p>{error || "Loading meal planner…"}</p>{error && <button onClick={() => reload().catch(() => undefined)}>Try again</button>}</main>;
+  if (!data) return <main className="app-state"><span className="brand-mark"><img src="/cooking.png" alt="" /></span><h1>Piring Kita</h1><p>{error || "Loading meal planner…"}</p>{error && <button onClick={() => reload().catch(() => undefined)}>Try again</button>}</main>;
 
   const openEditor = (date: string, slot: ScheduledMeal["slot"], memberId?: MemberId, meal?: ScheduledMeal) => setEditor({ meal, date, slot, memberId });
-  const content = page === "today" ? <Dashboard data={data} today={today} onOpenWeek={() => setPage("week")} onEditMeal={(meal) => openEditor(meal.date, meal.slot, meal.memberId, meal)} onCreateMeal={(date, slot, memberId) => openEditor(date, slot, memberId)} />
-    : page === "week" ? <WeeklyPlanner data={data} weekStart={weekStart} onEditMeal={(meal) => openEditor(meal.date, meal.slot, meal.memberId, meal)} onCreateMeal={(date, slot, memberId) => openEditor(date, slot, memberId)} onMoveMeal={(id, date) => run(() => api.moveMeal(id, date))} />
+  const content = page === "today" ? <Dashboard data={data} today={today} />
+    : page === "week" ? <WeeklyPlanner data={data} weekStart={weekStart} onEditMeal={(meal) => openEditor(meal.date, meal.slot, meal.memberId, meal)} onCreateMeal={(date, slot, memberId) => openEditor(date, slot, memberId)} onMoveMeal={(id, date) => run(() => api.moveMeal(id, date))} onSwapDays={(firstDate, secondDate) => run(() => api.swapDays(firstDate, secondDate))} />
     : page === "library" ? <Library menus={data.savedMenus} ingredients={data.ingredients}
       onSaveMenu={(menu: SavedMenu) => run(() => api.saveMenu(menu, data.savedMenus.some((item) => item.id === menu.id)))}
       onDeleteMenu={(id) => run(() => api.deleteMenu(id))}
@@ -58,10 +59,10 @@ export function App() {
       onApply={(request: TargetPreviewRequest) => run(() => api.applyTarget(request))} />;
 
   return <div className="app-shell">
-    <header className="app-header"><button className="app-brand" onClick={() => setPage("today")}><span className="brand-mark">P</span><span><strong>Piring Kita</strong><small>Simple meal planning for the week</small></span></button><nav aria-label="Primary navigation">{navigation.map((item) => <button key={item.id} className={page === item.id ? "is-current" : ""} aria-current={page === item.id ? "page" : undefined} onClick={() => setPage(item.id)}>{item.label}</button>)}</nav></header>
+    <header className="app-header"><button className="app-brand" onClick={() => setPage("today")}><span className="brand-mark"><img src="/cooking.png" alt="" /></span><span><strong>Piring Kita</strong><small>Simple meal planning for the week</small></span></button><div className="app-header__actions"><nav aria-label="Primary navigation">{navigation.map((item) => <button key={item.id} className={page === item.id ? "is-current" : ""} aria-current={page === item.id ? "page" : undefined} onClick={() => setPage(item.id)}>{item.label}</button>)}</nav><button type="button" className="theme-toggle" aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`} onClick={() => setTheme(toggleTheme())}>{theme === "dark" ? "☀ Light" : "◐ Dark"}</button></div></header>
     {error && <div className="app-error" role="alert">{error}<button aria-label="Dismiss error" onClick={() => setError("")}>×</button></div>}
     {content}
     <nav className="app-mobile-nav" aria-label="Primary navigation">{navigation.map((item) => <button key={item.id} className={page === item.id ? "is-current" : ""} aria-current={page === item.id ? "page" : undefined} onClick={() => setPage(item.id)}>{item.label}</button>)}</nav>
-    {editor && <ScheduledMealEditor data={data} initialMeal={editor.meal} date={editor.date} slot={editor.slot} memberId={editor.memberId} onCancel={() => setEditor(null)} onSave={async (meal) => { await run(() => api.saveMeal(meal, Boolean(editor.meal))); setEditor(null); }} />}
+    {editor && <ScheduledMealEditor data={data} initialMeal={editor.meal} date={editor.date} slot={editor.slot} memberId={editor.memberId} onCancel={() => setEditor(null)} onSaveMenu={(menu, exists) => run(() => api.saveMenu(menu, exists))} onSave={async (meal) => { await run(() => api.saveMeal(meal, Boolean(editor.meal))); setEditor(null); }} />}
   </div>;
 }

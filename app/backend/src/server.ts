@@ -27,13 +27,13 @@ const seedMembers: MemberProfile[] = [
 ];
 
 const seedTargets: WeeklyTarget[] = [
-  { memberId: "richard", weekStart: "2026-10-05", deficitPercent: 20, weekendReserve: 4300, proteinPercent: 25, carbsPercent: 45, fatPercent: 30, fiberGrams: 30, weeklyCalories: 15030.4, weekdayCalories: 2146.08, macroGrams: { protein: 134.125, carbs: 241.425, fat: 71.53333333333333 } },
-  { memberId: "michelle", weekStart: "2026-10-05", deficitPercent: 20, weekendReserve: 3400, proteinPercent: 25, carbsPercent: 45, fatPercent: 30, fiberGrams: 25, weeklyCalories: 10174.36, weekdayCalories: 1354.872, macroGrams: { protein: 84.6875, carbs: 152.4375, fat: 45.166666666666664 } },
+  { memberId: "richard", weekStart: "2026-10-05", deficitPercent: 20, weekendReserve: 400, proteinPercent: 25, carbsPercent: 45, fatPercent: 30, fiberGrams: 30, weeklyCalories: 15030.4, weekdayCalories: 2090.057142857143, macroGrams: { protein: 130.625, carbs: 235.125, fat: 69.66666666666667 } },
+  { memberId: "michelle", weekStart: "2026-10-05", deficitPercent: 20, weekendReserve: 400, proteinPercent: 25, carbsPercent: 45, fatPercent: 30, fiberGrams: 25, weeklyCalories: 10174.36, weekdayCalories: 1396.337142857143, macroGrams: { protein: 87.25, carbs: 157.05, fat: 46.53333333333333 } },
 ];
 
 const seedMenus: SavedMenu[] = [
-  { id: "chicken-bowl", name: "Everyday chicken bowl", ingredients: [{ ingredientId: "chicken", quantity: 150 }, { ingredientId: "rice", quantity: 170 }, { ingredientId: "broccoli", quantity: 100 }] },
-  { id: "tofu-bowl", name: "Green tofu bowl", ingredients: [{ ingredientId: "tofu", quantity: 160 }, { ingredientId: "rice", quantity: 120 }, { ingredientId: "avocado", quantity: 50 }] },
+  { id: "chicken-bowl", name: "Everyday chicken bowl", slot: "lunch", memberId: "richard", ingredients: [{ ingredientId: "chicken", quantity: 150 }, { ingredientId: "rice", quantity: 170 }, { ingredientId: "broccoli", quantity: 100 }] },
+  { id: "tofu-bowl", name: "Green tofu bowl", slot: "lunch", memberId: "michelle", ingredients: [{ ingredientId: "tofu", quantity: 160 }, { ingredientId: "rice", quantity: 120 }, { ingredientId: "avocado", quantity: 50 }] },
 ];
 
 const meal = (id: string, date: string, slot: MealSlot, memberId: MemberId | undefined, name: string, ingredients: MenuIngredient[]): ScheduledMeal => ({ id, date, slot, ...(memberId ? { memberId } : {}), name, notes: "", ingredients });
@@ -72,7 +72,22 @@ export function createDatabase(path = process.env.DB_PATH ?? defaultPath, seed =
     CREATE TABLE IF NOT EXISTS targets (member_id TEXT NOT NULL, week_start TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY(member_id, week_start));
   `);
   if (seed && !db.query("SELECT 1 FROM members LIMIT 1").get()) seedDatabase(db);
+  migrateLegacyWeekendReserves(db);
   return db;
+}
+
+function migrateLegacyWeekendReserves(db: Database) {
+  for (const target of rows<WeeklyTarget>(db, "targets")) {
+    const migrated = normalizeWeekendReserve(target);
+    if (migrated === target) continue;
+    put(db, "targets", `${migrated.memberId}|${migrated.weekStart}`, migrated, migrated.memberId, migrated.weekStart);
+  }
+}
+
+function normalizeWeekendReserve(target: WeeklyTarget) {
+  return Math.abs(target.weeklyCalories - (target.weekdayCalories * 5 + target.weekendReserve)) <= 1
+    ? { ...target, weekendReserve: Math.max(0, target.weekendReserve - target.weekdayCalories * 2) }
+    : target;
 }
 
 function seedDatabase(db: Database) {
@@ -96,7 +111,8 @@ function rows<T>(db: Database, table: "members" | "ingredients" | "saved_menus" 
   return db.query(`SELECT data FROM ${table}${table === "scheduled_meals" ? " ORDER BY date, slot, member_id" : table === "targets" ? " ORDER BY week_start, member_id" : " ORDER BY id"}`).all().map((row: any) => JSON.parse(row.data));
 }
 function dataFromDb(db: Database): AppData {
-  return { members: rows<MemberProfile>(db, "members").sort((a, b) => a.id === "richard" ? -1 : b.id === "richard" ? 1 : 0), ingredients: rows<Ingredient>(db, "ingredients"), savedMenus: rows<SavedMenu>(db, "saved_menus"), scheduledMeals: rows<ScheduledMeal>(db, "scheduled_meals"), targets: rows<WeeklyTarget>(db, "targets") };
+  const savedMenus = rows<SavedMenu>(db, "saved_menus").map(menu => ({ ...menu, slot: menu.slot ?? "lunch" }));
+  return { members: rows<MemberProfile>(db, "members").sort((a, b) => a.id === "richard" ? -1 : b.id === "richard" ? 1 : 0), ingredients: rows<Ingredient>(db, "ingredients"), savedMenus, scheduledMeals: rows<ScheduledMeal>(db, "scheduled_meals"), targets: rows<WeeklyTarget>(db, "targets") };
 }
 
 const members = new Set<MemberId>(["richard", "michelle"]);
@@ -121,7 +137,7 @@ function validNutrition(x: any): x is Nutrition {
   return !!x && ["calories", "protein", "carbs", "fat", "fiber"].every(k => finite(x[k]) && x[k] >= 0);
 }
 function validMenu(x: any, ingredients: Set<string>): x is SavedMenu {
-  if (!x || typeof x !== "object" || typeof x.id !== "string" || !x.id || typeof x.name !== "string" || !x.name.trim() || x.name.length > 120) return false;
+  if (!x || typeof x !== "object" || typeof x.id !== "string" || !x.id || typeof x.name !== "string" || !x.name.trim() || x.name.length > 120 || !slots.has(x.slot) || (x.memberId !== undefined && !members.has(x.memberId)) || (x.slot === "dinner" && x.memberId !== undefined)) return false;
   try { assertMenuIngredients(x.ingredients, ingredients); return true; } catch { return false; }
 }
 function validAppData(x: any): x is AppData {
@@ -158,10 +174,11 @@ function targetForRequest(db: Database, input: TargetPreviewRequest): TargetPrev
   const ree = 10 * input.weightKg + 6.25 * m.heightCm - 5 * age + (m.sex === "male" ? 5 : -161);
   const maintenance = ree * input.activityFactor;
   const weeklyCalories = maintenance * (1 - input.deficitPercent / 100) * 7;
-  const weekdayCalories = (weeklyCalories - input.weekendReserve) / 5;
+  const weekdayCalories = (weeklyCalories - input.weekendReserve) / 7;
+  if (weekdayCalories <= 0) throw new Error("weekend reserve must be smaller than the weekly calorie budget");
   const weekday = Math.round(weekdayCalories);
   const proposed: WeeklyTarget = { memberId: input.memberId, weekStart: input.effectiveWeek, deficitPercent: input.deficitPercent, weekendReserve: input.weekendReserve, proteinPercent: input.proteinPercent, carbsPercent: input.carbsPercent, fatPercent: input.fatPercent, fiberGrams: input.fiberGrams, weeklyCalories, weekdayCalories, macroGrams: { protein: weekday * input.proteinPercent / 100 / 4, carbs: weekday * input.carbsPercent / 100 / 4, fat: weekday * input.fatPercent / 100 / 9 } };
-  return { current: old, proposed, recommendation: weekday < 1200 ? "Review the low weekday calorie target with a qualified health professional before applying." : input.deficitPercent > 30 || maintenance - weeklyCalories / 7 > 750 ? "Review the larger calorie deficit before applying." : "No target changes are recommended automatically; review the proposed values before applying." };
+  return { current: old, proposed, recommendation: weekday < 1200 ? "This creates a low weekday calorie target. Consider qualified guidance, or choose a smaller deficit or weekend reserve." : input.deficitPercent > 30 || maintenance - weeklyCalories / 7 > 750 ? "This creates a larger calorie deficit than the suggested starting point. You can keep it or adjust it before applying." : "This proposal is close to the suggested starting point. You can keep it or adjust any target before applying." };
 }
 
 function replaceData(db: Database, data: AppData) {
@@ -171,7 +188,10 @@ function replaceData(db: Database, data: AppData) {
     data.ingredients.forEach(x => put(db, "ingredients", x.id, x));
     data.savedMenus.forEach(x => put(db, "saved_menus", x.id, x));
     data.scheduledMeals.forEach(x => putMeal(db, x));
-    data.targets.forEach(x => put(db, "targets", `${x.memberId}|${x.weekStart}`, x, x.memberId, x.weekStart));
+    data.targets.forEach(x => {
+      const target = normalizeWeekendReserve(x);
+      put(db, "targets", `${target.memberId}|${target.weekStart}`, target, target.memberId, target.weekStart);
+    });
   })();
 }
 
@@ -211,6 +231,16 @@ export function createApp(db = createDatabase()) {
       if (destination) putMeal(db, { ...destination, date: from.date });
     })();
     return res.json({ moved: { ...from, date: req.body.date }, swapped: destination ? { ...destination, date: from.date } : null });
+  });
+  app.post("/api/days/swap", (req, res) => {
+    const { firstDate, secondDate } = req.body ?? {};
+    if (!validDate(firstDate) || !validDate(secondDate) || firstDate === secondDate) return fail(res, "two different dates using YYYY-MM-DD are required");
+    const meals = rows<ScheduledMeal>(db, "scheduled_meals").filter(meal => meal.date === firstDate || meal.date === secondDate);
+    db.transaction(() => {
+      db.query("DELETE FROM scheduled_meals WHERE date IN (?, ?)").run(firstDate, secondDate);
+      meals.forEach(meal => putMeal(db, { ...meal, date: meal.date === firstDate ? secondDate : firstDate }));
+    })();
+    return res.json(meals.map(meal => ({ ...meal, date: meal.date === firstDate ? secondDate : firstDate })));
   });
   app.post("/api/menus", (req, res) => {
     const value = req.body;
@@ -263,8 +293,9 @@ export function createApp(db = createDatabase()) {
   });
   app.get("/api/backup.json", (_req, res) => res.type("application/json").attachment("piring-kita-backup.json").send(JSON.stringify(dataFromDb(db), null, 2)));
   app.post("/api/restore", (req, res) => {
-    if (!validAppData(req.body)) return fail(res, "backup data is invalid");
-    try { replaceData(db, req.body); return res.json({ ok: true }); } catch (e) { return fail(res, e); }
+    const value = Array.isArray(req.body?.savedMenus) ? { ...req.body, savedMenus: req.body.savedMenus.map((menu: any) => ({ ...menu, slot: menu.slot ?? "lunch" })) } : req.body;
+    if (!validAppData(value)) return fail(res, "backup data is invalid");
+    try { replaceData(db, value); return res.json({ ok: true }); } catch (e) { return fail(res, e); }
   });
   app.get("/api/database.sqlite", (_req, res) => {
     try { res.attachment("piring-kita.sqlite").setHeader("Content-Type", "application/vnd.sqlite3").send(db.serialize()); }

@@ -17,8 +17,8 @@ A member's total calorie target for seven days after applying their chosen defic
 _Avoid_: Weekly allowance, calorie limit
 
 **Weekend reserve**:
-Calories moved from Monday through Friday into Saturday and Sunday without changing the weekly calorie budget.
-_Avoid_: Cheat calories, bonus calories
+Extra calories available across Saturday and Sunday, on top of the weekday daily calorie budget, without changing the weekly calorie budget. For example, a 400 kcal/week reserve adds 200 kcal to each weekend day when split evenly.
+_Avoid_: Weekend calorie budget, cheat calories
 
 **Self-managed weekend**:
 Saturday and Sunday meals may be planned, but the app assumes the weekend share of the weekly calorie budget is consumed and does not evaluate weekend calories or nutrient targets.
@@ -61,8 +61,12 @@ A lunch planned independently for one member with that member's own ingredient q
 _Avoid_: Personal meal
 
 **Saved menu**:
-A reusable set of ingredients and default quantities that may be overwritten when a member explicitly chooses Update collection.
+A reusable set of ingredients and default quantities identified by meal slot and, for individual meals, the member who saved it. The member is an indicator only; either member may reuse it.
 _Avoid_: Recipe
+
+**Dinner carbohydrate portion**:
+An optional carbohydrate ingredient and gram quantity prepared for one named member as part of a shared dinner. Richard's and Michelle's portions are fixed entries rather than removable general ingredients.
+_Avoid_: Carbohydrate allocation, carb owner
 
 **Scheduled meal**:
 An independent copy of a saved menu assigned to a date and meal slot. Later changes to the saved menu do not alter it.
@@ -88,9 +92,9 @@ _Avoid_: Database name
 An ingredient explicitly allowed in rule-based nutrient suggestions because it is sensible to add or eat in the proposed quantity.
 _Avoid_: Recommended ingredient, healthy ingredient
 
-**Macro recommendation**:
-A one- or two-ingredient quantity proposal that reduces a member's largest weekday nutrient shortage while respecting their remaining calories.
-_Avoid_: AI recommendation, meal prescription
+**Planned target progress**:
+A member's planned nutrition from their lunch plus half of the shared dinner for one weekday. Snacks are excluded from this planning comparison.
+_Avoid_: Meal progress, actual intake
 
 **Snack**:
 An optional meal belonging to one member whose calories and nutrients count toward that member's weekday totals. Days contain no snack until it is explicitly added.
@@ -107,6 +111,10 @@ _Avoid_: Weekly sheet, week record
 **Schedule move**:
 A move of a scheduled meal to the same member and meal slot on another date. An occupied destination swaps the two meals; an empty destination receives the moved meal.
 _Avoid_: Reschedule copy
+
+**Day-menu swap**:
+An exchange of every scheduled meal between two dates. Each meal keeps its member and meal slot, and the exchange succeeds or fails as one operation.
+_Avoid_: Bulk meal move, day copy
 
 **Menu name**:
 A concise, recognizable name for a saved menu. Imported spreadsheet labels are cleaned or replaced when they do not clearly identify the meal.

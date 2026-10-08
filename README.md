@@ -10,20 +10,22 @@ Install dependencies:
 bun install
 ```
 
-Run the API and frontend in separate PowerShell windows:
+Start the API and frontend together—Docker is not required:
 
 ```powershell
-bun run dev:backend
-bun run dev:frontend
+bun run dev
 ```
 
-Open `http://localhost:5173`.
+Open `http://localhost:5173`. The API runs on port `3001`, Vite proxies `/api` to it, and local data is saved to `app/backend/data/piring-kita.sqlite`.
+
+Press `Ctrl+C` once to stop both processes. The separate `dev:backend` and `dev:frontend` commands remain available when debugging either side alone.
 
 ## Checks
 
 ```powershell
 bun run test
 bun run build
+bun run test:e2e
 ```
 
 ## Raspberry Pi / Docker
