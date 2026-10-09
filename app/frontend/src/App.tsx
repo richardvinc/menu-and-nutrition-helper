@@ -150,8 +150,8 @@ export function App() {
 				targets={data.targets}
 				effectiveWeek={effectiveWeek}
 				onPreview={api.previewTarget}
-				onApply={(request: TargetPreviewRequest) =>
-					run(() => api.applyTarget(request))
+				onApply={(request: TargetPreviewRequest, startToday?: boolean) =>
+					run(() => api.applyTarget(request, startToday))
 				}
 			/>
 		);

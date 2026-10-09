@@ -177,7 +177,12 @@ export function WeeklyPlanner({
 		const source = dayDrag.date;
 		setDayDrag(null);
 		setDropDate("");
-		if (dayDrag.active && destination && destination !== source)
+		if (
+			dayDrag.active &&
+			destination &&
+			destination !== source &&
+			window.confirm("Swap every scheduled meal between these two days?")
+		)
 			void Promise.resolve(onSwapDays(source, destination)).catch(
 				() => undefined,
 			);
@@ -378,7 +383,10 @@ export function WeeklyPlanner({
 						<button
 							className="pk-move-dialog__close"
 							aria-label="Cancel move"
-							onClick={() => setMovingMeal(null)}
+							onClick={() => {
+								if (window.confirm("Cancel this move without saving?"))
+									setMovingMeal(null);
+							}}
 						>
 							×
 						</button>
@@ -421,11 +429,26 @@ export function WeeklyPlanner({
 							</p>
 						)}
 						<div className="pk-move-dialog__actions">
-							<button onClick={() => setMovingMeal(null)}>Cancel</button>
+							<button
+								onClick={() => {
+									if (window.confirm("Cancel this move without saving?"))
+										setMovingMeal(null);
+								}}
+							>
+								Cancel
+							</button>
 							<button
 								className="pk-week__confirm"
 								disabled={!destinationDate}
 								onClick={async () => {
+									if (
+										!window.confirm(
+											destinationMeal
+												? "Swap these two scheduled meals?"
+												: "Move this scheduled meal?",
+										)
+									)
+										return;
 									await onMoveMeal(movingMeal.id, destinationDate);
 									setMovingMeal(null);
 								}}

@@ -209,6 +209,8 @@ describe("backend API", () => {
 			memberId: "richard",
 			effectiveWeek: "2026-10-12",
 			weightKg: 77.5,
+			heightCm: 170,
+			sex: "female",
 			activityLevel: "low",
 			activityFactor: 1.6,
 			deficitPercent: 20,
@@ -225,6 +227,11 @@ describe("backend API", () => {
 		});
 		expect(previewResponse.status).toBe(200);
 		const preview = await previewResponse.json();
+		expect(preview.calculation).toEqual({
+			age: 33,
+			bmrCalories: 1511.5,
+			maintenanceCalories: 2418.4,
+		});
 		expect(preview.proposed.weekdayCalories * 7 + 400).toBeCloseTo(
 			preview.proposed.weeklyCalories,
 		);
@@ -248,12 +255,32 @@ describe("backend API", () => {
 		expect(data.members.find((x) => x.id === "richard")?.currentWeightKg).toBe(
 			77.5,
 		);
+		expect(data.members.find((x) => x.id === "richard")).toMatchObject({
+			heightCm: 170,
+			sex: "female",
+		});
 		expect(data.targets).toHaveLength(3);
 		expect(
 			data.targets.find(
 				(x) => x.memberId === "richard" && x.weekStart === "2026-10-05",
 			)?.weekdayCalories,
 		).toBeGreaterThan(0);
+		const currentBefore = data.targets.find(
+			(x) => x.memberId === "richard" && x.weekStart === "2026-10-05",
+		)?.weeklyCalories;
+		const applyToday = await fetch(`${base}/api/targets/apply?start=today`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify({ ...request, deficitPercent: 10 }),
+		});
+		expect(applyToday.status).toBe(200);
+		data = (await (await fetch(`${base}/api/data`)).json()) as AppData;
+		expect(
+			data.targets.find(
+				(x) => x.memberId === "richard" && x.weekStart === "2026-10-05",
+			)?.weeklyCalories,
+		).not.toBe(currentBefore);
+		expect(data.targets).toHaveLength(3);
 	});
 
 	test("exports and validates backups before replacing data", async () => {

@@ -1049,6 +1049,7 @@ function targetForRequest(
 	const old = JSON.parse(current.data) as WeeklyTarget;
 	const values = [
 		input.weightKg,
+		input.heightCm,
 		input.activityFactor,
 		input.deficitPercent,
 		input.weekendReserve,
@@ -1061,6 +1062,9 @@ function targetForRequest(
 		values.some((x) => !finite(x)) ||
 		input.weightKg < 30 ||
 		input.weightKg > 300 ||
+		input.heightCm < 100 ||
+		input.heightCm > 250 ||
+		!["male", "female", "other"].includes(input.sex) ||
 		input.activityFactor < 1 ||
 		input.activityFactor > 2.5 ||
 		input.deficitPercent < 0 ||
@@ -1079,15 +1083,15 @@ function targetForRequest(
 	const age = ageOn(m.birthday, input.effectiveWeek);
 	if (age < 19)
 		throw new Error("target review is available for adults aged 19 or older");
-	if (m.sex === "other")
+	if (input.sex === "other")
 		throw new Error(
 			"manual targets are required when the resting-calorie equation does not apply",
 		);
 	const ree =
 		10 * input.weightKg +
-		6.25 * m.heightCm -
+		6.25 * input.heightCm -
 		5 * age +
-		(m.sex === "male" ? 5 : -161);
+		(input.sex === "male" ? 5 : -161);
 	const maintenance = ree * input.activityFactor;
 	const weeklyCalories = maintenance * (1 - input.deficitPercent / 100) * 7;
 	const weekdayCalories = (weeklyCalories - input.weekendReserve) / 7;
@@ -1116,6 +1120,11 @@ function targetForRequest(
 	return {
 		current: old,
 		proposed,
+		calculation: {
+			age,
+			bmrCalories: ree,
+			maintenanceCalories: maintenance,
+		},
 		recommendation:
 			weekday < 1200
 				? "This creates a low weekday calorie target. Consider qualified guidance, or choose a smaller deficit or weekend reserve."
@@ -1352,6 +1361,11 @@ export function createApp(db = createDatabase()) {
 	app.post("/api/targets/apply", (req, res) => {
 		try {
 			const preview = targetForRequest(db, req.body as TargetPreviewRequest);
+			// shortcut: targets are weekly, so "today" updates the current week; add dated target periods if daily history matters.
+			const target =
+				req.query.start === "today"
+					? { ...preview.proposed, weekStart: preview.current.weekStart }
+					: preview.proposed;
 			const member = JSON.parse(
 				(
 					db
@@ -1360,6 +1374,8 @@ export function createApp(db = createDatabase()) {
 				).data,
 			) as MemberProfile;
 			member.currentWeightKg = req.body.weightKg;
+			member.heightCm = req.body.heightCm;
+			member.sex = req.body.sex;
 			member.activityLevel = req.body.activityLevel;
 			member.activityFactor = req.body.activityFactor;
 			db.transaction(() => {
@@ -1367,13 +1383,13 @@ export function createApp(db = createDatabase()) {
 				put(
 					db,
 					"targets",
-					`${preview.proposed.memberId}|${preview.proposed.weekStart}`,
-					preview.proposed,
-					preview.proposed.memberId,
-					preview.proposed.weekStart,
+					`${target.memberId}|${target.weekStart}`,
+					target,
+					target.memberId,
+					target.weekStart,
 				);
 			})();
-			return res.json(preview.proposed);
+			return res.json(target);
 		} catch (e) {
 			return fail(res, e);
 		}

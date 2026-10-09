@@ -68,8 +68,8 @@ export const api = {
 			method: "POST",
 			body: JSON.stringify(proposal),
 		}),
-	applyTarget: (proposal: TargetPreviewRequest) =>
-		request<void>("/api/targets/apply", {
+	applyTarget: (proposal: TargetPreviewRequest, startToday = false) =>
+		request<void>(`/api/targets/apply${startToday ? "?start=today" : ""}`, {
 			method: "POST",
 			body: JSON.stringify(proposal),
 		}),

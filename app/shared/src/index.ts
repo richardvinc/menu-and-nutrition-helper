@@ -84,6 +84,8 @@ export interface TargetPreviewRequest {
 	memberId: MemberId;
 	effectiveWeek: string;
 	weightKg: number;
+	heightCm: number;
+	sex: MemberProfile["sex"];
 	activityLevel: MemberProfile["activityLevel"];
 	activityFactor: number;
 	deficitPercent: number;
@@ -97,5 +99,10 @@ export interface TargetPreviewRequest {
 export interface TargetPreview {
 	current: WeeklyTarget;
 	proposed: WeeklyTarget;
+	calculation: {
+		age: number;
+		bmrCalories: number;
+		maintenanceCalories: number;
+	};
 	recommendation: string;
 }

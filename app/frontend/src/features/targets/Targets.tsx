@@ -12,7 +12,10 @@ export type TargetsProps = {
 	targets: WeeklyTarget[];
 	effectiveWeek: string;
 	onPreview: (request: TargetPreviewRequest) => Promise<TargetPreview>;
-	onApply: (request: TargetPreviewRequest) => Promise<void>;
+	onApply: (
+		request: TargetPreviewRequest,
+		startToday?: boolean,
+	) => Promise<void>;
 };
 
 const activityFactors: Record<
@@ -63,6 +66,8 @@ export function Targets({
 						memberId: member.id,
 						effectiveWeek,
 						weightKg: member.currentWeightKg,
+						heightCm: member.heightCm,
+						sex: member.sex,
 						activityLevel: member.activityLevel,
 						activityFactor: member.activityFactor,
 						deficitPercent: current.deficitPercent,
@@ -89,6 +94,49 @@ export function Targets({
 		setError("");
 	}, [initial]);
 
+	useEffect(() => {
+		if (!draft) return;
+		let cancelled = false;
+		const timer = window.setTimeout(async () => {
+			const errors = validate(draft);
+			setFieldErrors(errors);
+			setAdvisory("");
+			setError("");
+			if (Object.keys(errors).length) {
+				setPreview(null);
+				setBusy(false);
+				return;
+			}
+			setBusy(true);
+			try {
+				const result = await onPreview(draft);
+				if (cancelled) return;
+				setPreview(result);
+				if (result.proposed.weekdayCalories < 1200)
+					setAdvisory(
+						"This weekday target is below 1,200 kcal and may need qualified clinical guidance.",
+					);
+				else if (draft.deficitPercent > 30)
+					setAdvisory(
+						"This deficit is above 30%. Review your comfort and progress before applying.",
+					);
+			} catch (reason) {
+				if (!cancelled)
+					setError(
+						reason instanceof Error
+							? reason.message
+							: "Could not prepare a target preview.",
+					);
+			} finally {
+				if (!cancelled) setBusy(false);
+			}
+		}, 250);
+		return () => {
+			cancelled = true;
+			window.clearTimeout(timer);
+		};
+	}, [draft, onPreview]);
+
 	function update<K extends keyof TargetPreviewRequest>(
 		key: K,
 		value: TargetPreviewRequest[K],
@@ -108,6 +156,14 @@ export function Targets({
 			request.weightKg > 300
 		)
 			errors.weightKg = "Enter a weight from 30 to 300 kg.";
+		if (
+			!Number.isFinite(request.heightCm) ||
+			request.heightCm < 100 ||
+			request.heightCm > 250
+		)
+			errors.heightCm = "Enter a height from 100 to 250 cm.";
+		if (request.sex === "other")
+			errors.sex = "Choose male or female for the Mifflin–St Jeor equation.";
 		if (
 			!Number.isFinite(request.deficitPercent) ||
 			request.deficitPercent < 0 ||
@@ -140,43 +196,12 @@ export function Targets({
 		return errors;
 	}
 
-	async function makePreview() {
-		if (!draft) return;
-		const errors = validate(draft);
-		setFieldErrors(errors);
-		setAdvisory("");
-		setError("");
-		setPreview(null);
-		if (Object.keys(errors).length) return;
-		setBusy(true);
-		try {
-			const result = await onPreview(draft);
-			setPreview(result);
-			if (result.proposed.weekdayCalories < 1200)
-				setAdvisory(
-					"This weekday target is below 1,200 kcal and may need qualified clinical guidance.",
-				);
-			else if (draft.deficitPercent > 30)
-				setAdvisory(
-					"This deficit is above 30%. Review your comfort and progress before applying.",
-				);
-		} catch (reason) {
-			setError(
-				reason instanceof Error
-					? reason.message
-					: "Could not prepare a target preview.",
-			);
-		} finally {
-			setBusy(false);
-		}
-	}
-
-	async function apply() {
+	async function apply(startToday = false) {
 		if (!draft || !preview || Object.keys(validate(draft)).length) return;
 		setBusy(true);
 		setError("");
 		try {
-			await onApply(draft);
+			await onApply(draft, startToday);
 			setPreview(null);
 		} catch (reason) {
 			setError(
@@ -308,6 +333,46 @@ export function Targets({
 							<option value="custom">Custom multiplier</option>
 						</select>
 					</label>
+					<label>
+						Height (cm)
+						<input
+							type="number"
+							min="100"
+							max="250"
+							step="1"
+							value={draft.heightCm}
+							aria-invalid={!!fieldErrors.heightCm}
+							aria-describedby={fieldErrors.heightCm ? "height-error" : undefined}
+							onChange={(event) =>
+								update("heightCm", Number(event.target.value))
+							}
+						/>
+						{fieldErrors.heightCm && (
+							<small className="target-error" id="height-error">
+								{fieldErrors.heightCm}
+							</small>
+						)}
+					</label>
+					<label>
+						Sex used for BMR equation
+						<select
+							value={draft.sex}
+							aria-invalid={!!fieldErrors.sex}
+							aria-describedby={fieldErrors.sex ? "sex-error" : undefined}
+							onChange={(event) =>
+								update("sex", event.target.value as MemberProfile["sex"])
+							}
+						>
+							<option value="male">Male</option>
+							<option value="female">Female</option>
+							<option value="other">Other</option>
+						</select>
+						{fieldErrors.sex && (
+							<small className="target-error" id="sex-error">
+								{fieldErrors.sex}
+							</small>
+						)}
+					</label>
 					{draft.activityLevel === "custom" && (
 						<label>
 							Custom activity factor
@@ -359,7 +424,7 @@ export function Targets({
 						)}
 					</label>
 				</div>
-				<details className="target-disclosure">
+				<details className="target-disclosure" open>
 					<summary>Advanced settings</summary>
 					<div className="target-form-grid target-advanced">
 						<label>
@@ -468,6 +533,8 @@ export function Targets({
 						type="button"
 						className="secondary"
 						onClick={() => {
+							if (!window.confirm("Discard these target changes without saving?"))
+								return;
 							setDraft(initial);
 							setPreview(null);
 							setFieldErrors({});
@@ -476,9 +543,6 @@ export function Targets({
 						disabled={busy}
 					>
 						Discard changes
-					</button>
-					<button type="button" onClick={makePreview} disabled={busy}>
-						{busy ? "Preparing…" : "Preview next week"}
 					</button>
 				</div>
 			</section>
@@ -496,7 +560,7 @@ export function Targets({
 				>
 					<div className="target-preview-heading">
 						<div>
-							<p className="feature-eyebrow">Proposed target set</p>
+							<p className="feature-eyebrow">Preview next week</p>
 							<h2 id="preview-heading">
 								Week of{" "}
 								{new Date(`${effectiveWeek}T12:00:00`).toLocaleDateString(
@@ -505,17 +569,6 @@ export function Targets({
 								)}
 							</h2>
 						</div>
-						<button
-							type="button"
-							className="secondary"
-							onClick={() => {
-								setPreview(null);
-								setDraft(initial);
-								setFieldErrors({});
-							}}
-						>
-							Close preview
-						</button>
 					</div>
 					<p>{preview.recommendation}</p>
 					{advisory && (
@@ -523,6 +576,53 @@ export function Targets({
 							{advisory}
 						</p>
 					)}
+					<div className="target-table-wrap">
+						<table>
+							<caption>Proposed calorie calculation</caption>
+							<tbody>
+								<tr>
+									<th scope="row">Estimated BMR (Mifflin–St Jeor)</th>
+									<td>
+										(10 × {draft.weightKg} kg) + (6.25 × {draft.heightCm} cm) −{" "}
+										(5 × {preview.calculation.age}) {draft.sex === "male" ? "+ 5" : "− 161"} ≈{" "}
+										{Math.round(preview.calculation.bmrCalories)} kcal/day
+									</td>
+								</tr>
+								<tr>
+									<th scope="row">Activity-adjusted maintenance</th>
+									<td>
+										({Math.round(preview.calculation.bmrCalories)} × {draft.activityFactor}) ≈{" "}
+										{Math.round(preview.calculation.maintenanceCalories)} kcal/day
+									</td>
+								</tr>
+								<tr>
+									<th scope="row">After {draft.deficitPercent}% deficit</th>
+									<td>
+										({Math.round(preview.calculation.maintenanceCalories)} × (1 − {draft.deficitPercent}%)) ≈{" "}
+										{Math.round(preview.proposed.weeklyCalories / 7)} kcal/day
+									</td>
+								</tr>
+								<tr>
+									<th scope="row">Weekly calorie budget</th>
+									<td>
+										({Math.round(preview.proposed.weeklyCalories / 7)} × 7) ≈{" "}
+										{Math.round(preview.proposed.weeklyCalories)} kcal/week
+									</td>
+								</tr>
+								<tr>
+									<th scope="row">Weekday target after weekend reserve</th>
+									<td>
+										(({Math.round(preview.proposed.weeklyCalories)} − {draft.weekendReserve}) ÷ 7) ≈{" "}
+										{Math.round(preview.proposed.weekdayCalories)} kcal/day
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</div>
+					<p className="target-help">
+						BMR estimates the calories your body uses at rest. The app uses
+						 Mifflin–St Jeor, then applies activity and the deficit separately.
+					</p>
 					<div className="target-table-wrap">
 						<table>
 							<caption>Current versus proposed next-week targets</caption>
@@ -594,7 +694,22 @@ export function Targets({
 						together.
 					</p>
 					<div className="target-actions">
-						<button type="button" onClick={apply} disabled={busy}>
+						<button
+							type="button"
+							className="secondary"
+							onClick={() => {
+								if (
+									window.confirm(
+										"Apply these targets immediately to the current week?",
+									)
+								)
+									void apply(true);
+							}}
+							disabled={busy}
+						>
+							{busy ? "Applying…" : "Apply starting today"}
+						</button>
+						<button type="button" onClick={() => apply()} disabled={busy}>
 							{busy ? "Applying…" : "Apply next-week targets"}
 						</button>
 					</div>

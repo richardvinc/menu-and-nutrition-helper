@@ -145,6 +145,33 @@ test("dashboard shows static today, tomorrow, and weekly meal cards", async ({
 	).toEqual({ width: true, height: true });
 });
 
+test("weekly summary keeps equal day cells and borders its empty grid slot", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1174, height: 700 });
+	await page.goto("/");
+	const grid = page.locator(".pk-week-summary__grid");
+	await expect(grid.locator(":scope > section")).toHaveCount(7);
+	const layout = await grid.evaluate((element) => {
+		const days = element.querySelectorAll(":scope > section");
+		const firstDay = days[0];
+		const lastDay = days[6];
+		return {
+			firstWidth: firstDay.getBoundingClientRect().width,
+			lastWidth: lastDay.getBoundingClientRect().width,
+			emptySlotTopBorder: parseFloat(
+				getComputedStyle(element, "::after").borderTopWidth,
+			),
+			emptySlotLeftBorder: parseFloat(
+				getComputedStyle(element, "::after").borderLeftWidth,
+			),
+		};
+	});
+	expect(Math.abs(layout.firstWidth - layout.lastWidth)).toBeLessThanOrEqual(1);
+	expect(layout.emptySlotTopBorder).toBeGreaterThan(0);
+	expect(layout.emptySlotLeftBorder).toBeGreaterThan(0);
+});
+
 test("dark theme applies the nighttime surface palette", async ({ page }) => {
 	await page.goto("/");
 	await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
@@ -219,6 +246,7 @@ test("meal quantity changes update nutrition before save", async ({ page }) => {
 	await expect(page.getByText("OPTIONAL IDEAS", { exact: true })).toHaveCount(
 		0,
 	);
+	page.once("dialog", (dialog) => dialog.accept());
 	await page
 		.getByRole("button", { name: /Cancel/ })
 		.last()
@@ -366,10 +394,12 @@ test("meal editor closes with Escape and a backdrop click", async ({
 		.first();
 	await meal.getByRole("button", { name: "Edit", exact: true }).click();
 	await expect(page.locator(".pk-editor-scrim")).toBeVisible();
+	page.once("dialog", (dialog) => dialog.accept());
 	await page.keyboard.press("Escape");
 	await expect(page.locator(".pk-editor-scrim")).toHaveCount(0);
 
 	await meal.getByRole("button", { name: "Edit", exact: true }).click();
+	page.once("dialog", (dialog) => dialog.accept());
 	await page.locator(".pk-editor-scrim").click({ position: { x: 4, y: 4 } });
 	await expect(page.locator(".pk-editor-scrim")).toHaveCount(0);
 });
@@ -405,6 +435,7 @@ test("scheduled meal can be saved to the master menu without closing", async ({
 	);
 	await expect(page.locator(".pk-editor-scrim")).toBeVisible();
 
+	page.once("dialog", (dialog) => dialog.accept());
 	await page.keyboard.press("Escape");
 	await page
 		.locator(".app-header")
@@ -498,6 +529,7 @@ test("desktop day cards drag and drop their full menus", async ({ page }) => {
 		await page.mouse.move(from.x + from.width / 2 + 12, from.y + 40);
 		await page.mouse.move(to.x + to.width / 2, to.y + 40, { steps: 8 });
 		await expect(page.locator(".pk-week-drag-preview")).toBeVisible();
+		page.once("dialog", (dialog) => dialog.accept());
 		await page.mouse.up();
 		await expect(thursday.getByText(movedMeal)).toBeVisible();
 		swapped = true;

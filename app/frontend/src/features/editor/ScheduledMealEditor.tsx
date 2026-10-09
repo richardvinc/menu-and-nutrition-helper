@@ -188,7 +188,9 @@ function IngredientRow({
 				type="button"
 				className="pk-editor-row__remove"
 				aria-label={`Remove ${selected?.name ?? "ingredient"}`}
-				onClick={onRemove}
+				onClick={() => {
+					if (window.confirm("Remove this ingredient from the meal?")) onRemove();
+				}}
 			>
 				Remove
 			</button>
@@ -249,9 +251,12 @@ export function ScheduledMealEditor({
 		message: string;
 	} | null>(null);
 	const [nameFocused, setNameFocused] = useState(false);
+	const cancel = () => {
+		if (window.confirm("Close this scheduled meal without saving?")) onCancel();
+	};
 	useEffect(() => {
 		const closeOnEscape = (event: KeyboardEvent) => {
-			if (event.key === "Escape") onCancel();
+			if (event.key === "Escape") cancel();
 		};
 		document.addEventListener("keydown", closeOnEscape);
 		return () => document.removeEventListener("keydown", closeOnEscape);
@@ -438,7 +443,7 @@ export function ScheduledMealEditor({
 		<div
 			className="pk-editor-scrim"
 			onMouseDown={(event) => {
-				if (event.target === event.currentTarget) onCancel();
+				if (event.target === event.currentTarget) cancel();
 			}}
 		>
 			<form
@@ -447,7 +452,7 @@ export function ScheduledMealEditor({
 				aria-labelledby="pk-editor-title"
 			>
 				<header className="pk-editor__header">
-					<button type="button" className="pk-editor__back" onClick={onCancel}>
+					<button type="button" className="pk-editor__back" onClick={cancel}>
 						← <span>Cancel</span>
 					</button>
 					<div>
@@ -764,7 +769,7 @@ export function ScheduledMealEditor({
 							<span role="status">{menuStatus.message}</span>
 						)}
 					</div>
-					<button type="button" onClick={onCancel}>
+					<button type="button" onClick={cancel}>
 						Cancel
 					</button>
 					<button type="submit" disabled={saving || invalidMeal}>

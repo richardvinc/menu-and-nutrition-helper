@@ -236,6 +236,11 @@
 .pk-week-summary__grid > section:nth-child(n + 5) {
 	border-top: 1px solid var(--line);
 }
+.pk-week-summary__grid::after {
+	content: "";
+	border-top: 1px solid var(--line);
+	border-left: 1px solid var(--line);
+}
 .pk-week-summary__grid > section.is-today {
 	background: #f0edff;
 }
@@ -352,7 +357,7 @@
 		min-height: 70px;
 	}
 	.pk-week-summary {
-		margin-top: 9px;
+		margin-top: 30px;
 	}
 	.pk-panel {
 		padding: 9px 12px;
@@ -401,7 +406,7 @@
 }
 @media (min-width: 1000px) and (min-height: 720px) {
 	.pk-week-summary {
-		margin-top: 8px;
+		margin-top: 30px;
 	}
 }
 @media (max-width: 700px) {

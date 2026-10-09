@@ -394,14 +394,16 @@ export function Library({
 										<button
 											type="button"
 											aria-label={`Remove ingredient ${index + 1}`}
-											onClick={() =>
+											onClick={() => {
+												if (!window.confirm("Remove this ingredient from the menu?"))
+													return;
 												setMenuDraft({
 													...menuDraft,
 													ingredients: menuDraft.ingredients.filter(
 														(_, i) => i !== index,
 													),
-												})
-											}
+												});
+											}}
 										>
 											Remove
 										</button>
@@ -431,7 +433,10 @@ export function Library({
 								<button
 									type="button"
 									className="secondary"
-									onClick={() => setMenuDraft(null)}
+									onClick={() => {
+										if (window.confirm("Close this menu without saving?"))
+											setMenuDraft(null);
+									}}
 								>
 									Cancel
 								</button>
@@ -717,7 +722,10 @@ export function Library({
 								<button
 									type="button"
 									className="secondary"
-									onClick={() => setIngredientDraftState(null)}
+									onClick={() => {
+										if (window.confirm("Close this ingredient without saving?"))
+											setIngredientDraftState(null);
+									}}
 								>
 									Cancel
 								</button>

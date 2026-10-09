@@ -99,24 +99,39 @@ test.describe("Library and next-week targets", () => {
 			),
 		).toBeLessThanOrEqual(1);
 		const startingWeight = Number(await weight.inputValue());
+		await expect(page.getByLabel("Height (cm)")).toBeVisible();
+		await expect(page.getByLabel("Sex used for BMR equation")).toBeVisible();
+		await expect(
+			page.getByRole("table", { name: "Proposed calorie calculation" }),
+		).toBeVisible();
+		const initialBmr = await page
+			.getByRole("row", { name: /Estimated BMR/ })
+			.innerText();
 		await weight.fill(String(startingWeight + 1));
-		await page.getByRole("button", { name: "Preview next week" }).click();
 		await expect(
 			page.getByRole("table", {
 				name: "Current versus proposed next-week targets",
 			}),
 		).toBeVisible();
+		await expect(page.getByRole("row", { name: /Estimated BMR/ })).not.toHaveText(
+			initialBmr,
+		);
 		await expect(
 			page.getByRole("button", { name: "Apply next-week targets" }),
 		).toHaveCount(1);
+		const applyToday = page.getByRole("button", {
+			name: "Apply starting today",
+		});
+		await expect(applyToday).toHaveClass(/secondary/);
+		page.once("dialog", async (dialog) => {
+			expect(dialog.message()).toContain("current week");
+			await dialog.dismiss();
+		});
+		await applyToday.click();
 		await expect(page.getByRole("heading", { name: /week of/i })).toBeVisible();
 
-		await page.getByRole("button", { name: "Close preview" }).click();
-		await expect(
-			page.getByRole("table", {
-				name: "Current versus proposed next-week targets",
-			}),
-		).toHaveCount(0);
+		page.once("dialog", (dialog) => dialog.accept());
+		await page.getByRole("button", { name: "Discard changes" }).click();
 		await expect(weight).toHaveValue(String(startingWeight));
 	});
 
@@ -135,7 +150,6 @@ test.describe("Library and next-week targets", () => {
 		).toBeLessThanOrEqual(390);
 		const advanced = page.getByText("Advanced settings", { exact: true });
 		await expect(advanced).toBeVisible();
-		await page.getByText("Advanced settings", { exact: true }).click();
 		await expect(page.getByLabel("Weekend reserve (kcal/week)")).toBeVisible();
 		await expect(
 			page.getByText(
@@ -147,7 +161,6 @@ test.describe("Library and next-week targets", () => {
 		await page.getByLabel("Activity level").selectOption("active");
 		await expect(page.getByLabel("Custom activity factor")).toHaveCount(0);
 
-		await page.getByRole("button", { name: "Preview next week" }).click();
 		await expect(
 			page.getByRole("table", {
 				name: "Current versus proposed next-week targets",
