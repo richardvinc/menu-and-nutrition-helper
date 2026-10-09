@@ -5,6 +5,8 @@ services:
       - "3000:3000"
     environment:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MEAL_MODEL: ${OPENROUTER_MEAL_MODEL:-}
+      OPENROUTER_ALIAS_MODEL: ${OPENROUTER_ALIAS_MODEL:-}
       USDA_API_KEY: ${USDA_API_KEY:-}
       AI_DEBUG_LOG: ${AI_DEBUG_LOG:-false}
     volumes:

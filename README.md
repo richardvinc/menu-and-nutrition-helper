@@ -6,7 +6,8 @@ Two-member household meal planning for a trusted local network.
 
 AI meal recommendations and ingredient nutrition lookup are optional. Set
 `OPENROUTER_API_KEY` for recommendations and translated ingredient aliases,
-and `USDA_API_KEY` for verified nutrition lookup. The backend reads these
+`OPENROUTER_MEAL_MODEL` and `OPENROUTER_ALIAS_MODEL` for their respective
+OpenRouter model IDs, and `USDA_API_KEY` for verified nutrition lookup. The backend reads these
 environment variables; keys are never stored in the app database or sent to
 the browser. For local development, put them in an ignored `.env` file and
 export them in the shell used to start Bun. Docker Compose reads the same
@@ -18,8 +19,7 @@ AI provider prompts and responses are printed in the `bun run dev` terminal by
 default, without API keys or authorization headers. Set `AI_DEBUG_LOG=false` to
 disable them. Production and Docker logging is off unless `AI_DEBUG_LOG=true`
 is set explicitly; logged prompts can contain meal and nutrition data. Meal
-recommendations use `qwen/qwen3.5-35b-a3b-20260224`; the simpler ingredient
-alias translation continues to use OpenRouter's free router.
+model defaults are documented in `.env.example`.
 
 Install dependencies:
 

@@ -342,7 +342,9 @@ export function Targets({
 							step="1"
 							value={draft.heightCm}
 							aria-invalid={!!fieldErrors.heightCm}
-							aria-describedby={fieldErrors.heightCm ? "height-error" : undefined}
+							aria-describedby={
+								fieldErrors.heightCm ? "height-error" : undefined
+							}
 							onChange={(event) =>
 								update("heightCm", Number(event.target.value))
 							}
@@ -533,7 +535,9 @@ export function Targets({
 						type="button"
 						className="secondary"
 						onClick={() => {
-							if (!window.confirm("Discard these target changes without saving?"))
+							if (
+								!window.confirm("Discard these target changes without saving?")
+							)
 								return;
 							setDraft(initial);
 							setPreview(null);
@@ -584,21 +588,25 @@ export function Targets({
 									<th scope="row">Estimated BMR (Mifflin–St Jeor)</th>
 									<td>
 										(10 × {draft.weightKg} kg) + (6.25 × {draft.heightCm} cm) −{" "}
-										(5 × {preview.calculation.age}) {draft.sex === "male" ? "+ 5" : "− 161"} ≈{" "}
+										(5 × {preview.calculation.age}){" "}
+										{draft.sex === "male" ? "+ 5" : "− 161"} ≈{" "}
 										{Math.round(preview.calculation.bmrCalories)} kcal/day
 									</td>
 								</tr>
 								<tr>
 									<th scope="row">Activity-adjusted maintenance</th>
 									<td>
-										({Math.round(preview.calculation.bmrCalories)} × {draft.activityFactor}) ≈{" "}
-										{Math.round(preview.calculation.maintenanceCalories)} kcal/day
+										({Math.round(preview.calculation.bmrCalories)} ×{" "}
+										{draft.activityFactor}) ≈{" "}
+										{Math.round(preview.calculation.maintenanceCalories)}{" "}
+										kcal/day
 									</td>
 								</tr>
 								<tr>
 									<th scope="row">After {draft.deficitPercent}% deficit</th>
 									<td>
-										({Math.round(preview.calculation.maintenanceCalories)} × (1 − {draft.deficitPercent}%)) ≈{" "}
+										({Math.round(preview.calculation.maintenanceCalories)} × (1
+										− {draft.deficitPercent}%)) ≈{" "}
 										{Math.round(preview.proposed.weeklyCalories / 7)} kcal/day
 									</td>
 								</tr>
@@ -612,7 +620,8 @@ export function Targets({
 								<tr>
 									<th scope="row">Weekday target after weekend reserve</th>
 									<td>
-										(({Math.round(preview.proposed.weeklyCalories)} − {draft.weekendReserve}) ÷ 7) ≈{" "}
+										(({Math.round(preview.proposed.weeklyCalories)} −{" "}
+										{draft.weekendReserve}) ÷ 7) ≈{" "}
 										{Math.round(preview.proposed.weekdayCalories)} kcal/day
 									</td>
 								</tr>
@@ -621,7 +630,7 @@ export function Targets({
 					</div>
 					<p className="target-help">
 						BMR estimates the calories your body uses at rest. The app uses
-						 Mifflin–St Jeor, then applies activity and the deficit separately.
+						Mifflin–St Jeor, then applies activity and the deficit separately.
 					</p>
 					<div className="target-table-wrap">
 						<table>

@@ -7,8 +7,8 @@ import type {
 	SavedMenu,
 	ScheduledMeal,
 } from "@piring-kita/shared";
-import { api } from "../../api";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { api } from "../../api";
 import "./editor.css";
 
 type EditorData = Pick<
@@ -21,7 +21,12 @@ export interface ScheduledMealEditorProps {
 	date: string;
 	slot: ScheduledMeal["slot"];
 	memberId?: MemberId;
-	onSave: (meal: ScheduledMeal, saveToMenu?: boolean, pendingIngredients?: Ingredient[], companions?: ScheduledMeal[]) => void | Promise<void>;
+	onSave: (
+		meal: ScheduledMeal,
+		saveToMenu?: boolean,
+		pendingIngredients?: Ingredient[],
+		companions?: ScheduledMeal[],
+	) => void | Promise<void>;
 	onSaveMenu: (menu: SavedMenu, exists: boolean) => void | Promise<void>;
 	onCancel: () => void;
 }
@@ -86,8 +91,15 @@ function memberDayTotals(
 		if (meal.slot === "dinner" && !meal.memberId) {
 			const assigned = meal.ingredients.reduce((sum, row) => {
 				const ingredient = catalog.get(row.ingredientId);
-				if (!ingredient || (row.memberId && row.memberId !== memberId)) return sum;
-				return plus(sum, scale(ingredient.nutrition, row.quantity / ingredient.basisAmount * (row.memberId ? 1 : 0.5)));
+				if (!ingredient || (row.memberId && row.memberId !== memberId))
+					return sum;
+				return plus(
+					sum,
+					scale(
+						ingredient.nutrition,
+						(row.quantity / ingredient.basisAmount) * (row.memberId ? 1 : 0.5),
+					),
+				);
 			}, blank());
 			return plus(total, assigned);
 		}
@@ -196,7 +208,8 @@ function IngredientRow({
 				className="pk-editor-row__remove"
 				aria-label={`Remove ${selected?.name ?? "ingredient"}`}
 				onClick={() => {
-					if (window.confirm("Remove this ingredient from the meal?")) onRemove();
+					if (window.confirm("Remove this ingredient from the meal?"))
+						onRemove();
 				}}
 			>
 				Remove
@@ -258,24 +271,55 @@ export function ScheduledMealEditor({
 		message: string;
 	} | null>(null);
 	const [nameFocused, setNameFocused] = useState(false);
-	const [recommendations, setRecommendations] = useState<Awaited<ReturnType<typeof api.recommendMeals>>["recommendations"]>([]);
-	const [recommendationPrior, setRecommendationPrior] = useState<string[][]>([]);
+	const [recommendations, setRecommendations] = useState<
+		Awaited<ReturnType<typeof api.recommendMeals>>["recommendations"]
+	>([]);
+	const [recommendationPrior, setRecommendationPrior] = useState<string[][]>(
+		[],
+	);
 	const [recommendationError, setRecommendationError] = useState("");
 	const [recommendationLoading, setRecommendationLoading] = useState(false);
-	const [recommendationAvailable, setRecommendationAvailable] = useState<boolean | null>(null);
+	const [recommendationAvailable, setRecommendationAvailable] = useState<
+		boolean | null
+	>(null);
 	const [saveRecommendedMenu, setSaveRecommendedMenu] = useState(false);
-	const [pendingIngredients, setPendingIngredients] = useState<Ingredient[]>([]);
-	const [pendingCompanions, setPendingCompanions] = useState<ScheduledMeal[]>([]);
+	const [pendingIngredients, setPendingIngredients] = useState<Ingredient[]>(
+		[],
+	);
+	const [pendingCompanions, setPendingCompanions] = useState<ScheduledMeal[]>(
+		[],
+	);
 	const [includeCookingNote, setIncludeCookingNote] = useState(true);
-	const opening = useMemo(() => ({
-		name: initialMeal?.name ?? "", notes: initialMeal?.notes ?? "",
-		date: initialMeal?.date ?? date, slot: initialMeal?.slot ?? slot,
-		memberId: initialMeal?.memberId ?? memberId,
-		ingredients: initialMeal?.ingredients ?? [],
-	}), [initialMeal, date, slot, memberId]);
-	useEffect(() => { api.aiStatus().then((status) => setRecommendationAvailable(status.recommendations)).catch(() => setRecommendationAvailable(false)); }, []);
-	const catalogItems = useMemo(() => [...data.ingredients, ...pendingIngredients.filter((item) => !data.ingredients.some((existing) => existing.id === item.id))], [data.ingredients, pendingIngredients]);
-	const catalog = useMemo(() => new Map(catalogItems.map((item) => [item.id, item])), [catalogItems]);
+	const opening = useMemo(
+		() => ({
+			name: initialMeal?.name ?? "",
+			notes: initialMeal?.notes ?? "",
+			date: initialMeal?.date ?? date,
+			slot: initialMeal?.slot ?? slot,
+			memberId: initialMeal?.memberId ?? memberId,
+			ingredients: initialMeal?.ingredients ?? [],
+		}),
+		[initialMeal, date, slot, memberId],
+	);
+	useEffect(() => {
+		api
+			.aiStatus()
+			.then((status) => setRecommendationAvailable(status.recommendations))
+			.catch(() => setRecommendationAvailable(false));
+	}, []);
+	const catalogItems = useMemo(
+		() => [
+			...data.ingredients,
+			...pendingIngredients.filter(
+				(item) => !data.ingredients.some((existing) => existing.id === item.id),
+			),
+		],
+		[data.ingredients, pendingIngredients],
+	);
+	const catalog = useMemo(
+		() => new Map(catalogItems.map((item) => [item.id, item])),
+		[catalogItems],
+	);
 	const menuResults = useMemo(
 		() =>
 			name.trim()
@@ -309,9 +353,46 @@ export function ScheduledMealEditor({
 						: [],
 				)
 			: [];
-	const isDirty = JSON.stringify([name.trim(), notes.trim(), mealDate, mealSlot, mealSlot === "dinner" ? undefined : mealMember, rows.map((row) => [row.ingredientId, Number(row.quantity)]).sort(), carbRows.map((row) => [row.memberId, row.ingredientId, row.quantity]).sort(), pendingIngredients.map((item) => item.id).sort(), pendingCompanions.map((item) => [item.memberId, item.name, item.ingredients.map((row) => [row.ingredientId, Number(row.quantity)]).sort()])]) !== JSON.stringify([opening.name.trim(), opening.notes.trim(), opening.date, opening.slot, opening.slot === "dinner" ? undefined : opening.memberId, opening.ingredients.filter((row) => opening.slot !== "dinner" || !row.memberId).map((row) => [row.ingredientId, Number(row.quantity)]).sort(), opening.ingredients.filter((row) => row.memberId).map((row) => [row.memberId, row.ingredientId, row.quantity]).sort(), [], []]);
+	const isDirty =
+		JSON.stringify([
+			name.trim(),
+			notes.trim(),
+			mealDate,
+			mealSlot,
+			mealSlot === "dinner" ? undefined : mealMember,
+			rows.map((row) => [row.ingredientId, Number(row.quantity)]).sort(),
+			carbRows
+				.map((row) => [row.memberId, row.ingredientId, row.quantity])
+				.sort(),
+			pendingIngredients.map((item) => item.id).sort(),
+			pendingCompanions.map((item) => [
+				item.memberId,
+				item.name,
+				item.ingredients
+					.map((row) => [row.ingredientId, Number(row.quantity)])
+					.sort(),
+			]),
+		]) !==
+		JSON.stringify([
+			opening.name.trim(),
+			opening.notes.trim(),
+			opening.date,
+			opening.slot,
+			opening.slot === "dinner" ? undefined : opening.memberId,
+			opening.ingredients
+				.filter((row) => opening.slot !== "dinner" || !row.memberId)
+				.map((row) => [row.ingredientId, Number(row.quantity)])
+				.sort(),
+			opening.ingredients
+				.filter((row) => row.memberId)
+				.map((row) => [row.memberId, row.ingredientId, row.quantity])
+				.sort(),
+			[],
+			[],
+		]);
 	const cancel = () => {
-		if (!isDirty || window.confirm("Discard changes to this scheduled meal?")) onCancel();
+		if (!isDirty || window.confirm("Discard changes to this scheduled meal?"))
+			onCancel();
 	};
 	const cancelRef = useRef(cancel);
 	cancelRef.current = cancel;
@@ -453,12 +534,22 @@ export function ScheduledMealEditor({
 		if (invalidMeal) return;
 		setSaving(true);
 		try {
-			const referenced = new Set([...meal.ingredients, ...pendingCompanions.flatMap((companion) => companion.ingredients)].map((row) => row.ingredientId));
-			await onSave({
-				...meal,
-				id: initialMeal?.id ?? Date.now().toString(),
-				name: name.trim(),
-			}, saveRecommendedMenu, pendingIngredients.filter((item) => referenced.has(item.id)), pendingCompanions);
+			const referenced = new Set(
+				[
+					...meal.ingredients,
+					...pendingCompanions.flatMap((companion) => companion.ingredients),
+				].map((row) => row.ingredientId),
+			);
+			await onSave(
+				{
+					...meal,
+					id: initialMeal?.id ?? Date.now().toString(),
+					name: name.trim(),
+				},
+				saveRecommendedMenu,
+				pendingIngredients.filter((item) => referenced.has(item.id)),
+				pendingCompanions,
+			);
 		} finally {
 			setSaving(false);
 		}
@@ -467,23 +558,85 @@ export function ScheduledMealEditor({
 		setRecommendationLoading(true);
 		setRecommendationError("");
 		try {
-			const result = await api.recommendMeals({ ...meal, name: name.trim() || "Meal" }, recommendationPrior, pendingIngredients, pendingCompanions);
+			const result = await api.recommendMeals(
+				{ ...meal, name: name.trim() || "Meal" },
+				recommendationPrior,
+				pendingIngredients,
+				pendingCompanions,
+			);
 			setRecommendations(result.recommendations);
-			setRecommendationPrior((current) => [...current, ...result.recommendations.map((item) => item.priorKey)].slice(-5));
+			setRecommendationPrior((current) =>
+				[
+					...current,
+					...result.recommendations.map((item) => item.priorKey),
+				].slice(-5),
+			);
 		} catch (reason) {
-			setRecommendationError(reason instanceof Error ? reason.message : "Could not get recommendations.");
-		} finally { setRecommendationLoading(false); }
+			setRecommendationError(
+				reason instanceof Error
+					? reason.message
+					: "Could not get recommendations.",
+			);
+		} finally {
+			setRecommendationLoading(false);
+		}
 	};
-	const applyRecommendation = (recommendation: (typeof recommendations)[number]) => {
-		setName((current) => current.trim() ? current : recommendation.name);
-		setPendingIngredients((current) => [...current, ...recommendation.newIngredients.filter((item) => !current.some((existing) => existing.id === item.id) && !data.ingredients.some((existing) => existing.id === item.id))]);
-		setRows(recommendation.ingredientDetails.filter((row) => !row.memberId).map(({ ingredientId, quantity }) => ({ ingredientId, quantity })));
-		if (mealSlot === "dinner") setCarbs({
-			richard: (() => { const row = recommendation.ingredientDetails.find((item) => item.memberId === "richard"); return { ingredientId: row?.ingredientId ?? "", quantity: row ? String(row.quantity) : "" }; })(),
-			michelle: (() => { const row = recommendation.ingredientDetails.find((item) => item.memberId === "michelle"); return { ingredientId: row?.ingredientId ?? "", quantity: row ? String(row.quantity) : "" }; })(),
-		});
-		if (recommendation.companionSnacks.length) setPendingCompanions(recommendation.companionSnacks.map((snack, index) => ({ id: `pending-snack-${Date.now()}-${index}`, date: mealDate, slot: "snack", memberId: snack.memberId, name: snack.name, notes: "", ingredients: snack.ingredients.map((row) => ({ ...row })) })));
-		if (includeCookingNote && recommendation.cookingNote.trim()) setNotes((current) => [current.trim(), recommendation.cookingNote.trim()].filter(Boolean).join("\n"));
+	const applyRecommendation = (
+		recommendation: (typeof recommendations)[number],
+	) => {
+		setName((current) => (current.trim() ? current : recommendation.name));
+		setPendingIngredients((current) => [
+			...current,
+			...recommendation.newIngredients.filter(
+				(item) =>
+					!current.some((existing) => existing.id === item.id) &&
+					!data.ingredients.some((existing) => existing.id === item.id),
+			),
+		]);
+		setRows(
+			recommendation.ingredientDetails
+				.filter((row) => !row.memberId)
+				.map(({ ingredientId, quantity }) => ({ ingredientId, quantity })),
+		);
+		if (mealSlot === "dinner")
+			setCarbs({
+				richard: (() => {
+					const row = recommendation.ingredientDetails.find(
+						(item) => item.memberId === "richard",
+					);
+					return {
+						ingredientId: row?.ingredientId ?? "",
+						quantity: row ? String(row.quantity) : "",
+					};
+				})(),
+				michelle: (() => {
+					const row = recommendation.ingredientDetails.find(
+						(item) => item.memberId === "michelle",
+					);
+					return {
+						ingredientId: row?.ingredientId ?? "",
+						quantity: row ? String(row.quantity) : "",
+					};
+				})(),
+			});
+		if (recommendation.companionSnacks.length)
+			setPendingCompanions(
+				recommendation.companionSnacks.map((snack, index) => ({
+					id: `pending-snack-${Date.now()}-${index}`,
+					date: mealDate,
+					slot: "snack",
+					memberId: snack.memberId,
+					name: snack.name,
+					notes: "",
+					ingredients: snack.ingredients.map((row) => ({ ...row })),
+				})),
+			);
+		if (includeCookingNote && recommendation.cookingNote.trim())
+			setNotes((current) =>
+				[current.trim(), recommendation.cookingNote.trim()]
+					.filter(Boolean)
+					.join("\n"),
+			);
 		setSaveRecommendedMenu(false);
 	};
 
@@ -805,28 +958,180 @@ export function ScheduledMealEditor({
 						<section className="pk-editor__after" aria-labelledby="pk-ai-title">
 							<p className="pk-editor__eyebrow">AI MEAL IDEAS</p>
 							<h2 id="pk-ai-title">A hand with this meal?</h2>
-							<p className="pk-editor__caption">{weekend ? "The current weekday target is a reference only; weekend targets remain self-managed." : "Suggestions use the remaining weekday target and include planned snacks in the daily budget."}</p>
-							<button type="button" onClick={fetchRecommendations} disabled={recommendationLoading || recommendationAvailable === false}>
-								{recommendationLoading ? "Thinking…" : name.trim() ? "Improve with AI" : "Recommend me"}
+							<p className="pk-editor__caption">
+								{weekend
+									? "The current weekday target is a reference only; weekend targets remain self-managed."
+									: "Suggestions use the remaining weekday target and include planned snacks in the daily budget."}
+							</p>
+							<button
+								type="button"
+								onClick={fetchRecommendations}
+								disabled={
+									recommendationLoading || recommendationAvailable === false
+								}
+							>
+								{recommendationLoading
+									? "Thinking…"
+									: name.trim()
+										? "Improve with AI"
+										: "Recommend me"}
 							</button>
-							{recommendationAvailable === false && <p className="pk-editor__caption">AI recommendations are unavailable: OPENROUTER_API_KEY is not configured.</p>}
-							{recommendationError && <p className="feature-error" role="alert">{recommendationError}</p>}
+							{recommendationAvailable === false && (
+								<p className="pk-editor__caption">
+									AI recommendations are unavailable: OPENROUTER_API_KEY is not
+									configured.
+								</p>
+							)}
+							{recommendationError && (
+								<p className="feature-error" role="alert">
+									{recommendationError}
+								</p>
+							)}
 							{recommendations.map((item, index) => (
 								<article className="pk-ai-card" key={`${item.name}-${index}`}>
 									<h3>{item.name}</h3>
 									<p>{item.justification}</p>
-									<ul>{item.ingredientDetails.map((row, rowIndex) => <li key={`${row.ingredientId}-${row.memberId ?? "shared"}-${rowIndex}`}>{row.name}: {row.quantity} {catalog.get(row.ingredientId)?.unit}</li>)}</ul>
-									<p>{pretty(item.nutrition.calories)} kcal · {pretty(item.nutrition.protein)} g protein · {pretty(item.nutrition.carbs)} g carbs · {pretty(item.nutrition.fat)} g fat · {pretty(item.nutrition.fiber)} g fiber</p>
-										{item.deltas.map((delta) => <p key={delta.member}>{delta.member}: {pretty(delta.caloriesAfter)} / {pretty(delta.calorieTarget)} kcal{delta.overCaloriesBy > 0 ? ` · ${pretty(delta.overCaloriesBy)} kcal over target${delta.caloriesAfter <= delta.calorieTarget * 1.05 ? " (within 5%)" : ""}` : ""}; protein {pretty(delta.proteinAfter)} / {pretty(delta.proteinTarget)} g, carbs {pretty(delta.carbsAfter)} / {pretty(delta.carbsTarget)} g, fat {pretty(delta.fatAfter)} / {pretty(delta.fatTarget)} g, fiber {pretty(delta.fiberAfter)} / {pretty(delta.fiberTarget)} g{delta.sourceWarning ? ` · ${delta.sourceWarning}` : ""}</p>)}
-									{item.newIngredients.length > 0 && <p>New USDA ingredients will be added when you save: {item.newIngredients.map((ingredient) => ingredient.name).join(", ")}</p>}
-									{item.companionSnacks.map((snack) => <p key={snack.memberId}>{data.members.find((member) => member.id === snack.memberId)?.name} companion snack: {snack.name} · {pretty(snack.nutrition.calories)} kcal</p>)}
-									{item.removals.length > 0 && <p>Would remove: {item.removals.join(", ")}</p>}
-									<label className="pk-ai-check"><input type="checkbox" checked={includeCookingNote} onChange={(event) => setIncludeCookingNote(event.target.checked)} /> Add cooking note when applied</label>
-									<label className="pk-ai-check"><input type="checkbox" checked={saveRecommendedMenu} onChange={(event) => setSaveRecommendedMenu(event.target.checked)} /> Save to menu collection when I save this meal</label>
-									<button type="button" onClick={() => applyRecommendation(item)}>Apply to draft</button>
+									<ul>
+										{item.ingredientDetails.map((row, rowIndex) => (
+											<li
+												key={`${row.ingredientId}-${row.memberId ?? "shared"}-${rowIndex}`}
+											>
+												{row.name}: {row.quantity}{" "}
+												{catalog.get(row.ingredientId)?.unit}
+											</li>
+										))}
+									</ul>
+									<p>
+										{pretty(item.nutrition.calories)} kcal ·{" "}
+										{pretty(item.nutrition.protein)} g protein ·{" "}
+										{pretty(item.nutrition.carbs)} g carbs ·{" "}
+										{pretty(item.nutrition.fat)} g fat ·{" "}
+										{pretty(item.nutrition.fiber)} g fiber
+									</p>
+									{item.deltas.map((delta) => (
+										<p key={delta.member}>
+											{delta.member}: {pretty(delta.caloriesAfter)} /{" "}
+											{pretty(delta.calorieTarget)} kcal
+											{delta.overCaloriesBy > 0
+												? ` · ${pretty(delta.overCaloriesBy)} kcal over target${delta.caloriesAfter <= delta.calorieTarget * 1.05 ? " (within 5%)" : ""}`
+												: ""}
+											; protein {pretty(delta.proteinAfter)} /{" "}
+											{pretty(delta.proteinTarget)} g, carbs{" "}
+											{pretty(delta.carbsAfter)} / {pretty(delta.carbsTarget)}{" "}
+											g, fat {pretty(delta.fatAfter)} /{" "}
+											{pretty(delta.fatTarget)} g, fiber{" "}
+											{pretty(delta.fiberAfter)} / {pretty(delta.fiberTarget)} g
+											{delta.sourceWarning ? ` · ${delta.sourceWarning}` : ""}
+										</p>
+									))}
+									{item.newIngredients.length > 0 && (
+										<p>
+											New USDA ingredients will be added when you save:{" "}
+											{item.newIngredients
+												.map((ingredient) => ingredient.name)
+												.join(", ")}
+										</p>
+									)}
+									{item.companionSnacks.map((snack) => (
+										<p key={snack.memberId}>
+											{
+												data.members.find(
+													(member) => member.id === snack.memberId,
+												)?.name
+											}{" "}
+											companion snack: {snack.name} ·{" "}
+											{pretty(snack.nutrition.calories)} kcal
+										</p>
+									))}
+									{item.removals.length > 0 && (
+										<p>Would remove: {item.removals.join(", ")}</p>
+									)}
+									<label className="pk-ai-check">
+										<input
+											type="checkbox"
+											checked={includeCookingNote}
+											onChange={(event) =>
+												setIncludeCookingNote(event.target.checked)
+											}
+										/>{" "}
+										Add cooking note when applied
+									</label>
+									<label className="pk-ai-check">
+										<input
+											type="checkbox"
+											checked={saveRecommendedMenu}
+											onChange={(event) =>
+												setSaveRecommendedMenu(event.target.checked)
+											}
+										/>{" "}
+										Save to menu collection when I save this meal
+									</label>
+									<button
+										type="button"
+										onClick={() => applyRecommendation(item)}
+									>
+										Apply to draft
+									</button>
 								</article>
 							))}
-							{pendingCompanions.map((snack, snackIndex) => <div className="pk-ai-card" key={snack.id}><h3>{data.members.find((member) => member.id === snack.memberId)?.name} companion snack · {snack.name}</h3>{snack.ingredients.map((row, index) => <IngredientRow key={`${snackIndex}-${row.ingredientId}-${index}`} row={row} catalog={catalogItems} onChange={(value) => setPendingCompanions((current) => current.map((item, itemIndex) => itemIndex === snackIndex ? { ...item, ingredients: item.ingredients.map((entry, rowIndex) => rowIndex === index ? value : entry) } : item))} onRemove={() => setPendingCompanions((current) => current.map((item, itemIndex) => itemIndex === snackIndex ? { ...item, ingredients: item.ingredients.filter((_, rowIndex) => rowIndex !== index) } : item))} />)}<button type="button" onClick={() => setPendingCompanions((current) => current.filter((_, index) => index !== snackIndex))}>Remove companion snack</button></div>)}
+							{pendingCompanions.map((snack, snackIndex) => (
+								<div className="pk-ai-card" key={snack.id}>
+									<h3>
+										{
+											data.members.find(
+												(member) => member.id === snack.memberId,
+											)?.name
+										}{" "}
+										companion snack · {snack.name}
+									</h3>
+									{snack.ingredients.map((row, index) => (
+										<IngredientRow
+											key={`${snackIndex}-${row.ingredientId}-${index}`}
+											row={row}
+											catalog={catalogItems}
+											onChange={(value) =>
+												setPendingCompanions((current) =>
+													current.map((item, itemIndex) =>
+														itemIndex === snackIndex
+															? {
+																	...item,
+																	ingredients: item.ingredients.map(
+																		(entry, rowIndex) =>
+																			rowIndex === index ? value : entry,
+																	),
+																}
+															: item,
+													),
+												)
+											}
+											onRemove={() =>
+												setPendingCompanions((current) =>
+													current.map((item, itemIndex) =>
+														itemIndex === snackIndex
+															? {
+																	...item,
+																	ingredients: item.ingredients.filter(
+																		(_, rowIndex) => rowIndex !== index,
+																	),
+																}
+															: item,
+													),
+												)
+											}
+										/>
+									))}
+									<button
+										type="button"
+										onClick={() =>
+											setPendingCompanions((current) =>
+												current.filter((_, index) => index !== snackIndex),
+											)
+										}
+									>
+										Remove companion snack
+									</button>
+								</div>
+							))}
 						</section>
 					</aside>
 				</div>

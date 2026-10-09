@@ -20,7 +20,14 @@ import express, {
 	type Request,
 	type Response,
 } from "express";
-import { ingredientAliases, rateLimit, recommend, reserveOpenRouterRequest, searchUsda, usdaIngredient } from "./ai";
+import {
+	ingredientAliases,
+	rateLimit,
+	recommend,
+	reserveOpenRouterRequest,
+	searchUsda,
+	usdaIngredient,
+} from "./ai";
 
 const defaultPath = resolve(import.meta.dir, "../data/piring-kita.sqlite");
 
@@ -34,7 +41,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Cooked",
 		source: "USDA FoodData Central SR Legacy, FDC 168878, April 2018",
 		suggestible: false,
-		nutrition: { calories: 130, protein: 2.69, fat: 0.28, carbs: 28.17, fiber: 0.4 },
+		nutrition: {
+			calories: 130,
+			protein: 2.69,
+			fat: 0.28,
+			carbs: 28.17,
+			fiber: 0.4,
+		},
 	},
 	{
 		id: "chicken",
@@ -67,7 +80,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw, firm, calcium-set",
 		source: "USDA FoodData Central SR Legacy, FDC 172475, April 2018",
 		suggestible: true,
-		nutrition: { calories: 144, protein: 17.27, fat: 8.72, carbs: 2.78, fiber: 2.3 },
+		nutrition: {
+			calories: 144,
+			protein: 17.27,
+			fat: 8.72,
+			carbs: 2.78,
+			fiber: 2.3,
+		},
 	},
 	{
 		id: "broccoli",
@@ -78,7 +97,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 170379, April 2018",
 		suggestible: true,
-		nutrition: { calories: 34, protein: 2.82, fat: 0.37, carbs: 6.64, fiber: 2.6 },
+		nutrition: {
+			calories: 34,
+			protein: 2.82,
+			fat: 0.37,
+			carbs: 6.64,
+			fiber: 2.6,
+		},
 	},
 	{
 		id: "egg",
@@ -90,7 +115,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Whole",
 		source: "USDA FoodData Central SR Legacy, FDC 171287, April 2018",
 		suggestible: false,
-		nutrition: { calories: 71.5, protein: 6.28, fat: 4.76, carbs: 0.36, fiber: 0 },
+		nutrition: {
+			calories: 71.5,
+			protein: 6.28,
+			fat: 4.76,
+			carbs: 0.36,
+			fiber: 0,
+		},
 	},
 	{
 		id: "avocado",
@@ -101,7 +132,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 171705, April 2018",
 		suggestible: true,
-		nutrition: { calories: 160, protein: 2, fat: 14.66, carbs: 8.53, fiber: 6.7 },
+		nutrition: {
+			calories: 160,
+			protein: 2,
+			fat: 14.66,
+			carbs: 8.53,
+			fiber: 6.7,
+		},
 	},
 	{
 		id: "banana",
@@ -113,7 +150,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 173944, April 2018",
 		suggestible: true,
-		nutrition: { calories: 105.02, protein: 1.29, fat: 0.39, carbs: 26.95, fiber: 3.07 },
+		nutrition: {
+			calories: 105.02,
+			protein: 1.29,
+			fat: 0.39,
+			carbs: 26.95,
+			fiber: 3.07,
+		},
 	},
 	{
 		id: "peanut",
@@ -124,7 +167,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Smooth",
 		source: "USDA FoodData Central SR Legacy, FDC 174294, April 2018",
 		suggestible: false,
-		nutrition: { calories: 588, protein: 21.93, fat: 49.54, carbs: 23.98, fiber: 5.7 },
+		nutrition: {
+			calories: 588,
+			protein: 21.93,
+			fat: 49.54,
+			carbs: 23.98,
+			fiber: 5.7,
+		},
 	},
 	{
 		id: "egg-white",
@@ -136,7 +185,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw, large egg white",
 		source: "USDA FoodData Central SR Legacy, FDC 172183, April 2018",
 		suggestible: true,
-		nutrition: { calories: 17.16, protein: 3.6, fat: 0.06, carbs: 0.24, fiber: 0 },
+		nutrition: {
+			calories: 17.16,
+			protein: 3.6,
+			fat: 0.06,
+			carbs: 0.24,
+			fiber: 0,
+		},
 	},
 	{
 		id: "olive-oil",
@@ -158,7 +213,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 169979, April 2018",
 		suggestible: true,
-		nutrition: { calories: 16, protein: 1.2, fat: 0.2, carbs: 3.23, fiber: 1.2 },
+		nutrition: {
+			calories: 16,
+			protein: 1.2,
+			fat: 0.2,
+			carbs: 3.23,
+			fiber: 1.2,
+		},
 	},
 	{
 		id: "pak-choi",
@@ -180,7 +241,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 169251, April 2018",
 		suggestible: true,
-		nutrition: { calories: 22, protein: 3.09, fat: 0.34, carbs: 3.26, fiber: 1 },
+		nutrition: {
+			calories: 22,
+			protein: 3.09,
+			fat: 0.34,
+			carbs: 3.26,
+			fiber: 1,
+		},
 	},
 	{
 		id: "shimeji",
@@ -189,9 +256,16 @@ const seedIngredients: Ingredient[] = [
 		unit: "g",
 		basisAmount: 100,
 		preparation: "Raw",
-		source: "USDA FoodData Central Foundation, FDC 2003603, published 2021-10-28",
+		source:
+			"USDA FoodData Central Foundation, FDC 2003603, published 2021-10-28",
 		suggestible: true,
-		nutrition: { calories: 33, protein: 2.18, fat: 0.45, carbs: 6.76, fiber: 3.14 },
+		nutrition: {
+			calories: 33,
+			protein: 2.18,
+			fat: 0.45,
+			carbs: 6.76,
+			fiber: 3.14,
+		},
 	},
 	{
 		id: "carrot",
@@ -202,7 +276,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 170393, April 2018",
 		suggestible: true,
-		nutrition: { calories: 41, protein: 0.93, fat: 0.24, carbs: 9.58, fiber: 2.8 },
+		nutrition: {
+			calories: 41,
+			protein: 0.93,
+			fat: 0.24,
+			carbs: 9.58,
+			fiber: 2.8,
+		},
 	},
 	{
 		id: "silken-tofu",
@@ -213,7 +293,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Soft, nigari-set",
 		source: "USDA FoodData Central SR Legacy, FDC 172449, April 2018",
 		suggestible: true,
-		nutrition: { calories: 61, protein: 7.17, fat: 3.69, carbs: 1.18, fiber: 0.2 },
+		nutrition: {
+			calories: 61,
+			protein: 7.17,
+			fat: 3.69,
+			carbs: 1.18,
+			fiber: 0.2,
+		},
 	},
 	{
 		id: "tomato",
@@ -224,7 +310,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 170457, April 2018",
 		suggestible: true,
-		nutrition: { calories: 18, protein: 0.88, fat: 0.2, carbs: 3.89, fiber: 1.2 },
+		nutrition: {
+			calories: 18,
+			protein: 0.88,
+			fat: 0.2,
+			carbs: 3.89,
+			fiber: 1.2,
+		},
 	},
 	{
 		id: "whole-milk",
@@ -247,7 +339,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw, with skin",
 		source: "USDA FoodData Central SR Legacy, FDC 171688, April 2018",
 		suggestible: true,
-		nutrition: { calories: 94.64, protein: 0.47, fat: 0.31, carbs: 25.13, fiber: 4.37 },
+		nutrition: {
+			calories: 94.64,
+			protein: 0.47,
+			fat: 0.31,
+			carbs: 25.13,
+			fiber: 4.37,
+		},
 	},
 	{
 		id: "potato",
@@ -258,7 +356,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Boiled without skin or salt",
 		source: "USDA FoodData Central SR Legacy, FDC 170440, April 2018",
 		suggestible: true,
-		nutrition: { calories: 86, protein: 1.71, fat: 0.1, carbs: 20.01, fiber: 1.8 },
+		nutrition: {
+			calories: 86,
+			protein: 1.71,
+			fat: 0.1,
+			carbs: 20.01,
+			fiber: 1.8,
+		},
 	},
 	{
 		id: "papaya",
@@ -269,7 +373,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 169926, April 2018",
 		suggestible: true,
-		nutrition: { calories: 43, protein: 0.47, fat: 0.26, carbs: 10.82, fiber: 1.7 },
+		nutrition: {
+			calories: 43,
+			protein: 0.47,
+			fat: 0.26,
+			carbs: 10.82,
+			fiber: 1.7,
+		},
 	},
 	{
 		id: "greek-yogurt",
@@ -280,7 +390,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Plain, low-fat",
 		source: "USDA FoodData Central SR Legacy, FDC 170903, April 2018",
 		suggestible: true,
-		nutrition: { calories: 73, protein: 9.95, fat: 1.92, carbs: 3.94, fiber: 0 },
+		nutrition: {
+			calories: 73,
+			protein: 9.95,
+			fat: 1.92,
+			carbs: 3.94,
+			fiber: 0,
+		},
 	},
 	{
 		id: "sweet-potato",
@@ -291,7 +407,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Boiled without skin",
 		source: "USDA FoodData Central SR Legacy, FDC 168484, April 2018",
 		suggestible: true,
-		nutrition: { calories: 76, protein: 1.37, fat: 0.14, carbs: 17.72, fiber: 2.5 },
+		nutrition: {
+			calories: 76,
+			protein: 1.37,
+			fat: 0.14,
+			carbs: 17.72,
+			fiber: 2.5,
+		},
 	},
 	{
 		id: "miso",
@@ -303,7 +425,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Paste",
 		source: "USDA FoodData Central SR Legacy, FDC 172442, April 2018",
 		suggestible: false,
-		nutrition: { calories: 33.66, protein: 2.17, fat: 1.02, carbs: 4.31, fiber: 0.92 },
+		nutrition: {
+			calories: 33.66,
+			protein: 2.17,
+			fat: 1.02,
+			carbs: 4.31,
+			fiber: 0.92,
+		},
 	},
 	{
 		id: "whole-wheat-bread",
@@ -315,7 +443,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Commercially prepared slice",
 		source: "USDA FoodData Central SR Legacy, FDC 172688, April 2018",
 		suggestible: true,
-		nutrition: { calories: 80.64, protein: 3.98, fat: 1.12, carbs: 13.67, fiber: 1.92 },
+		nutrition: {
+			calories: 80.64,
+			protein: 3.98,
+			fat: 1.12,
+			carbs: 13.67,
+			fiber: 1.92,
+		},
 	},
 	{
 		id: "mung-beans",
@@ -326,7 +460,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Boiled without salt",
 		source: "USDA FoodData Central SR Legacy, FDC 174257, April 2018",
 		suggestible: true,
-		nutrition: { calories: 105, protein: 7.02, fat: 0.38, carbs: 19.15, fiber: 7.6 },
+		nutrition: {
+			calories: 105,
+			protein: 7.02,
+			fat: 0.38,
+			carbs: 19.15,
+			fiber: 7.6,
+		},
 	},
 	{
 		id: "pear",
@@ -337,7 +477,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 169118, April 2018",
 		suggestible: true,
-		nutrition: { calories: 57, protein: 0.36, fat: 0.14, carbs: 15.23, fiber: 3.1 },
+		nutrition: {
+			calories: 57,
+			protein: 0.36,
+			fat: 0.14,
+			carbs: 15.23,
+			fiber: 3.1,
+		},
 	},
 	{
 		id: "cornstarch",
@@ -349,7 +495,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Dry",
 		source: "USDA FoodData Central SR Legacy, FDC 169698, April 2018",
 		suggestible: false,
-		nutrition: { calories: 30.48, protein: 0.02, fat: 0, carbs: 7.3, fiber: 0.07 },
+		nutrition: {
+			calories: 30.48,
+			protein: 0.02,
+			fat: 0,
+			carbs: 7.3,
+			fiber: 0.07,
+		},
 	},
 	{
 		id: "onion",
@@ -360,7 +512,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 170000, April 2018",
 		suggestible: false,
-		nutrition: { calories: 40, protein: 1.1, fat: 0.1, carbs: 9.34, fiber: 1.7 },
+		nutrition: {
+			calories: 40,
+			protein: 1.1,
+			fat: 0.1,
+			carbs: 9.34,
+			fiber: 1.7,
+		},
 	},
 	{
 		id: "romaine",
@@ -371,7 +529,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 169247, April 2018",
 		suggestible: true,
-		nutrition: { calories: 17, protein: 1.23, fat: 0.3, carbs: 3.29, fiber: 2.1 },
+		nutrition: {
+			calories: 17,
+			protein: 1.23,
+			fat: 0.3,
+			carbs: 3.29,
+			fiber: 2.1,
+		},
 	},
 	{
 		id: "sesame-oil",
@@ -393,7 +557,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 169975, April 2018",
 		suggestible: true,
-		nutrition: { calories: 25, protein: 1.28, fat: 0.1, carbs: 5.8, fiber: 2.5 },
+		nutrition: {
+			calories: 25,
+			protein: 1.28,
+			fat: 0.1,
+			carbs: 5.8,
+			fiber: 2.5,
+		},
 	},
 	{
 		id: "shiitake",
@@ -404,7 +574,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw",
 		source: "USDA FoodData Central SR Legacy, FDC 169242, April 2018",
 		suggestible: true,
-		nutrition: { calories: 34, protein: 2.24, fat: 0.49, carbs: 6.79, fiber: 2.5 },
+		nutrition: {
+			calories: 34,
+			protein: 2.24,
+			fat: 0.49,
+			carbs: 6.79,
+			fiber: 2.5,
+		},
 	},
 	{
 		id: "salmon",
@@ -415,7 +591,13 @@ const seedIngredients: Ingredient[] = [
 		preparation: "Raw, farmed",
 		source: "USDA FoodData Central SR Legacy, FDC 175167, April 2018",
 		suggestible: true,
-		nutrition: { calories: 208, protein: 20.42, fat: 13.42, carbs: 0, fiber: 0 },
+		nutrition: {
+			calories: 208,
+			protein: 20.42,
+			fat: 13.42,
+			carbs: 0,
+			fiber: 0,
+		},
 	},
 ];
 
@@ -1180,126 +1362,408 @@ export function createApp(db = createDatabase()) {
 
 	app.get("/api/health", (_req, res) => res.json({ ok: true }));
 	app.get("/api/data", (_req, res) => res.json(dataFromDb(db)));
-	app.get("/api/ai/status", (_req, res) => res.json({ recommendations: Boolean(process.env.OPENROUTER_API_KEY), ingredientLookup: Boolean(process.env.USDA_API_KEY) }));
+	app.get("/api/ai/status", (_req, res) =>
+		res.json({
+			recommendations: Boolean(
+				process.env.OPENROUTER_API_KEY && process.env.OPENROUTER_MEAL_MODEL,
+			),
+			ingredientLookup: Boolean(process.env.USDA_API_KEY),
+		}),
+	);
 	app.post("/api/ai/recommendations", async (req, res) => {
 		const ip = req.ip || req.socket.remoteAddress || "unknown";
-		if (!rateLimit(`openrouter:${ip}`, 10, 600_000)) return fail(res, "AI request limit reached. Try again in a few minutes.", 429);
+		if (!rateLimit(`openrouter:${ip}`, 10, 600_000))
+			return fail(
+				res,
+				"AI request limit reached. Try again in a few minutes.",
+				429,
+			);
 		const catalog = rows<Ingredient>(db, "ingredients");
 		const pending: Ingredient[] = [];
 		if (req.body?.pendingIngredients !== undefined) {
-			if (!Array.isArray(req.body.pendingIngredients) || req.body.pendingIngredients.length > 50) return fail(res, "invalid pending ingredients");
+			if (
+				!Array.isArray(req.body.pendingIngredients) ||
+				req.body.pendingIngredients.length > 50
+			)
+				return fail(res, "invalid pending ingredients");
 			try {
 				for (const item of req.body.pendingIngredients) {
-					const fdc = typeof item?.id === "string" ? /^fdc-(\d+)$/.exec(item.id) : null;
-					if (!fdc || !validIngredient(item)) return fail(res, "invalid pending USDA ingredient");
+					const fdc =
+						typeof item?.id === "string" ? /^fdc-(\d+)$/.exec(item.id) : null;
+					if (!fdc || !validIngredient(item))
+						return fail(res, "invalid pending USDA ingredient");
 					const verified = await usdaIngredient(Number(fdc[1]));
-					if (JSON.stringify(verified.nutrition) !== JSON.stringify(item.nutrition) || verified.source !== item.source) return fail(res, "USDA ingredient values changed; look up the ingredient again.", 409);
+					if (
+						JSON.stringify(verified.nutrition) !==
+							JSON.stringify(item.nutrition) ||
+						verified.source !== item.source
+					)
+						return fail(
+							res,
+							"USDA ingredient values changed; look up the ingredient again.",
+							409,
+						);
 					pending.push(verified);
 				}
-			} catch (error) { return fail(res, error, 503); }
+			} catch (error) {
+				return fail(res, error, 503);
+			}
 		}
-		const available = [...catalog, ...pending.filter((item) => !catalog.some((existingItem) => existingItem.id === item.id))];
+		const available = [
+			...catalog,
+			...pending.filter(
+				(item) => !catalog.some((existingItem) => existingItem.id === item.id),
+			),
+		];
 		const catalogIds = new Set(available.map((item) => item.id));
 		const meal = req.body?.meal;
 		if (!validMeal(meal, catalogIds)) return fail(res, "invalid meal draft");
-		const existingDay = rows<ScheduledMeal>(db, "scheduled_meals").filter((item) => item.date === meal.date && item.id !== meal.id);
+		const existingDay = rows<ScheduledMeal>(db, "scheduled_meals").filter(
+			(item) => item.date === meal.date && item.id !== meal.id,
+		);
 		const companions = req.body?.companions ?? [];
-		if (!Array.isArray(companions) || companions.length > 2 || companions.some((item: any) => !validMeal(item, catalogIds) || item.date !== meal.date || item.slot !== "snack" || !item.memberId)) return fail(res, "invalid companion snack draft");
-		const occupiedSnackMembers = new Set(existingDay.filter((item) => item.slot === "snack").map((item) => item.memberId));
+		if (
+			!Array.isArray(companions) ||
+			companions.length > 2 ||
+			companions.some(
+				(item: any) =>
+					!validMeal(item, catalogIds) ||
+					item.date !== meal.date ||
+					item.slot !== "snack" ||
+					!item.memberId,
+			)
+		)
+			return fail(res, "invalid companion snack draft");
+		const occupiedSnackMembers = new Set(
+			existingDay
+				.filter((item) => item.slot === "snack")
+				.map((item) => item.memberId),
+		);
 		for (const snack of companions) {
-			if (occupiedSnackMembers.has(snack.memberId)) return fail(res, "a companion snack cannot replace an existing snack", 409);
+			if (occupiedSnackMembers.has(snack.memberId))
+				return fail(
+					res,
+					"a companion snack cannot replace an existing snack",
+					409,
+				);
 			occupiedSnackMembers.add(snack.memberId);
 		}
 		const day = [...existingDay, ...companions, meal];
-		const memberTargets = rows<WeeklyTarget>(db, "targets").map((target) => {
-			const current = day.reduce((sum, scheduled) => {
-				const total = scheduled.ingredients.reduce((part, row) => {
-					const ingredient = available.find((entry) => entry.id === row.ingredientId);
-					if (!ingredient || (scheduled.slot !== "dinner" && scheduled.memberId && scheduled.memberId !== target.memberId) || (scheduled.slot === "dinner" && row.memberId && row.memberId !== target.memberId)) return part;
-					const amount = row.quantity / ingredient.basisAmount;
-					for (const key of ["calories", "protein", "carbs", "fat", "fiber"] as const) part[key] += ingredient.nutrition[key] * amount * (scheduled.slot === "dinner" && !row.memberId ? 0.5 : 1);
-					return part;
-				}, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
-				return { calories: sum.calories + total.calories, protein: sum.protein + total.protein, carbs: sum.carbs + total.carbs, fat: sum.fat + total.fat, fiber: sum.fiber + total.fiber };
-			}, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
-			return { target, current };
-		}).filter(({ target }) => target.weekStart <= meal.date).reduce((latest, entry) => {
-			const previous = latest.get(entry.target.memberId);
-			if (!previous || previous.target.weekStart < entry.target.weekStart) latest.set(entry.target.memberId, entry);
-			return latest;
-		}, new Map<MemberId, { target: WeeklyTarget; current: Nutrition }>());
-		const targets = [...memberTargets].filter(([member]) => meal.slot === "dinner" || member === meal.memberId).map(([member, { target, current }]) => {
-			const hasDinner = existingDay.some((item) => item.slot === "dinner");
-			const hasLunch = existingDay.some((item) => item.slot === "lunch" && item.memberId === member);
-			const targetFactor = (meal.slot === "lunch" && !hasDinner) || (meal.slot === "dinner" && !hasLunch) ? 0.5 : 1;
-			return ({
-			member: member === "richard" ? "Member A" : "Member B",
-			memberId: member,
-			referenceOnly: [0, 6].includes(new Date(`${meal.date}T12:00:00Z`).getUTCDay()),
-			dailyCalories: target.weekdayCalories * targetFactor,
-			currentCalories: current.calories,
-			calories: Math.max(0, target.weekdayCalories * targetFactor - current.calories),
-			dailyProtein: target.macroGrams.protein * targetFactor,
-			currentProtein: current.protein,
-			protein: Math.max(0, target.macroGrams.protein * targetFactor - current.protein),
-			dailyCarbs: target.macroGrams.carbs * targetFactor,
-			currentCarbs: current.carbs,
-			carbs: Math.max(0, target.macroGrams.carbs * targetFactor - current.carbs),
-			dailyFat: target.macroGrams.fat * targetFactor,
-			currentFat: current.fat,
-			fat: Math.max(0, target.macroGrams.fat * targetFactor - current.fat),
-			dailyFiber: target.fiberGrams * targetFactor,
-			currentFiber: current.fiber,
-			fiber: Math.max(0, target.fiberGrams * targetFactor - current.fiber),
+		const memberTargets = rows<WeeklyTarget>(db, "targets")
+			.map((target) => {
+				const current = day.reduce(
+					(sum, scheduled) => {
+						const total = scheduled.ingredients.reduce(
+							(part, row) => {
+								const ingredient = available.find(
+									(entry) => entry.id === row.ingredientId,
+								);
+								if (
+									!ingredient ||
+									(scheduled.slot !== "dinner" &&
+										scheduled.memberId &&
+										scheduled.memberId !== target.memberId) ||
+									(scheduled.slot === "dinner" &&
+										row.memberId &&
+										row.memberId !== target.memberId)
+								)
+									return part;
+								const amount = row.quantity / ingredient.basisAmount;
+								for (const key of [
+									"calories",
+									"protein",
+									"carbs",
+									"fat",
+									"fiber",
+								] as const)
+									part[key] +=
+										ingredient.nutrition[key] *
+										amount *
+										(scheduled.slot === "dinner" && !row.memberId ? 0.5 : 1);
+								return part;
+							},
+							{ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+						);
+						return {
+							calories: sum.calories + total.calories,
+							protein: sum.protein + total.protein,
+							carbs: sum.carbs + total.carbs,
+							fat: sum.fat + total.fat,
+							fiber: sum.fiber + total.fiber,
+						};
+					},
+					{ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+				);
+				return { target, current };
+			})
+			.filter(({ target }) => target.weekStart <= meal.date)
+			.reduce((latest, entry) => {
+				const previous = latest.get(entry.target.memberId);
+				if (!previous || previous.target.weekStart < entry.target.weekStart)
+					latest.set(entry.target.memberId, entry);
+				return latest;
+			}, new Map<MemberId, { target: WeeklyTarget; current: Nutrition }>());
+		const targets = [...memberTargets]
+			.filter(([member]) => meal.slot === "dinner" || member === meal.memberId)
+			.map(([member, { target, current }]) => {
+				const hasDinner = existingDay.some((item) => item.slot === "dinner");
+				const hasLunch = existingDay.some(
+					(item) => item.slot === "lunch" && item.memberId === member,
+				);
+				const targetFactor =
+					(meal.slot === "lunch" && !hasDinner) ||
+					(meal.slot === "dinner" && !hasLunch)
+						? 0.5
+						: 1;
+				return {
+					member: member === "richard" ? "Member A" : "Member B",
+					memberId: member,
+					referenceOnly: [0, 6].includes(
+						new Date(`${meal.date}T12:00:00Z`).getUTCDay(),
+					),
+					dailyCalories: target.weekdayCalories * targetFactor,
+					currentCalories: current.calories,
+					calories: Math.max(
+						0,
+						target.weekdayCalories * targetFactor - current.calories,
+					),
+					dailyProtein: target.macroGrams.protein * targetFactor,
+					currentProtein: current.protein,
+					protein: Math.max(
+						0,
+						target.macroGrams.protein * targetFactor - current.protein,
+					),
+					dailyCarbs: target.macroGrams.carbs * targetFactor,
+					currentCarbs: current.carbs,
+					carbs: Math.max(
+						0,
+						target.macroGrams.carbs * targetFactor - current.carbs,
+					),
+					dailyFat: target.macroGrams.fat * targetFactor,
+					currentFat: current.fat,
+					fat: Math.max(0, target.macroGrams.fat * targetFactor - current.fat),
+					dailyFiber: target.fiberGrams * targetFactor,
+					currentFiber: current.fiber,
+					fiber: Math.max(0, target.fiberGrams * targetFactor - current.fiber),
+				};
 			});
-		});
-		const prior = Array.isArray(req.body?.prior) ? req.body.prior.filter((list: unknown) => Array.isArray(list) && list.every((id) => typeof id === "string")).slice(-5) : [];
+		const prior = Array.isArray(req.body?.prior)
+			? req.body.prior
+					.filter(
+						(list: unknown) =>
+							Array.isArray(list) && list.every((id) => typeof id === "string"),
+					)
+					.slice(-5)
+			: [];
 		try {
-		const memberLabels = dataFromDb(db).members.map((member, index) => ({ member: `Member ${index === 0 ? "A" : "B"}`, memberId: member.id }));
-		const dailySnackLimits = [...memberTargets].filter(([member]) => meal.slot === "dinner" || member === meal.memberId).map(([member, item]) => ({ member: member === "richard" ? "Member A" : "Member B", calories: item.target.weekdayCalories * 0.25 }));
-		const settledSnackMembers = [...existingDay.filter((item) => item.slot === "snack"), ...companions].map((item) => item.memberId === "richard" ? "Member A" : "Member B");
-		const suggestibleCatalog = available.filter((item) => item.suggestible || meal.ingredients.some((row: MenuIngredient) => row.ingredientId === item.id));
-		const savedMenus = rows<SavedMenu>(db, "saved_menus").filter((menu) => menu.slot === meal.slot).map((menu, index) => ({
-			key: `saved-menu-${index + 1}`,
-			name: menu.name,
-			ingredients: menu.ingredients.flatMap((row) => {
-				const catalogIndex = suggestibleCatalog.findIndex((item) => item.id === row.ingredientId);
-				const item = available.find((entry) => entry.id === row.ingredientId);
-				return catalogIndex < 0 || !item ? [] : [{ catalogKey: `ingredient-${catalogIndex + 1}`, name: item.name, quantity: row.quantity }];
-			}),
-		})).filter((menu) => menu.ingredients.length > 0);
-		const proposals = await recommend({ meal, catalog: available, currentDay: [...existingDay.filter((item) => item.slot === "snack"), ...companions].flatMap((item) => item.ingredients), savedMenus, targets, dailySnackLimits, settledSnackMembers, memberLabels, snackLimitCalories: meal.slot === "snack" && meal.memberId ? (memberTargets.get(meal.memberId)?.target.weekdayCalories ?? 0) * 0.25 : undefined, prior });
+			const memberLabels = dataFromDb(db).members.map((member, index) => ({
+				member: `Member ${index === 0 ? "A" : "B"}`,
+				memberId: member.id,
+			}));
+			const dailySnackLimits = [...memberTargets]
+				.filter(
+					([member]) => meal.slot === "dinner" || member === meal.memberId,
+				)
+				.map(([member, item]) => ({
+					member: member === "richard" ? "Member A" : "Member B",
+					calories: item.target.weekdayCalories * 0.25,
+				}));
+			const settledSnackMembers = [
+				...existingDay.filter((item) => item.slot === "snack"),
+				...companions,
+			].map((item) => (item.memberId === "richard" ? "Member A" : "Member B"));
+			const suggestibleCatalog = available.filter(
+				(item) =>
+					item.suggestible ||
+					meal.ingredients.some(
+						(row: MenuIngredient) => row.ingredientId === item.id,
+					),
+			);
+			const savedMenus = rows<SavedMenu>(db, "saved_menus")
+				.filter((menu) => menu.slot === meal.slot)
+				.map((menu, index) => ({
+					key: `saved-menu-${index + 1}`,
+					name: menu.name,
+					ingredients: menu.ingredients.flatMap((row) => {
+						const catalogIndex = suggestibleCatalog.findIndex(
+							(item) => item.id === row.ingredientId,
+						);
+						const item = available.find(
+							(entry) => entry.id === row.ingredientId,
+						);
+						return catalogIndex < 0 || !item
+							? []
+							: [
+									{
+										catalogKey: `ingredient-${catalogIndex + 1}`,
+										name: item.name,
+										quantity: row.quantity,
+									},
+								];
+					}),
+				}))
+				.filter((menu) => menu.ingredients.length > 0);
+			const proposals = await recommend({
+				meal,
+				catalog: available,
+				currentDay: [
+					...existingDay.filter((item) => item.slot === "snack"),
+					...companions,
+				].flatMap((item) => item.ingredients),
+				savedMenus,
+				targets,
+				dailySnackLimits,
+				settledSnackMembers,
+				memberLabels,
+				snackLimitCalories:
+					meal.slot === "snack" && meal.memberId
+						? (memberTargets.get(meal.memberId)?.target.weekdayCalories ?? 0) *
+							0.25
+						: undefined,
+				prior,
+			});
 			const recommendations = proposals.map((proposal) => {
 				const ingredients = proposal.ingredients;
-				const proposalCatalog = [...available, ...proposal.newIngredients.filter((item) => !available.some((existingItem) => existingItem.id === item.id))];
-				const nutrition = ingredients.reduce((total, row) => {
-					const ingredient = proposalCatalog.find((item) => item.id === row.ingredientId)!;
-					for (const key of ["calories", "protein", "carbs", "fat", "fiber"] as const) total[key] += ingredient.nutrition[key] * row.quantity / ingredient.basisAmount;
-					return total;
-				}, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
-				return { ...proposal, nutrition, ingredientDetails: ingredients.map((row) => ({ ...row, name: proposalCatalog.find((item) => item.id === row.ingredientId)?.name })), priorKey: proposal.ingredients.map((row) => proposalCatalog.find((item) => item.id === row.ingredientId)?.name?.toLocaleLowerCase() ?? "").sort() };
+				const proposalCatalog = [
+					...available,
+					...proposal.newIngredients.filter(
+						(item) =>
+							!available.some((existingItem) => existingItem.id === item.id),
+					),
+				];
+				const nutrition = ingredients.reduce(
+					(total, row) => {
+						const ingredient = proposalCatalog.find(
+							(item) => item.id === row.ingredientId,
+						)!;
+						for (const key of [
+							"calories",
+							"protein",
+							"carbs",
+							"fat",
+							"fiber",
+						] as const)
+							total[key] +=
+								(ingredient.nutrition[key] * row.quantity) /
+								ingredient.basisAmount;
+						return total;
+					},
+					{ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
+				);
+				return {
+					...proposal,
+					nutrition,
+					ingredientDetails: ingredients.map((row) => ({
+						...row,
+						name: proposalCatalog.find((item) => item.id === row.ingredientId)
+							?.name,
+					})),
+					priorKey: proposal.ingredients
+						.map(
+							(row) =>
+								proposalCatalog
+									.find((item) => item.id === row.ingredientId)
+									?.name?.toLocaleLowerCase() ?? "",
+						)
+						.sort(),
+				};
 			});
 			return res.json({ recommendations });
-		} catch (error) { return fail(res, error, error instanceof Error && error.message.toLocaleLowerCase().includes("limit") ? 429 : 503); }
+		} catch (error) {
+			return fail(
+				res,
+				error,
+				error instanceof Error &&
+					error.message.toLocaleLowerCase().includes("limit")
+					? 429
+					: 503,
+			);
+		}
 	});
 	app.post("/api/ai/ingredient-lookup", async (req, res) => {
 		const ip = req.ip || req.socket.remoteAddress || "unknown";
-		if (!process.env.USDA_API_KEY) return fail(res, "USDA nutrition lookup is unavailable: USDA_API_KEY is not configured.", 503);
-		if (!rateLimit(`usda:${ip}`, 30, 60_000)) return fail(res, "USDA lookup limit reached. Try again in a minute.", 429);
+		if (!process.env.USDA_API_KEY)
+			return fail(
+				res,
+				"USDA nutrition lookup is unavailable: USDA_API_KEY is not configured.",
+				503,
+			);
+		if (!rateLimit(`usda:${ip}`, 30, 60_000))
+			return fail(
+				res,
+				"USDA lookup limit reached. Try again in a minute.",
+				429,
+			);
 		const name = req.body?.name;
-		if (typeof name !== "string" || !name.trim() || name.length > 120) return fail(res, "ingredient name is required");
+		if (typeof name !== "string" || !name.trim() || name.length > 120)
+			return fail(res, "ingredient name is required");
 		const preparation = req.body?.preparation ?? "";
-		if (typeof preparation !== "string" || preparation.length > 120) return fail(res, "invalid ingredient preparation");
-		if (process.env.OPENROUTER_API_KEY && (!rateLimit(`openrouter:${ip}`, 10, 600_000) || !reserveOpenRouterRequest())) return fail(res, "AI request limit reached. Try again later.", 429);
-		const aliasResult = await ingredientAliases(name.trim(), preparation.trim());
-		const query = aliasResult && "usdaQuery" in aliasResult ? aliasResult.usdaQuery : name.trim();
+		if (typeof preparation !== "string" || preparation.length > 120)
+			return fail(res, "invalid ingredient preparation");
+		if (
+			process.env.OPENROUTER_API_KEY &&
+			process.env.OPENROUTER_ALIAS_MODEL &&
+			(!rateLimit(`openrouter:${ip}`, 10, 600_000) ||
+				!reserveOpenRouterRequest())
+		)
+			return fail(res, "AI request limit reached. Try again later.", 429);
+		const aliasResult = await ingredientAliases(
+			name.trim(),
+			preparation.trim(),
+		);
+		const query =
+			aliasResult && "usdaQuery" in aliasResult
+				? aliasResult.usdaQuery
+				: name.trim();
 		try {
-			const matches = await searchUsda(query, { primaryName: name.trim(), preparation: preparation.trim() });
-			if (!matches.length) return res.json({ query, aliases: aliasResult && "aliases" in aliasResult ? aliasResult.aliases : [], matches: [] });
+			const matches = await searchUsda(query, {
+				primaryName: name.trim(),
+				preparation: preparation.trim(),
+			});
+			if (!matches.length)
+				return res.json({
+					query,
+					aliases:
+						aliasResult && "aliases" in aliasResult ? aliasResult.aliases : [],
+					matches: [],
+				});
 			const all = rows<Ingredient>(db, "ingredients");
-			const exact = all.find((item) => item.name.toLocaleLowerCase() === name.trim().toLocaleLowerCase() || item.aliases.some((alias) => alias.toLocaleLowerCase() === name.trim().toLocaleLowerCase()) || matches.some((match) => item.source.includes(`FDC ${match.fdcId}`)));
-			return res.json({ query, aliases: aliasResult && "aliases" in aliasResult ? aliasResult.aliases : [], existing: exact?.id, similar: !exact ? all.filter((item) => item.name.toLocaleLowerCase().includes(name.trim().toLocaleLowerCase())).map((item) => item.name).slice(0, 3) : [], matches });
-		} catch (error) { return fail(res, error, error instanceof Error && error.message.toLocaleLowerCase().includes("limit") ? 429 : 503); }
+			const exact = all.find(
+				(item) =>
+					item.name.toLocaleLowerCase() === name.trim().toLocaleLowerCase() ||
+					item.aliases.some(
+						(alias) =>
+							alias.toLocaleLowerCase() === name.trim().toLocaleLowerCase(),
+					) ||
+					matches.some((match) => item.source.includes(`FDC ${match.fdcId}`)),
+			);
+			return res.json({
+				query,
+				aliases:
+					aliasResult && "aliases" in aliasResult ? aliasResult.aliases : [],
+				existing: exact?.id,
+				similar: !exact
+					? all
+							.filter((item) =>
+								item.name
+									.toLocaleLowerCase()
+									.includes(name.trim().toLocaleLowerCase()),
+							)
+							.map((item) => item.name)
+							.slice(0, 3)
+					: [],
+				matches,
+			});
+		} catch (error) {
+			return fail(
+				res,
+				error,
+				error instanceof Error &&
+					error.message.toLocaleLowerCase().includes("limit")
+					? 429
+					: 503,
+			);
+		}
 	});
 	app.post("/api/meals/save", async (req, res) => {
 		const { meal, menu, exists: update } = req.body ?? {};
@@ -1307,46 +1771,118 @@ export function createApp(db = createDatabase()) {
 		const pendingIngredients: Ingredient[] = [];
 		const currentIngredients = rows<Ingredient>(db, "ingredients");
 		if (req.body?.pendingIngredients !== undefined) {
-			if (!Array.isArray(req.body.pendingIngredients) || req.body.pendingIngredients.length > 50) return fail(res, "invalid pending ingredients");
+			if (
+				!Array.isArray(req.body.pendingIngredients) ||
+				req.body.pendingIngredients.length > 50
+			)
+				return fail(res, "invalid pending ingredients");
 			try {
 				for (const item of req.body.pendingIngredients) {
-					const fdc = typeof item?.id === "string" ? /^fdc-(\d+)$/.exec(item.id) : null;
-					if (!fdc || !validIngredient(item)) return fail(res, "invalid pending USDA ingredient");
-					if (currentIngredients.some((existingItem) => existingItem.id === item.id)) continue;
+					const fdc =
+						typeof item?.id === "string" ? /^fdc-(\d+)$/.exec(item.id) : null;
+					if (!fdc || !validIngredient(item))
+						return fail(res, "invalid pending USDA ingredient");
+					if (
+						currentIngredients.some(
+							(existingItem) => existingItem.id === item.id,
+						)
+					)
+						continue;
 					const verified = await usdaIngredient(Number(fdc[1]));
-					if (JSON.stringify(verified.nutrition) !== JSON.stringify(item.nutrition) || verified.source !== item.source) return fail(res, "USDA ingredient values changed; look up the ingredient again.", 409);
+					if (
+						JSON.stringify(verified.nutrition) !==
+							JSON.stringify(item.nutrition) ||
+						verified.source !== item.source
+					)
+						return fail(
+							res,
+							"USDA ingredient values changed; look up the ingredient again.",
+							409,
+						);
 					pendingIngredients.push(verified);
 				}
-			} catch (error) { return fail(res, error, 503); }
+			} catch (error) {
+				return fail(res, error, 503);
+			}
 		}
-		const ids = new Set([...currentIngredients, ...pendingIngredients].map((item) => item.id));
-		if (typeof update !== "boolean" || !validMeal(meal, ids)) return fail(res, "invalid scheduled meal");
-		if (!Array.isArray(companions) || companions.length > 2 || companions.some((item: any) => !validMeal(item, ids) || item.date !== meal.date || item.slot !== "snack" || !item.memberId) || (meal.slot === "snack" && companions.length)) return fail(res, "invalid companion snack draft");
-		const existingDay = rows<ScheduledMeal>(db, "scheduled_meals").filter((item) => item.date === meal.date && item.id !== meal.id);
-		const snackMembers = new Set(existingDay.filter((item) => item.slot === "snack").map((item) => item.memberId));
+		const ids = new Set(
+			[...currentIngredients, ...pendingIngredients].map((item) => item.id),
+		);
+		if (typeof update !== "boolean" || !validMeal(meal, ids))
+			return fail(res, "invalid scheduled meal");
+		if (
+			!Array.isArray(companions) ||
+			companions.length > 2 ||
+			companions.some(
+				(item: any) =>
+					!validMeal(item, ids) ||
+					item.date !== meal.date ||
+					item.slot !== "snack" ||
+					!item.memberId,
+			) ||
+			(meal.slot === "snack" && companions.length)
+		)
+			return fail(res, "invalid companion snack draft");
+		const existingDay = rows<ScheduledMeal>(db, "scheduled_meals").filter(
+			(item) => item.date === meal.date && item.id !== meal.id,
+		);
+		const snackMembers = new Set(
+			existingDay
+				.filter((item) => item.slot === "snack")
+				.map((item) => item.memberId),
+		);
 		for (const snack of companions) {
-			if (snackMembers.has(snack.memberId)) return fail(res, "a companion snack cannot replace an existing snack", 409);
+			if (snackMembers.has(snack.memberId))
+				return fail(
+					res,
+					"a companion snack cannot replace an existing snack",
+					409,
+				);
 			snackMembers.add(snack.memberId);
-			const target = rows<WeeklyTarget>(db, "targets").filter((item) => item.memberId === snack.memberId && item.weekStart <= snack.date).sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
+			const target = rows<WeeklyTarget>(db, "targets")
+				.filter(
+					(item) =>
+						item.memberId === snack.memberId && item.weekStart <= snack.date,
+				)
+				.sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
 			const calories = snack.ingredients.reduce((total, row) => {
-				const ingredient = [...currentIngredients, ...pendingIngredients].find((item) => item.id === row.ingredientId)!;
-				return total + ingredient.nutrition.calories * row.quantity / ingredient.basisAmount;
+				const ingredient = [...currentIngredients, ...pendingIngredients].find(
+					(item) => item.id === row.ingredientId,
+				)!;
+				return (
+					total +
+					(ingredient.nutrition.calories * row.quantity) /
+						ingredient.basisAmount
+				);
 			}, 0);
-			if (!target || calories > target.weekdayCalories * 0.25) return fail(res, "companion snack exceeds 25% of the daily calorie target", 400);
+			if (!target || calories > target.weekdayCalories * 0.25)
+				return fail(
+					res,
+					"companion snack exceeds 25% of the daily calorie target",
+					400,
+				);
 		}
-		if (update && !existing("scheduled_meals", meal.id)) return fail(res, "meal not found", 404);
-		if (!update && existing("scheduled_meals", meal.id)) return fail(res, "meal id already exists", 409);
-		if (menu !== undefined && !validMenu(menu, ids)) return fail(res, "invalid saved menu");
-		if (menu && existing("saved_menus", menu.id)) return fail(res, "saved menu id already exists", 409);
+		if (update && !existing("scheduled_meals", meal.id))
+			return fail(res, "meal not found", 404);
+		if (!update && existing("scheduled_meals", meal.id))
+			return fail(res, "meal id already exists", 409);
+		if (menu !== undefined && !validMenu(menu, ids))
+			return fail(res, "invalid saved menu");
+		if (menu && existing("saved_menus", menu.id))
+			return fail(res, "saved menu id already exists", 409);
 		try {
 			db.transaction(() => {
-				pendingIngredients.forEach((item) => put(db, "ingredients", item.id, item));
+				pendingIngredients.forEach((item) =>
+					put(db, "ingredients", item.id, item),
+				);
 				putMeal(db, meal);
 				companions.forEach((item: ScheduledMeal) => putMeal(db, item));
 				if (menu) put(db, "saved_menus", menu.id, menu);
 			})();
 			return res.json(meal);
-		} catch (error) { return fail(res, error, 409); }
+		} catch (error) {
+			return fail(res, error, 409);
+		}
 	});
 	app.post("/api/meals", (req, res) => {
 		const value = req.body;

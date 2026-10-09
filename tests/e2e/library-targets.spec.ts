@@ -1,37 +1,99 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Library and next-week targets", () => {
-	test("non-editing library cards keep usable content width at 872px", async ({ page }) => {
+	test("non-editing library cards keep usable content width at 872px", async ({
+		page,
+	}) => {
 		await page.setViewportSize({ width: 872, height: 1300 });
 		await page.goto("/");
-		await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
+		await page
+			.locator(".app-header")
+			.getByRole("button", { name: "Library" })
+			.click();
 		const card = page.locator(".library-card:not(.is-editing)").first();
-		const contentWidth = await card.locator(":scope > div").first().evaluate((element) => element.getBoundingClientRect().width);
+		const contentWidth = await card
+			.locator(":scope > div")
+			.first()
+			.evaluate((element) => element.getBoundingClientRect().width);
 		expect(contentWidth).toBeGreaterThan(250);
 	});
 
-	test("USDA ingredient choices show per-100g nutrition before selection", async ({ page }) => {
-		await page.route("**/api/ai/status", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ recommendations: false, ingredientLookup: true }) }));
-		await page.route("**/api/ai/ingredient-lookup", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ query: "rice white long grain regular cooked", aliases: ["nasi"], matches: [{ fdcId: 168878, description: "Rice, white, long-grain, regular, cooked", dataType: "SR Legacy", source: "USDA FoodData Central SR Legacy, FDC 168878 (https://fdc.nal.usda.gov/food-details/168878/nutrients)", nutrition: { calories: 130, protein: 2.69, carbs: 28.17, fat: 0.28, fiber: 0.4 } }] }) }));
+	test("USDA ingredient choices show per-100g nutrition before selection", async ({
+		page,
+	}) => {
+		await page.route("**/api/ai/status", (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				body: JSON.stringify({
+					recommendations: false,
+					ingredientLookup: true,
+				}),
+			}),
+		);
+		await page.route("**/api/ai/ingredient-lookup", (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				body: JSON.stringify({
+					query: "rice white long grain regular cooked",
+					aliases: ["nasi"],
+					matches: [
+						{
+							fdcId: 168878,
+							description: "Rice, white, long-grain, regular, cooked",
+							dataType: "SR Legacy",
+							source:
+								"USDA FoodData Central SR Legacy, FDC 168878 (https://fdc.nal.usda.gov/food-details/168878/nutrients)",
+							nutrition: {
+								calories: 130,
+								protein: 2.69,
+								carbs: 28.17,
+								fat: 0.28,
+								fiber: 0.4,
+							},
+						},
+					],
+				}),
+			}),
+		);
 		await page.goto("/");
-		await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
+		await page
+			.locator(".app-header")
+			.getByRole("button", { name: "Library" })
+			.click();
 		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
 		await page.getByRole("button", { name: "New ingredient" }).click();
 		await page.getByLabel("Primary ingredient name").fill("jasmine rice");
 		await page.getByRole("button", { name: "Find nutrition with AI" }).click();
-		await expect(page.getByRole("button", { name: /Rice, white, long-grain, regular, cooked · SR Legacy · per 100 g: 130 kcal, protein 2.69 g, carbs 28.17 g, fat 0.28 g, fiber 0.4 g/ })).toBeVisible();
+		await expect(
+			page.getByRole("button", {
+				name: /Rice, white, long-grain, regular, cooked · SR Legacy · per 100 g: 130 kcal, protein 2.69 g, carbs 28.17 g, fat 0.28 g, fiber 0.4 g/,
+			}),
+		).toBeVisible();
 	});
 
-	test("existing library edits expand in place and untouched cancel is immediate", async ({ page }) => {
+	test("existing library edits expand in place and untouched cancel is immediate", async ({
+		page,
+	}) => {
 		let dialogs = 0;
 		let discardAction: "accept" | "dismiss" = "accept";
-		page.on("dialog", async (dialog) => { dialogs++; if (discardAction === "dismiss") await dialog.dismiss(); else await dialog.accept(); });
+		page.on("dialog", async (dialog) => {
+			dialogs++;
+			if (discardAction === "dismiss") await dialog.dismiss();
+			else await dialog.accept();
+		});
 		await page.goto("/");
-		await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
+		await page
+			.locator(".app-header")
+			.getByRole("button", { name: "Library" })
+			.click();
 		const menu = page.locator(".library-card").first();
 		await menu.getByRole("button", { name: "Edit" }).click();
 		await expect(menu.locator("form.library-editor")).toBeVisible();
-		await page.getByRole("searchbox", { name: "Search saved menus" }).fill("no such menu");
+		await page
+			.getByRole("searchbox", { name: "Search saved menus" })
+			.fill("no such menu");
 		await expect(menu).toBeVisible();
 		await menu.locator("form").getByRole("button", { name: "Cancel" }).click();
 		await expect(menu.locator("form")).toHaveCount(0);
@@ -40,11 +102,15 @@ test.describe("Library and next-week targets", () => {
 		await menu.getByLabel("Menu name").fill("Unsaved tab-switch edit");
 		discardAction = "dismiss";
 		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
-		await expect(page.getByRole("tab", { name: "Saved menus" })).toHaveAttribute("aria-selected", "true");
+		await expect(
+			page.getByRole("tab", { name: "Saved menus" }),
+		).toHaveAttribute("aria-selected", "true");
 		await expect(menu.locator("form.library-editor")).toBeVisible();
 		discardAction = "accept";
 		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
-		await expect(page.getByRole("tab", { name: "Ingredient catalog" })).toHaveAttribute("aria-selected", "true");
+		await expect(
+			page.getByRole("tab", { name: "Ingredient catalog" }),
+		).toHaveAttribute("aria-selected", "true");
 		await expect(menu.locator("form")).toHaveCount(0);
 		await page.getByRole("tab", { name: "Saved menus" }).click();
 		await page.getByRole("searchbox", { name: "Search saved menus" }).fill("");
@@ -52,7 +118,10 @@ test.describe("Library and next-week targets", () => {
 		const ingredient = page.locator(".library-card").first();
 		await ingredient.getByRole("button", { name: "Edit" }).click();
 		await expect(ingredient.locator("form.library-editor")).toBeVisible();
-		await ingredient.locator("form").getByRole("button", { name: "Cancel" }).click();
+		await ingredient
+			.locator("form")
+			.getByRole("button", { name: "Cancel" })
+			.click();
 		await expect(ingredient.locator("form")).toHaveCount(0);
 		expect(dialogs).toBe(2);
 	});
@@ -107,7 +176,9 @@ test.describe("Library and next-week targets", () => {
 		await expect(saved.locator(".library-card__badge").first()).toHaveText(
 			"lunch",
 		);
-		await expect(saved.getByText("Dada ayam tanpa kulit · 150 g")).toBeVisible();
+		await expect(
+			saved.getByText("Dada ayam tanpa kulit · 150 g"),
+		).toBeVisible();
 	});
 
 	test("desktop: target changes stay staged until the single Apply action", async ({
@@ -169,9 +240,9 @@ test.describe("Library and next-week targets", () => {
 				name: "Current versus proposed next-week targets",
 			}),
 		).toBeVisible();
-		await expect(page.getByRole("row", { name: /Estimated BMR/ })).not.toHaveText(
-			initialBmr,
-		);
+		await expect(
+			page.getByRole("row", { name: /Estimated BMR/ }),
+		).not.toHaveText(initialBmr);
 		await expect(
 			page.getByRole("button", { name: "Apply next-week targets" }),
 		).toHaveCount(1);

@@ -88,16 +88,40 @@ function ingredientDraft(item?: Ingredient): IngredientDraft {
 		fiber: String(item.nutrition.fiber),
 	};
 }
-const menuKey = (menu: MenuDraft | SavedMenu) => JSON.stringify([
-	menu.name.trim(), menu.slot, menu.memberId ?? "",
-	menu.ingredients.map((row) => [row.ingredientId, Number(row.quantity), row.memberId ?? ""]).sort(),
-]);
-const ingredientKey = (draft: IngredientDraft) => JSON.stringify([
-	draft.name.trim(), draft.aliases.split(",").map((x) => x.trim()).filter(Boolean).map((x) => x.toLocaleLowerCase()).sort(),
-	draft.unit, Number(draft.basisAmount), Number(draft.equivalentGrams) || "",
-	draft.preparation.trim(), draft.source.trim(), draft.suggestible,
-	Number(draft.calories), Number(draft.protein), Number(draft.carbs), Number(draft.fat), Number(draft.fiber),
-]);
+const menuKey = (menu: MenuDraft | SavedMenu) =>
+	JSON.stringify([
+		menu.name.trim(),
+		menu.slot,
+		menu.memberId ?? "",
+		menu.ingredients
+			.map((row) => [
+				row.ingredientId,
+				Number(row.quantity),
+				row.memberId ?? "",
+			])
+			.sort(),
+	]);
+const ingredientKey = (draft: IngredientDraft) =>
+	JSON.stringify([
+		draft.name.trim(),
+		draft.aliases
+			.split(",")
+			.map((x) => x.trim())
+			.filter(Boolean)
+			.map((x) => x.toLocaleLowerCase())
+			.sort(),
+		draft.unit,
+		Number(draft.basisAmount),
+		Number(draft.equivalentGrams) || "",
+		draft.preparation.trim(),
+		draft.source.trim(),
+		draft.suggestible,
+		Number(draft.calories),
+		Number(draft.protein),
+		Number(draft.carbs),
+		Number(draft.fat),
+		Number(draft.fiber),
+	]);
 
 export function Library({
 	menus,
@@ -116,13 +140,22 @@ export function Library({
 	const [error, setError] = useState("");
 	const [saving, setSaving] = useState(false);
 	const [lookupBusy, setLookupBusy] = useState(false);
-	const [lookupResult, setLookupResult] = useState<Awaited<ReturnType<typeof api.lookupIngredient>> | null>(null);
+	const [lookupResult, setLookupResult] = useState<Awaited<
+		ReturnType<typeof api.lookupIngredient>
+	> | null>(null);
 	const [lookupWarning, setLookupWarning] = useState("");
 	const [lookupAvailable, setLookupAvailable] = useState<boolean | null>(null);
-	const [menuPortalTarget, setMenuPortalTarget] = useState<HTMLDivElement | null>(null);
-	const [ingredientPortalTarget, setIngredientPortalTarget] = useState<HTMLDivElement | null>(null);
+	const [menuPortalTarget, setMenuPortalTarget] =
+		useState<HTMLDivElement | null>(null);
+	const [ingredientPortalTarget, setIngredientPortalTarget] =
+		useState<HTMLDivElement | null>(null);
 	const lookupRequestId = useRef(0);
-	useEffect(() => { api.aiStatus().then((status) => setLookupAvailable(status.ingredientLookup)).catch(() => setLookupAvailable(false)); }, []);
+	useEffect(() => {
+		api
+			.aiStatus()
+			.then((status) => setLookupAvailable(status.ingredientLookup))
+			.catch(() => setLookupAvailable(false));
+	}, []);
 	const clearLookup = () => {
 		lookupRequestId.current++;
 		setLookupBusy(false);
@@ -131,22 +164,33 @@ export function Library({
 	};
 	const menuDirty = () => {
 		if (!menuDraft) return false;
-		const original = menus.find((item) => item.id === menuDraft.id) ?? blankMenu();
+		const original =
+			menus.find((item) => item.id === menuDraft.id) ?? blankMenu();
 		return menuKey(menuDraft) !== menuKey(original);
 	};
 	const ingredientDirty = () => {
 		if (!ingredientDraftState) return false;
-		const original = ingredients.find((item) => item.id === ingredientDraftState.id);
-		return ingredientKey(ingredientDraftState) !== ingredientKey(original ? ingredientDraft(original) : blankIngredient());
+		const original = ingredients.find(
+			(item) => item.id === ingredientDraftState.id,
+		);
+		return (
+			ingredientKey(ingredientDraftState) !==
+			ingredientKey(original ? ingredientDraft(original) : blankIngredient())
+		);
 	};
 	const openMenuDraft = (draft: MenuDraft) => {
-		if (menuDirty() && !window.confirm("Discard changes to this saved menu?")) return;
+		if (menuDirty() && !window.confirm("Discard changes to this saved menu?"))
+			return;
 		setIngredientDraftState(null);
 		setMenuDraft(draft);
 		setError("");
 	};
 	const openIngredientDraft = (draft: IngredientDraft) => {
-		if (ingredientDirty() && !window.confirm("Discard changes to this ingredient?")) return;
+		if (
+			ingredientDirty() &&
+			!window.confirm("Discard changes to this ingredient?")
+		)
+			return;
 		clearLookup();
 		setMenuDraft(null);
 		setIngredientDraftState(draft);
@@ -155,17 +199,20 @@ export function Library({
 
 	const visibleMenus = useMemo(
 		() =>
-			menus.filter((menu) => menuDraft?.id === menu.id ||
-				menu.name
-					.toLocaleLowerCase()
-					.includes(menuSearch.trim().toLocaleLowerCase()),
+			menus.filter(
+				(menu) =>
+					menuDraft?.id === menu.id ||
+					menu.name
+						.toLocaleLowerCase()
+						.includes(menuSearch.trim().toLocaleLowerCase()),
 			),
 		[menus, menuSearch],
 	);
 	const visibleIngredients = useMemo(() => {
 		const query = ingredientSearch.trim().toLocaleLowerCase();
 		return ingredients.filter(
-				(item) => ingredientDraftState?.id === item.id ||
+			(item) =>
+				ingredientDraftState?.id === item.id ||
 				!query ||
 				[item.name, ...item.aliases].some((name) =>
 					name.toLocaleLowerCase().includes(query),
@@ -228,8 +275,17 @@ export function Library({
 			aliases: draft.aliases
 				.split(",")
 				.map((alias) => alias.trim())
-				.filter((alias) => alias && alias.toLocaleLowerCase() !== draft.name.trim().toLocaleLowerCase())
-				.filter((alias, index, list) => list.findIndex((item) => item.toLocaleLowerCase() === alias.toLocaleLowerCase()) === index),
+				.filter(
+					(alias) =>
+						alias &&
+						alias.toLocaleLowerCase() !== draft.name.trim().toLocaleLowerCase(),
+				)
+				.filter(
+					(alias, index, list) =>
+						list.findIndex(
+							(item) => item.toLocaleLowerCase() === alias.toLocaleLowerCase(),
+						) === index,
+				),
 			unit: draft.unit,
 			basisAmount: numbers[0],
 			...(equivalentGrams === undefined ? {} : { equivalentGrams }),
@@ -267,32 +323,76 @@ export function Library({
 		setLookupWarning("");
 		setLookupResult(null);
 		try {
-			const result = await api.lookupIngredient(ingredientDraftState.name.trim(), ingredientDraftState.preparation.trim());
+			const result = await api.lookupIngredient(
+				ingredientDraftState.name.trim(),
+				ingredientDraftState.preparation.trim(),
+			);
 			if (lookupRequestId.current !== requestId) return;
 			setLookupResult(result);
 			if (result.existing) {
-				const existing = ingredients.find((item) => item.id === result.existing);
+				const existing = ingredients.find(
+					(item) => item.id === result.existing,
+				);
 				if (existing) {
 					openIngredientDraft(ingredientDraft(existing));
 					setIngredientSearch(existing.name);
-					setLookupWarning(`This is already in the catalog as “${existing.name}”.`);
+					setLookupWarning(
+						`This is already in the catalog as “${existing.name}”.`,
+					);
 					return;
 				}
 			}
-			if (!result.aliases.length) setLookupWarning("Nutrition lookup succeeded; AI aliases were unavailable.");
-			if (!result.matches.length) setLookupWarning("No verified USDA match was found. Nutrition was not filled.");
+			if (!result.aliases.length)
+				setLookupWarning(
+					"Nutrition lookup succeeded; AI aliases were unavailable.",
+				);
+			if (!result.matches.length)
+				setLookupWarning(
+					"No verified USDA match was found. Nutrition was not filled.",
+				);
 		} catch (reason) {
 			if (lookupRequestId.current !== requestId) return;
-			setLookupWarning(reason instanceof Error ? reason.message : "USDA nutrition lookup failed.");
-		} finally { if (lookupRequestId.current === requestId) setLookupBusy(false); }
+			setLookupWarning(
+				reason instanceof Error
+					? reason.message
+					: "USDA nutrition lookup failed.",
+			);
+		} finally {
+			if (lookupRequestId.current === requestId) setLookupBusy(false);
+		}
 	}
-	function selectUsdaMatch(match: NonNullable<typeof lookupResult>["matches"][number]) {
+	function selectUsdaMatch(
+		match: NonNullable<typeof lookupResult>["matches"][number],
+	) {
 		if (!ingredientDraftState || !lookupResult) return;
 		const aliases = [...lookupResult.aliases, lookupResult.query]
 			.map((alias) => alias.trim())
-			.filter((alias) => alias && alias.toLocaleLowerCase() !== ingredientDraftState.name.trim().toLocaleLowerCase())
-			.filter((alias, index, list) => list.findIndex((item) => item.toLocaleLowerCase() === alias.toLocaleLowerCase()) === index);
-		setIngredientDraftState({ ...ingredientDraftState, aliases: aliases.join(", "), unit: "g", basisAmount: "100", equivalentGrams: "", source: match.source, preparation: match.description, calories: String(match.nutrition.calories), protein: String(match.nutrition.protein), carbs: String(match.nutrition.carbs), fat: String(match.nutrition.fat), fiber: String(match.nutrition.fiber) });
+			.filter(
+				(alias) =>
+					alias &&
+					alias.toLocaleLowerCase() !==
+						ingredientDraftState.name.trim().toLocaleLowerCase(),
+			)
+			.filter(
+				(alias, index, list) =>
+					list.findIndex(
+						(item) => item.toLocaleLowerCase() === alias.toLocaleLowerCase(),
+					) === index,
+			);
+		setIngredientDraftState({
+			...ingredientDraftState,
+			aliases: aliases.join(", "),
+			unit: "g",
+			basisAmount: "100",
+			equivalentGrams: "",
+			source: match.source,
+			preparation: match.description,
+			calories: String(match.nutrition.calories),
+			protein: String(match.nutrition.protein),
+			carbs: String(match.nutrition.carbs),
+			fat: String(match.nutrition.fat),
+			fiber: String(match.nutrition.fiber),
+		});
 		setLookupResult(null);
 		setLookupWarning("");
 	}
@@ -315,10 +415,14 @@ export function Library({
 					aria-selected={section === "menus"}
 					onClick={() => {
 						if (section !== "menus") {
-							if (ingredientDirty() && !window.confirm("Discard changes to this ingredient?")) return;
-						setIngredientDraftState(null);
-						clearLookup();
-					}
+							if (
+								ingredientDirty() &&
+								!window.confirm("Discard changes to this ingredient?")
+							)
+								return;
+							setIngredientDraftState(null);
+							clearLookup();
+						}
 						setSection("menus");
 						setError("");
 					}}
@@ -331,9 +435,13 @@ export function Library({
 					aria-selected={section === "ingredients"}
 					onClick={() => {
 						if (section !== "ingredients") {
-							if (menuDirty() && !window.confirm("Discard changes to this saved menu?")) return;
-						setMenuDraft(null);
-					}
+							if (
+								menuDirty() &&
+								!window.confirm("Discard changes to this saved menu?")
+							)
+								return;
+							setMenuDraft(null);
+						}
 						setSection("ingredients");
 						setError("");
 					}}
@@ -367,190 +475,216 @@ export function Library({
 							New saved menu
 						</button>
 					</div>
-					{menuDraft && (() => {
-						const editor = (<form
-							className="library-editor"
-							onSubmit={saveMenu}
-							aria-label={menuDraft.name ? "Edit saved menu" : "New saved menu"}
-						>
-							<h2>
-								{menus.some((menu) => menu.id === menuDraft.id)
-									? "Edit saved menu"
-									: "New saved menu"}
-							</h2>
-							<label>
-								Menu name
-								<input
-									required
-									value={menuDraft.name}
-									onChange={(event) =>
-										setMenuDraft({ ...menuDraft, name: event.target.value })
+					{menuDraft &&
+						(() => {
+							const editor = (
+								<form
+									className="library-editor"
+									onSubmit={saveMenu}
+									aria-label={
+										menuDraft.name ? "Edit saved menu" : "New saved menu"
 									}
-								/>
-							</label>
-							<div className="feature-form-grid">
-								<label>
-									Meal type
-									<select
-										value={menuDraft.slot}
-										onChange={(event) => {
-											const slot = event.target.value as MealSlot;
-											setMenuDraft({
-												...menuDraft,
-												slot,
-												...(slot === "dinner"
-													? { memberId: undefined }
-													: { memberId: menuDraft.memberId ?? "richard" }),
-											});
-										}}
-									>
-										<option value="lunch">Lunch</option>
-										<option value="dinner">Dinner</option>
-										<option value="snack">Snack</option>
-									</select>
-								</label>
-								{menuDraft.slot !== "dinner" && (
+								>
+									<h2>
+										{menus.some((menu) => menu.id === menuDraft.id)
+											? "Edit saved menu"
+											: "New saved menu"}
+									</h2>
 									<label>
-										Member indicator
-										<select
-											value={menuDraft.memberId ?? "richard"}
+										Menu name
+										<input
+											required
+											value={menuDraft.name}
 											onChange={(event) =>
+												setMenuDraft({ ...menuDraft, name: event.target.value })
+											}
+										/>
+									</label>
+									<div className="feature-form-grid">
+										<label>
+											Meal type
+											<select
+												value={menuDraft.slot}
+												onChange={(event) => {
+													const slot = event.target.value as MealSlot;
+													setMenuDraft({
+														...menuDraft,
+														slot,
+														...(slot === "dinner"
+															? { memberId: undefined }
+															: { memberId: menuDraft.memberId ?? "richard" }),
+													});
+												}}
+											>
+												<option value="lunch">Lunch</option>
+												<option value="dinner">Dinner</option>
+												<option value="snack">Snack</option>
+											</select>
+										</label>
+										{menuDraft.slot !== "dinner" && (
+											<label>
+												Member indicator
+												<select
+													value={menuDraft.memberId ?? "richard"}
+													onChange={(event) =>
+														setMenuDraft({
+															...menuDraft,
+															memberId: event.target.value as MemberId,
+														})
+													}
+												>
+													<option value="richard">Richard</option>
+													<option value="michelle">Michelle</option>
+												</select>
+											</label>
+										)}
+									</div>
+									<fieldset>
+										<legend>Ingredients</legend>
+										{menuDraft.ingredients.map((row, index) => (
+											<div
+												className="library-row"
+												key={`${row.ingredientId}-${index}`}
+											>
+												<label>
+													Ingredient
+													<select
+														aria-label={`Ingredient ${index + 1}`}
+														required
+														value={row.ingredientId}
+														onChange={(event) =>
+															setMenuDraft({
+																...menuDraft,
+																ingredients: menuDraft.ingredients.map(
+																	(item, i) =>
+																		i === index
+																			? {
+																					...item,
+																					ingredientId: event.target.value,
+																				}
+																			: item,
+																),
+															})
+														}
+													>
+														<option value="">Choose ingredient</option>
+														{ingredients.map((item) => (
+															<option key={item.id} value={item.id}>
+																{item.name}
+															</option>
+														))}
+													</select>
+												</label>
+												<label>
+													Quantity (
+													{ingredients.find(
+														(item) => item.id === row.ingredientId,
+													)?.unit || "unit"}
+													)
+													<input
+														aria-label={`Quantity ${index + 1}`}
+														type="number"
+														min="0.01"
+														step="any"
+														required
+														value={row.quantity}
+														onChange={(event) =>
+															setMenuDraft({
+																...menuDraft,
+																ingredients: menuDraft.ingredients.map(
+																	(item, i) =>
+																		i === index
+																			? {
+																					...item,
+																					quantity: Number(event.target.value),
+																				}
+																			: item,
+																),
+															})
+														}
+													/>
+												</label>
+												<button
+													type="button"
+													aria-label={`Remove ingredient ${index + 1}`}
+													onClick={() => {
+														if (
+															!window.confirm(
+																"Remove this ingredient from the menu?",
+															)
+														)
+															return;
+														setMenuDraft({
+															...menuDraft,
+															ingredients: menuDraft.ingredients.filter(
+																(_, i) => i !== index,
+															),
+														});
+													}}
+												>
+													Remove
+												</button>
+											</div>
+										))}
+										<button
+											type="button"
+											onClick={() =>
 												setMenuDraft({
 													...menuDraft,
-													memberId: event.target.value as MemberId,
+													ingredients: [
+														...menuDraft.ingredients,
+														{ ingredientId: "", quantity: 100 },
+													],
 												})
 											}
 										>
-											<option value="richard">Richard</option>
-											<option value="michelle">Michelle</option>
-										</select>
-									</label>
-								)}
-							</div>
-							<fieldset>
-								<legend>Ingredients</legend>
-								{menuDraft.ingredients.map((row, index) => (
-									<div
-										className="library-row"
-										key={`${row.ingredientId}-${index}`}
-									>
-										<label>
-											Ingredient
-											<select
-												aria-label={`Ingredient ${index + 1}`}
-												required
-												value={row.ingredientId}
-												onChange={(event) =>
-													setMenuDraft({
-														...menuDraft,
-														ingredients: menuDraft.ingredients.map((item, i) =>
-															i === index
-																? { ...item, ingredientId: event.target.value }
-																: item,
-														),
-													})
-												}
-											>
-												<option value="">Choose ingredient</option>
-												{ingredients.map((item) => (
-													<option key={item.id} value={item.id}>
-														{item.name}
-													</option>
-												))}
-											</select>
-										</label>
-										<label>
-											Quantity (
-											{ingredients.find((item) => item.id === row.ingredientId)
-												?.unit || "unit"}
-											)
-											<input
-												aria-label={`Quantity ${index + 1}`}
-												type="number"
-												min="0.01"
-												step="any"
-												required
-												value={row.quantity}
-												onChange={(event) =>
-													setMenuDraft({
-														...menuDraft,
-														ingredients: menuDraft.ingredients.map((item, i) =>
-															i === index
-																? {
-																		...item,
-																		quantity: Number(event.target.value),
-																	}
-																: item,
-														),
-													})
-												}
-											/>
-										</label>
+											Add ingredient
+										</button>
+									</fieldset>
+									{!menuDraft.ingredients.length && (
+										<p className="feature-hint">
+											Add at least one ingredient before saving.
+										</p>
+									)}
+									<div className="feature-actions">
 										<button
 											type="button"
-											aria-label={`Remove ingredient ${index + 1}`}
+											className="secondary"
 											onClick={() => {
-												if (!window.confirm("Remove this ingredient from the menu?"))
-													return;
-												setMenuDraft({
-													...menuDraft,
-													ingredients: menuDraft.ingredients.filter(
-														(_, i) => i !== index,
-													),
-												});
+												if (
+													!menuDirty() ||
+													window.confirm("Discard changes to this saved menu?")
+												)
+													setMenuDraft(null);
 											}}
 										>
-											Remove
+											Cancel
+										</button>
+										<button
+											type="submit"
+											disabled={
+												saving ||
+												!menuDraft.name.trim() ||
+												!menuDraft.ingredients.length
+											}
+										>
+											{saving ? "Saving…" : "Save menu"}
 										</button>
 									</div>
-								))}
-								<button
-									type="button"
-									onClick={() =>
-										setMenuDraft({
-											...menuDraft,
-											ingredients: [
-												...menuDraft.ingredients,
-												{ ingredientId: "", quantity: 100 },
-											],
-										})
-									}
-								>
-									Add ingredient
-								</button>
-							</fieldset>
-							{!menuDraft.ingredients.length && (
-								<p className="feature-hint">
-									Add at least one ingredient before saving.
-								</p>
-							)}
-							<div className="feature-actions">
-								<button
-									type="button"
-									className="secondary"
-									onClick={() => {
-										if (!menuDirty() || window.confirm("Discard changes to this saved menu?")) setMenuDraft(null);
-									}}
-								>
-									Cancel
-								</button>
-								<button
-									type="submit"
-									disabled={
-										saving ||
-										!menuDraft.name.trim() ||
-										!menuDraft.ingredients.length
-									}
-								>
-									{saving ? "Saving…" : "Save menu"}
-								</button>
-							</div>
-						</form>);
-						return menus.some((menu) => menu.id === menuDraft.id) ? menuPortalTarget ? createPortal(editor, menuPortalTarget) : null : editor;
-					})()}
+								</form>
+							);
+							return menus.some((menu) => menu.id === menuDraft.id)
+								? menuPortalTarget
+									? createPortal(editor, menuPortalTarget)
+									: null
+								: editor;
+						})()}
 					<div className="library-card-list">
 						{visibleMenus.map((menu) => (
-							<article className={`library-card ${menuDraft?.id === menu.id ? "is-editing" : ""}`} key={menu.id}>
+							<article
+								className={`library-card ${menuDraft?.id === menu.id ? "is-editing" : ""}`}
+								key={menu.id}
+							>
 								<div>
 									<h2>
 										<span className="library-card__badge">{menu.slot}</span>
@@ -617,7 +751,12 @@ export function Library({
 										Delete
 									</button>
 								</div>
-								{menuDraft?.id === menu.id && <div className="library-card__editor-anchor" ref={setMenuPortalTarget} />}
+								{menuDraft?.id === menu.id && (
+									<div
+										className="library-card__editor-anchor"
+										ref={setMenuPortalTarget}
+									/>
+								)}
 							</article>
 						))}
 						{visibleMenus.length === 0 && (
@@ -651,193 +790,267 @@ export function Library({
 						Nutrition values use each ingredient’s listed basis. Equivalent
 						grams affect quantity display only.
 					</p>
-					{ingredientDraftState && (() => {
-						const editor = (<form
-							className="library-editor"
-							onSubmit={saveIngredient}
-							aria-label={
-								ingredients.some((item) => item.id === ingredientDraftState.id)
-									? "Edit ingredient"
-									: "New ingredient"
-							}
-						>
-							<h2>
-								{ingredients.some((item) => item.id === ingredientDraftState.id)
-									? "Edit ingredient"
-									: "New ingredient"}
-							</h2>
-							<div className="feature-form-grid">
-								<label>
-									Primary ingredient name
-									<input
-										required
-										value={ingredientDraftState.name}
-										onChange={(event) =>
-											setIngredientDraftState({
-												...ingredientDraftState,
-												name: event.target.value,
-											})
-										}
-									/>
-								</label>
-								<div>
-									<button type="button" onClick={findIngredientNutrition} disabled={lookupBusy || !ingredientDraftState.name.trim() || lookupAvailable === false}>{lookupBusy ? "Looking up…" : "Find nutrition with AI"}</button>
-									{lookupAvailable === false && <p className="feature-hint">USDA nutrition lookup is unavailable: USDA_API_KEY is not configured.</p>}
-									{lookupWarning && <p className="feature-hint" role="status">{lookupWarning}</p>}
-					{lookupResult && <div className="usda-matches"><p>USDA search: <strong>{lookupResult.query}</strong></p>{lookupResult.similar?.length ? <p>Similar catalog names: {lookupResult.similar.join(", ")}. No automatic merge.</p> : null}{lookupResult.matches.map((match) => <button type="button" className="secondary" key={match.fdcId} onClick={() => selectUsdaMatch(match)}>{match.description} · {match.dataType} · per 100 g: {match.nutrition.calories} kcal, protein {match.nutrition.protein} g, carbs {match.nutrition.carbs} g, fat {match.nutrition.fat} g, fiber {match.nutrition.fiber} g</button>)}</div>}
-								</div>
-								<label>
-									Aliases, separated by commas
-									<input
-										value={ingredientDraftState.aliases}
-										onChange={(event) =>
-											setIngredientDraftState({
-												...ingredientDraftState,
-												aliases: event.target.value,
-											})
-										}
-									/>
-								</label>
-								<label>
-									Unit
-									<select
-										value={ingredientDraftState.unit}
-										onChange={(event) => {
-											const unit = event.target.value as Ingredient["unit"];
-											setIngredientDraftState({
-												...ingredientDraftState,
-												unit,
-												basisAmount: unit === "g" ? "100" : "1",
-											});
-										}}
-									>
-										<option value="g">g</option>
-										<option value="piece">piece</option>
-										<option value="tbsp">tbsp</option>
-										<option value="package">package</option>
-									</select>
-								</label>
-								<label>
-									Nutrition basis amount ({ingredientDraftState.unit})
-									<input
-										type="number"
-										min="0.001"
-										step="any"
-										required
-										value={ingredientDraftState.basisAmount}
-										onChange={(event) =>
-											setIngredientDraftState({
-												...ingredientDraftState,
-												basisAmount: event.target.value,
-											})
-										}
-									/>
-								</label>
-								{ingredientDraftState.unit !== "g" && (
-									<label>
-										Equivalent grams per unit (optional)
-										<input
-											type="number"
-											min="0.001"
-											step="any"
-											value={ingredientDraftState.equivalentGrams}
-											onChange={(event) =>
-												setIngredientDraftState({
-													...ingredientDraftState,
-													equivalentGrams: event.target.value,
-												})
-											}
-										/>
-									</label>
-								)}
-								<label>
-									Preparation state
-									<input
-										value={ingredientDraftState.preparation}
-										onChange={(event) =>
-											setIngredientDraftState({
-												...ingredientDraftState,
-												preparation: event.target.value,
-											})
-										}
-									/>
-								</label>
-								<label>
-									Nutrition source
-									<input
-										value={ingredientDraftState.source}
-										onChange={(event) =>
-											setIngredientDraftState({
-												...ingredientDraftState,
-												source: event.target.value,
-											})
-										}
-									/>
-								</label>
-							</div>
-							<fieldset>
-								<legend>
-									Nutrition per {ingredientDraftState.basisAmount || "basis"}{" "}
-									{ingredientDraftState.unit}
-								</legend>
-								<div className="feature-form-grid">
-									{(
-										["calories", "protein", "carbs", "fat", "fiber"] as const
-									).map((key) => (
-										<label key={key}>
-											{key === "calories"
-												? "Calories (kcal)"
-												: `${key[0].toUpperCase()}${key.slice(1)} (g)`}
+					{ingredientDraftState &&
+						(() => {
+							const editor = (
+								<form
+									className="library-editor"
+									onSubmit={saveIngredient}
+									aria-label={
+										ingredients.some(
+											(item) => item.id === ingredientDraftState.id,
+										)
+											? "Edit ingredient"
+											: "New ingredient"
+									}
+								>
+									<h2>
+										{ingredients.some(
+											(item) => item.id === ingredientDraftState.id,
+										)
+											? "Edit ingredient"
+											: "New ingredient"}
+									</h2>
+									<div className="feature-form-grid">
+										<label>
+											Primary ingredient name
 											<input
-												type="number"
-												min="0"
-												step="any"
 												required
-												value={ingredientDraftState[key]}
+												value={ingredientDraftState.name}
 												onChange={(event) =>
 													setIngredientDraftState({
 														...ingredientDraftState,
-														[key]: event.target.value,
+														name: event.target.value,
 													})
 												}
 											/>
 										</label>
-									))}
-								</div>
-							</fieldset>
-							<label className="feature-check">
-								<input
-									type="checkbox"
-									checked={ingredientDraftState.suggestible}
-									onChange={(event) =>
-										setIngredientDraftState({
-											...ingredientDraftState,
-											suggestible: event.target.checked,
-										})
-									}
-								/>
-								Allow this ingredient in macro suggestions
-							</label>
-							<div className="feature-actions">
-								<button
-									type="button"
-									className="secondary"
-									onClick={() => {
-										if (!ingredientDirty() || window.confirm("Discard changes to this ingredient?")) setIngredientDraftState(null);
-									}}
-								>
-									Cancel
-								</button>
-								<button type="submit" disabled={saving}>
-									{saving ? "Saving…" : "Save ingredient"}
-								</button>
-							</div>
-						</form>);
-						return ingredients.some((item) => item.id === ingredientDraftState.id) ? ingredientPortalTarget ? createPortal(editor, ingredientPortalTarget) : null : editor;
-					})()}
+										<div>
+											<button
+												type="button"
+												onClick={findIngredientNutrition}
+												disabled={
+													lookupBusy ||
+													!ingredientDraftState.name.trim() ||
+													lookupAvailable === false
+												}
+											>
+												{lookupBusy ? "Looking up…" : "Find nutrition with AI"}
+											</button>
+											{lookupAvailable === false && (
+												<p className="feature-hint">
+													USDA nutrition lookup is unavailable: USDA_API_KEY is
+													not configured.
+												</p>
+											)}
+											{lookupWarning && (
+												<p className="feature-hint" role="status">
+													{lookupWarning}
+												</p>
+											)}
+											{lookupResult && (
+												<div className="usda-matches">
+													<p>
+														USDA search: <strong>{lookupResult.query}</strong>
+													</p>
+													{lookupResult.similar?.length ? (
+														<p>
+															Similar catalog names:{" "}
+															{lookupResult.similar.join(", ")}. No automatic
+															merge.
+														</p>
+													) : null}
+													{lookupResult.matches.map((match) => (
+														<button
+															type="button"
+															className="secondary"
+															key={match.fdcId}
+															onClick={() => selectUsdaMatch(match)}
+														>
+															{match.description} · {match.dataType} · per 100
+															g: {match.nutrition.calories} kcal, protein{" "}
+															{match.nutrition.protein} g, carbs{" "}
+															{match.nutrition.carbs} g, fat{" "}
+															{match.nutrition.fat} g, fiber{" "}
+															{match.nutrition.fiber} g
+														</button>
+													))}
+												</div>
+											)}
+										</div>
+										<label>
+											Aliases, separated by commas
+											<input
+												value={ingredientDraftState.aliases}
+												onChange={(event) =>
+													setIngredientDraftState({
+														...ingredientDraftState,
+														aliases: event.target.value,
+													})
+												}
+											/>
+										</label>
+										<label>
+											Unit
+											<select
+												value={ingredientDraftState.unit}
+												onChange={(event) => {
+													const unit = event.target.value as Ingredient["unit"];
+													setIngredientDraftState({
+														...ingredientDraftState,
+														unit,
+														basisAmount: unit === "g" ? "100" : "1",
+													});
+												}}
+											>
+												<option value="g">g</option>
+												<option value="piece">piece</option>
+												<option value="tbsp">tbsp</option>
+												<option value="package">package</option>
+											</select>
+										</label>
+										<label>
+											Nutrition basis amount ({ingredientDraftState.unit})
+											<input
+												type="number"
+												min="0.001"
+												step="any"
+												required
+												value={ingredientDraftState.basisAmount}
+												onChange={(event) =>
+													setIngredientDraftState({
+														...ingredientDraftState,
+														basisAmount: event.target.value,
+													})
+												}
+											/>
+										</label>
+										{ingredientDraftState.unit !== "g" && (
+											<label>
+												Equivalent grams per unit (optional)
+												<input
+													type="number"
+													min="0.001"
+													step="any"
+													value={ingredientDraftState.equivalentGrams}
+													onChange={(event) =>
+														setIngredientDraftState({
+															...ingredientDraftState,
+															equivalentGrams: event.target.value,
+														})
+													}
+												/>
+											</label>
+										)}
+										<label>
+											Preparation state
+											<input
+												value={ingredientDraftState.preparation}
+												onChange={(event) =>
+													setIngredientDraftState({
+														...ingredientDraftState,
+														preparation: event.target.value,
+													})
+												}
+											/>
+										</label>
+										<label>
+											Nutrition source
+											<input
+												value={ingredientDraftState.source}
+												onChange={(event) =>
+													setIngredientDraftState({
+														...ingredientDraftState,
+														source: event.target.value,
+													})
+												}
+											/>
+										</label>
+									</div>
+									<fieldset>
+										<legend>
+											Nutrition per{" "}
+											{ingredientDraftState.basisAmount || "basis"}{" "}
+											{ingredientDraftState.unit}
+										</legend>
+										<div className="feature-form-grid">
+											{(
+												[
+													"calories",
+													"protein",
+													"carbs",
+													"fat",
+													"fiber",
+												] as const
+											).map((key) => (
+												<label key={key}>
+													{key === "calories"
+														? "Calories (kcal)"
+														: `${key[0].toUpperCase()}${key.slice(1)} (g)`}
+													<input
+														type="number"
+														min="0"
+														step="any"
+														required
+														value={ingredientDraftState[key]}
+														onChange={(event) =>
+															setIngredientDraftState({
+																...ingredientDraftState,
+																[key]: event.target.value,
+															})
+														}
+													/>
+												</label>
+											))}
+										</div>
+									</fieldset>
+									<label className="feature-check">
+										<input
+											type="checkbox"
+											checked={ingredientDraftState.suggestible}
+											onChange={(event) =>
+												setIngredientDraftState({
+													...ingredientDraftState,
+													suggestible: event.target.checked,
+												})
+											}
+										/>
+										Allow this ingredient in macro suggestions
+									</label>
+									<div className="feature-actions">
+										<button
+											type="button"
+											className="secondary"
+											onClick={() => {
+												if (
+													!ingredientDirty() ||
+													window.confirm("Discard changes to this ingredient?")
+												)
+													setIngredientDraftState(null);
+											}}
+										>
+											Cancel
+										</button>
+										<button type="submit" disabled={saving}>
+											{saving ? "Saving…" : "Save ingredient"}
+										</button>
+									</div>
+								</form>
+							);
+							return ingredients.some(
+								(item) => item.id === ingredientDraftState.id,
+							)
+								? ingredientPortalTarget
+									? createPortal(editor, ingredientPortalTarget)
+									: null
+								: editor;
+						})()}
 					<div className="library-card-list">
 						{visibleIngredients.map((item) => (
-							<article className={`library-card ${ingredientDraftState?.id === item.id ? "is-editing" : ""}`} key={item.id}>
+							<article
+								className={`library-card ${ingredientDraftState?.id === item.id ? "is-editing" : ""}`}
+								key={item.id}
+							>
 								<div>
 									<h2>{item.name}</h2>
 									<p>
@@ -861,7 +1074,7 @@ export function Library({
 										type="button"
 										className="secondary"
 										onClick={() => {
-										openIngredientDraft(ingredientDraft(item));
+											openIngredientDraft(ingredientDraft(item));
 											setError("");
 										}}
 									>
@@ -891,7 +1104,12 @@ export function Library({
 										Delete
 									</button>
 								</div>
-								{ingredientDraftState?.id === item.id && <div className="library-card__editor-anchor" ref={setIngredientPortalTarget} />}
+								{ingredientDraftState?.id === item.id && (
+									<div
+										className="library-card__editor-anchor"
+										ref={setIngredientPortalTarget}
+									/>
+								)}
 							</article>
 						))}
 						{visibleIngredients.length === 0 && (

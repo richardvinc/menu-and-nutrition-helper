@@ -223,7 +223,15 @@ export function App() {
 					onCancel={() => setEditor(null)}
 					onSaveMenu={(menu, exists) => run(() => api.saveMenu(menu, exists))}
 					onSave={async (meal, saveMenu, pendingIngredients, companions) => {
-						await run(() => api.saveMealAndMenu(meal, Boolean(editor.meal), Boolean(saveMenu), pendingIngredients ?? [], companions ?? []));
+						await run(() =>
+							api.saveMealAndMenu(
+								meal,
+								Boolean(editor.meal),
+								Boolean(saveMenu),
+								pendingIngredients ?? [],
+								companions ?? [],
+							),
+						);
 						setEditor(null);
 					}}
 				/>

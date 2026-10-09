@@ -57,7 +57,9 @@ const testMeals = [
 
 test.beforeAll(async ({ request }) => {
 	for (const meal of testMeals)
-		expect((await request.post("/api/meals", { data: meal })).status()).toBe(201);
+		expect((await request.post("/api/meals", { data: meal })).status()).toBe(
+			201,
+		);
 });
 
 test.afterAll(async ({ request }) => {
@@ -397,7 +399,10 @@ test("meal editor closes with Escape and a backdrop click", async ({
 	await expect(page.locator(".pk-editor-scrim")).toBeVisible();
 	await page.getByLabel("Meal name").fill("Unsaved escape test");
 	let discardMessage = "";
-	page.once("dialog", async (dialog) => { discardMessage = dialog.message(); await dialog.accept(); });
+	page.once("dialog", async (dialog) => {
+		discardMessage = dialog.message();
+		await dialog.accept();
+	});
 	await page.keyboard.press("Escape");
 	expect(discardMessage).toContain("Discard changes");
 	await expect(page.locator(".pk-editor-scrim")).toHaveCount(0);
