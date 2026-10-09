@@ -75,6 +75,7 @@ test.describe("Library and next-week targets", () => {
 
 	test("new ingredient checks local names and aliases before AI", async ({ page }) => {
 		let lookupCalls = 0;
+		let lookupBody: Record<string, unknown> | undefined;
 		await page.route("**/api/ai/status", (route) =>
 			route.fulfill({
 				status: 200,
@@ -84,7 +85,23 @@ test.describe("Library and next-week targets", () => {
 		);
 		await page.route("**/api/ai/ingredient-lookup", (route) => {
 			lookupCalls++;
-			return route.abort();
+			lookupBody = route.request().postDataJSON();
+			return route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				body: JSON.stringify({
+					query: "tofu",
+					aliases: ["tofu"],
+					existing: "tofu",
+					matches: [{
+						fdcId: 999,
+						description: "Tofu, raw",
+						dataType: "Foundation",
+						source: "USDA FoodData Central, FDC 999",
+						nutrition: { calories: 85, protein: 9, carbs: 2, fat: 5, fiber: 1 },
+					}],
+				}),
+			});
 		});
 		await page.goto("/");
 		await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
@@ -108,7 +125,16 @@ test.describe("Library and next-week targets", () => {
 			"already in the catalog as “Tahu firm”",
 		);
 		await expect(page.getByRole("button", { name: "Edit Tahu firm" })).toBeVisible();
+		const check = page.getByRole("button", { name: "Check with AI" });
+		await expect(check).toBeVisible();
 		expect(lookupCalls).toBe(0);
+		await check.click();
+		await expect(page.getByLabel("Nutrition comparison")).toContainText("Current catalog: Tahu firm");
+		await expect(page.getByLabel("Nutrition comparison")).toContainText("Tofu, raw");
+		await expect(name).toHaveValue("tahu");
+		await expect(page.getByLabel("Calories (kcal)")).toHaveValue("0");
+		expect(lookupBody).toMatchObject({ name: "tahu", checkExisting: true });
+		expect(lookupCalls).toBe(1);
 	});
 
 	test("blurred library actions preserve an ingredient draft without prompting", async ({

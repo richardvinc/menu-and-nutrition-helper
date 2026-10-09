@@ -19,7 +19,7 @@
 	margin-top: 0;
 }
 .pk-dashboard__header {
-	margin-bottom: 18px;
+	margin-bottom: 26px;
 }
 .pk-dashboard h1 {
 	margin-bottom: 6px;
@@ -45,13 +45,13 @@
 .pk-dashboard__days {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 18px;
+	gap: 26px;
 }
 .pk-day {
 	padding-top: 2px;
 }
 .pk-day__heading {
-	margin-bottom: 14px;
+	margin-bottom: 20px;
 }
 .pk-day__heading h2 {
 	margin-bottom: 0;
@@ -60,12 +60,12 @@
 .pk-day__cards {
 	display: grid;
 	grid-template-columns: repeat(6, minmax(0, 1fr));
-	gap: 10px;
+	gap: 14px;
 }
 .pk-meal-card {
 	grid-column: span 2;
 	min-width: 0;
-	padding: 14px;
+	padding: 18px;
 	border: 1px solid var(--line);
 	border-top: 4px solid var(--app-purple);
 	border-radius: 18px;
@@ -195,7 +195,7 @@
 	font-size: 14px;
 }
 .pk-panel {
-	padding: 14px;
+	padding: 18px;
 	border: 1px solid var(--line);
 	border-radius: 20px;
 	background: #fff;
@@ -206,14 +206,14 @@
 	align-items: flex-start;
 	justify-content: space-between;
 	gap: 12px;
-	margin-bottom: 16px;
+	margin-bottom: 20px;
 }
 .pk-panel__heading h2 {
 	margin-bottom: 0;
 	font-size: 26px;
 }
 .pk-week-summary {
-	margin-top: 30px;
+	margin-top: 38px;
 }
 .pk-week-summary__scroll {
 	overflow: visible;
@@ -227,7 +227,7 @@
 }
 .pk-week-summary__grid > section {
 	min-width: 0;
-	padding: 13px 11px;
+	padding: 16px 12px;
 	border-left: 1px solid var(--line);
 }
 .pk-week-summary__grid > section:nth-child(4n + 1) {
@@ -303,110 +303,12 @@
 	color: var(--muted);
 	font-size: 14px;
 }
-@media (min-width: 1000px) and (min-height: 720px) {
-	.app-shell:has(.pk-dashboard) {
-		height: 100vh;
-		overflow: hidden;
-		padding-top: 10px;
-		padding-bottom: 8px;
-	}
-	.app-shell:has(.pk-dashboard) .app-header {
-		margin-bottom: 6px;
-		padding-block: 6px;
-	}
-	.pk-dashboard__header {
-		margin-bottom: 6px;
-	}
-	.pk-dashboard__header > .pk-muted {
-		display: none;
-	}
-	.pk-dashboard h1 {
-		font-size: 42px;
-		line-height: 1;
-	}
-	.pk-eyebrow {
-		margin-bottom: 5px;
-	}
-	.pk-day__heading {
-		margin-bottom: 8px;
-	}
-	.pk-day__cards {
-		gap: 8px;
-	}
-	.pk-meal-card {
-		padding: 10px 12px;
-	}
-	.pk-meal-card__label {
-		margin-bottom: 4px;
-	}
-	.pk-meal-card__nutrition {
-		margin-bottom: 6px;
-	}
-	.pk-meal-card__notes span {
-		-webkit-line-clamp: 2;
-	}
-	.pk-meal-card li {
-		padding: 3px 0;
-	}
-	.pk-day__cards .pk-meal-card--snack li {
-		display: inline;
-		padding: 0;
-		border-bottom: 0;
-	}
-	.pk-meal-card__empty {
-		min-height: 70px;
-	}
-	.pk-week-summary {
-		margin-top: 30px;
-	}
-	.pk-panel {
-		padding: 9px 12px;
-	}
-	.pk-week-summary .pk-panel__heading {
-		margin-bottom: 5px;
-	}
-	.pk-week-summary .pk-panel__heading .pk-eyebrow {
-		display: none;
-	}
-	.pk-week-summary .pk-panel__heading h2 {
-		font-size: 23px;
-	}
-	.pk-week-summary__grid > section {
-		padding: 5px 7px;
-	}
-	.pk-week-summary__grid header {
-		margin-bottom: 2px;
-	}
-	.pk-week-summary__grid header strong {
-		width: 22px;
-		height: 22px;
-	}
-	.pk-week-summary__grid ul {
-		gap: 5px;
-	}
-	.pk-week-summary__grid li {
-		gap: 4px;
-		padding: 6px 7px;
-	}
-	.pk-week-summary__grid li small {
-		font-size: 10px;
-	}
-	.pk-week-summary__grid li span {
-		font-size: 14px;
-		line-height: 1.15;
-	}
-}
 @media (max-width: 999px) {
 	.pk-dashboard__days {
 		grid-template-columns: 1fr;
 	}
 	.pk-day__cards {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-	}
-}
-@media (min-width: 1000px) and (min-height: 720px) {
-	.pk-week-summary {
-		margin-top: 30px;
 	}
 }
 @media (max-width: 700px) {
@@ -420,25 +322,25 @@
 		font-size: 16px;
 	}
 	.pk-dashboard__days {
-		gap: 22px;
+		gap: 28px;
 	}
 	.pk-day__heading {
 		padding-inline: 12px;
 	}
 	.pk-day__cards {
 		grid-template-columns: 1fr;
-		gap: 10px;
+		gap: 14px;
 	}
 	.pk-meal-card,
 	.pk-meal-card--snack {
 		grid-column: 1;
-		padding: 18px;
+		padding: 20px;
 	}
 	.pk-meal-card h3 {
 		font-size: 21px;
 	}
 	.pk-panel {
-		padding: 14px 8px;
+		padding: 18px 12px;
 	}
 	.pk-week-summary__grid > section {
 		padding: 9px 4px;

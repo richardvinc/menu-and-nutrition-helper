@@ -1,4 +1,9 @@
-import type { AppData, MemberId, ScheduledMeal } from "@piring-kita/shared";
+import type {
+	AppData,
+	MemberId,
+	Nutrition,
+	ScheduledMeal,
+} from "@piring-kita/shared";
 import { type PointerEvent, useEffect, useMemo, useState } from "react";
 import "./week.css";
 
@@ -37,6 +42,14 @@ const shortDate = (value: string) =>
 	});
 const sameSlot = (a: ScheduledMeal, b: ScheduledMeal) =>
 	a.slot === b.slot && a.memberId === b.memberId;
+const blankNutrition = (): Nutrition => ({
+	calories: 0,
+	protein: 0,
+	carbs: 0,
+	fat: 0,
+	fiber: 0,
+});
+const fmt = (value: number) => Math.round(value).toLocaleString();
 
 export function WeeklyPlanner({
 	data,
@@ -75,24 +88,84 @@ export function WeeklyPlanner({
 	const ingredientById = new Map(
 		data.ingredients.map((ingredient) => [ingredient.id, ingredient]),
 	);
-	const plannedCalories = (memberId: MemberId) =>
-		selectedMeals.reduce((total, meal) => {
+	const plannedNutrition = (meals: ScheduledMeal[], memberId: MemberId) =>
+		meals.reduce((total, meal) => {
 			for (const row of meal.ingredients) {
 				const ingredient = ingredientById.get(row.ingredientId);
 				if (!ingredient) continue;
-				const calories =
-					(ingredient.nutrition.calories * row.quantity) /
-					ingredient.basisAmount;
-				if (meal.slot === "dinner" && !meal.memberId)
-					total += row.memberId
-						? row.memberId === memberId
-							? calories
-							: 0
-						: calories / 2;
-				else if (meal.memberId === memberId) total += calories;
+				const factor = row.quantity / ingredient.basisAmount;
+				const share =
+					meal.slot === "dinner" && !meal.memberId
+						? row.memberId
+							? row.memberId === memberId
+								? 1
+								: 0
+							: 0.5
+						: meal.memberId === memberId
+							? 1
+							: 0;
+				total.calories += ingredient.nutrition.calories * factor * share;
+				total.protein += ingredient.nutrition.protein * factor * share;
+				total.carbs += ingredient.nutrition.carbs * factor * share;
+				total.fat += ingredient.nutrition.fat * factor * share;
+				total.fiber += ingredient.nutrition.fiber * factor * share;
 			}
 			return total;
-		}, 0);
+		}, blankNutrition());
+	const targetProgress = (date: string, meals: ScheduledMeal[]) => {
+		const weekend = [0, 6].includes(new Date(`${date}T12:00:00`).getDay());
+		return (
+			<div className="pk-pocket__targets">
+				<strong>Daily calories &amp; macro budget</strong>
+				<span>
+					Scheduled meals include snacks · {weekend ? "weekend is self-managed" : "not actual intake"}
+				</span>
+				{data.members.map((member) => {
+					const totals = plannedNutrition(meals, member.id);
+					const target = data.targets.find(
+						(item) => item.memberId === member.id && item.weekStart === weekStart,
+					);
+					return (
+						<p key={member.id}>
+							{member.name}
+							<small className="pk-pocket__metrics">
+								<span>
+									Calories {fmt(totals.calories)}
+									{target && !weekend
+										? ` / ${fmt(target.weekdayCalories)} kcal`
+										: ` kcal${weekend ? " · self-managed" : " · target unavailable"}`}
+								</span>
+								<span>
+									Protein {fmt(totals.protein)}
+									{target && !weekend
+										? ` / ${fmt(target.macroGrams.protein)} g`
+										: " g"}
+								</span>
+								<span>
+									Carbs {fmt(totals.carbs)}
+									{target && !weekend
+										? ` / ${fmt(target.macroGrams.carbs)} g`
+										: " g"}
+								</span>
+								<span>
+									Fat {fmt(totals.fat)}
+									{target && !weekend
+										? ` / ${fmt(target.macroGrams.fat)} g`
+										: " g"}
+								</span>
+								<span>
+									Fiber {fmt(totals.fiber)}
+									{target && !weekend
+										? ` / ${fmt(target.fiberGrams)} g`
+										: " g"}
+								</span>
+							</small>
+						</p>
+					);
+				})}
+			</div>
+		);
+	};
 	const slots = [
 		...data.members.map((member) => ({
 			slot: "lunch" as const,
@@ -232,6 +305,7 @@ export function WeeklyPlanner({
 					</div>
 				);
 			})}
+			{targetProgress(date, data.scheduledMeals.filter((meal) => meal.date === date))}
 		</section>
 	);
 
@@ -318,33 +392,7 @@ export function WeeklyPlanner({
 							);
 						})}
 					</div>
-					<div className="pk-pocket__targets">
-						<strong>Planned target progress</strong>
-						<span>Scheduled meals · not actual intake</span>
-						{[0, 6].includes(new Date(`${selectedDate}T12:00:00`).getDay()) ? (
-							<p>Weekend target evaluation is paused.</p>
-						) : (
-							data.members.map((member) => {
-								const target = data.targets.find(
-									(item) =>
-										item.memberId === member.id && item.weekStart === weekStart,
-								);
-								return (
-									<p key={member.id}>
-										{member.name}
-										<small>
-											{target
-												? Math.round(plannedCalories(member.id)) +
-													" / " +
-													Math.round(target.weekdayCalories) +
-													" kcal"
-												: "Target unavailable"}
-										</small>
-									</p>
-								);
-							})
-						)}
-					</div>
+					{targetProgress(selectedDate, selectedMeals)}
 				</section>
 			</div>
 			<div className="pk-week__desktop" aria-label="Weekly schedule">

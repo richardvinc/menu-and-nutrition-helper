@@ -1688,6 +1688,7 @@ export function createApp(db = createDatabase()) {
 		const preparation = req.body?.preparation ?? "";
 		if (typeof preparation !== "string" || preparation.length > 120)
 			return fail(res, "invalid ingredient preparation");
+		const checkExisting = req.body?.checkExisting === true;
 		const all = rows<Ingredient>(db, "ingredients");
 		const findCatalogMatch = (terms: string[], includeAliases = true) => {
 			const normalized = new Set(
@@ -1700,7 +1701,7 @@ export function createApp(db = createDatabase()) {
 			);
 		};
 		const directMatch = findCatalogMatch([name]);
-		if (directMatch)
+		if (directMatch && !checkExisting)
 			return res.json({
 				query: name.trim(),
 				aliases: [],
@@ -1737,7 +1738,7 @@ export function createApp(db = createDatabase()) {
 		const aliases =
 			aliasResult && "aliases" in aliasResult ? aliasResult.aliases : [];
 		const translatedMatch = findCatalogMatch(aliases, false);
-		if (translatedMatch)
+		if (translatedMatch && !checkExisting)
 			return res.json({
 				query,
 				aliases,
@@ -1754,6 +1755,7 @@ export function createApp(db = createDatabase()) {
 					query,
 					aliases:
 						aliasResult && "aliases" in aliasResult ? aliasResult.aliases : [],
+					existing: directMatch?.id ?? translatedMatch?.id,
 					matches: [],
 				});
 			const exact = all.find(
@@ -1768,7 +1770,7 @@ export function createApp(db = createDatabase()) {
 			return res.json({
 				query,
 				aliases,
-				existing: exact?.id,
+				existing: directMatch?.id ?? translatedMatch?.id ?? exact?.id,
 				similar: !exact
 					? all
 							.filter((item) =>

@@ -189,7 +189,7 @@ export async function recommend(input: {
 			? "For dinner ingredients, use member shared when both people eat an ingredient; use Member A or Member B only for a deliberately individual portion."
 			: "This is a single-member meal. Every ingredients entry must use member shared; the meal already identifies its owner.";
 	const system =
-		"Create exactly five practical Indonesian meal suggestions using cheap, easy sources such as tofu, tempeh, eggs, beans and lentils. Use supplied suggestible catalog keys first. Ingredient nutrition arrays are ordered as calories, protein, carbs, fat, fiber. Use a USDA query only when the supplied catalog cannot sensibly fit; never supply nutrition values. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Add a companion snack only when portions would otherwise be impractical, and never for a member with a settled snack. Keep each snack below its daily calorie cap. For an existing draft, every option uses origin new and an empty savedMenuKey; the first option returns exactly its current ingredient set with adjusted quantities only. Later options may remove a current ingredient only when necessary; for every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal with at least two saved menus, return exactly two adjusted saved-menu choices followed by exactly three genuinely new compositions. Use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. If fewer than two saved menus are available, use every available saved menu and fill the remaining choices with new compositions. Return complete ingredient lists for each option. Use English names and explanations. Keep each justification under 60 words and each cooking note under 25 words. Quantities use each catalog ingredient's unit; USDA query quantities are grams. " +
+		"Create exactly five practical Indonesian/simple japanese/simple korean meal suggestions using cheap, easy sources such as tofu, tempeh, eggs, beans and lentils. Use supplied suggestible catalog keys first. Ingredient nutrition arrays are ordered as calories, protein, carbs, fat, fiber. Use a USDA query only when the supplied catalog cannot sensibly fit; never supply nutrition values. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Add a companion snack only when portions would otherwise be impractical, and never for a member with a settled snack. Keep each snack below its daily calorie cap. For an existing draft, every option uses origin new and an empty savedMenuKey; the first option returns exactly its current ingredient set with adjusted quantities only. Later options may remove a current ingredient only when necessary; for every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal with at least two saved menus, return exactly two adjusted saved-menu choices followed by exactly three genuinely new compositions. Use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. If fewer than two saved menus are available, use every available saved menu and fill the remaining choices with new compositions. Return complete ingredient lists for each option. Use English names and explanations. Keep each justification under 60 words and each cooking note under 25 words. Quantities use each catalog ingredient's unit; USDA query quantities are grams. " +
 		memberRule;
 	const requestBody = {
 		model,
@@ -398,7 +398,9 @@ export async function recommend(input: {
 		},
 	);
 	const payload = (await response.json()) as any;
-	const modelDurationMs = Math.round(performance.now() - recommendationStartedAt);
+	const modelDurationMs = Math.round(
+		performance.now() - recommendationStartedAt,
+	);
 	aiTrace("OpenRouter", "meal response", {
 		status: response.status,
 		model: payload?.model,
@@ -437,324 +439,298 @@ export async function recommend(input: {
 	const proposals = (
 		await Promise.all(
 			parsed.recommendations.map(async (proposal: any, index: number) => {
-			if (
-				!proposal ||
-				typeof proposal.name !== "string" ||
-				!proposal.name.trim() ||
-				proposal.name.length > 120 ||
-				!["saved", "new"].includes(proposal.origin) ||
-				typeof proposal.savedMenuKey !== "string" ||
-				typeof proposal.justification !== "string" ||
-				proposal.justification.length > 1000 ||
-				typeof proposal.cookingNote !== "string" ||
-				proposal.cookingNote.length > 1000 ||
-				!Array.isArray(proposal.ingredients) ||
-				proposal.ingredients.length > 50 ||
-				!Array.isArray(proposal.removals) ||
-				proposal.removals.length > 50 ||
-				!proposal.removals.every(
-					(item: any) =>
-						item &&
-						typeof item.catalogKey === "string" &&
-						["shared", "Member A", "Member B"].includes(item.member),
-				)
-			)
-				throw new Error("AI returned an invalid recommendation. Please retry.");
-			if (input.meal.ingredients.length) {
-				proposal.origin = "new";
-				proposal.savedMenuKey = "";
-			}
-			if (!input.meal.ingredients.length && proposal.origin === "saved") {
-				const savedMenu = input.savedMenus.find(
-					(menu) => menu.key === proposal.savedMenuKey,
-				);
 				if (
-					!savedMenu ||
-					!proposal.ingredients.some((row: any) =>
-						savedMenu.ingredients.some(
-							(entry) =>
-								byKey.get(row.catalogKey)?.id ===
-								byKey.get(entry.catalogKey)?.id,
-						),
+					!proposal ||
+					typeof proposal.name !== "string" ||
+					!proposal.name.trim() ||
+					proposal.name.length > 120 ||
+					!["saved", "new"].includes(proposal.origin) ||
+					typeof proposal.savedMenuKey !== "string" ||
+					typeof proposal.justification !== "string" ||
+					proposal.justification.length > 1000 ||
+					typeof proposal.cookingNote !== "string" ||
+					proposal.cookingNote.length > 1000 ||
+					!Array.isArray(proposal.ingredients) ||
+					proposal.ingredients.length > 50 ||
+					!Array.isArray(proposal.removals) ||
+					proposal.removals.length > 50 ||
+					!proposal.removals.every(
+						(item: any) =>
+							item &&
+							typeof item.catalogKey === "string" &&
+							["shared", "Member A", "Member B"].includes(item.member),
 					)
 				)
 					throw new Error(
-						"AI returned an invalid saved-menu choice. Please retry.",
+						"AI returned an invalid recommendation. Please retry.",
 					);
-			} else if (proposal.origin !== "new" || proposal.savedMenuKey)
-				throw new Error(
-					"AI returned an invalid recommendation origin. Please retry.",
-				);
-			const newIngredients: Ingredient[] = [];
-			for (const row of proposal.ingredients) {
-				let item = row.catalogKey ? byKey.get(row.catalogKey) : undefined;
-				if (
-					!num(row.quantity) ||
-					row.quantity <= 0 ||
-					row.quantity > 100000 ||
-					!["shared", "Member A", "Member B"].includes(row.member)
-				)
+				if (input.meal.ingredients.length) {
+					proposal.origin = "new";
+					proposal.savedMenuKey = "";
+				}
+				if (!input.meal.ingredients.length && proposal.origin === "saved") {
+					const savedMenu = input.savedMenus.find(
+						(menu) => menu.key === proposal.savedMenuKey,
+					);
+					if (
+						!savedMenu ||
+						!proposal.ingredients.some((row: any) =>
+							savedMenu.ingredients.some(
+								(entry) =>
+									byKey.get(row.catalogKey)?.id ===
+									byKey.get(entry.catalogKey)?.id,
+							),
+						)
+					)
+						throw new Error(
+							"AI returned an invalid saved-menu choice. Please retry.",
+						);
+				} else if (proposal.origin !== "new" || proposal.savedMenuKey)
 					throw new Error(
-						"AI returned an unsupported ingredient or quantity. Please retry.",
+						"AI returned an invalid recommendation origin. Please retry.",
 					);
-				if (item) {
-					if (!item.suggestible && !existingIds.has(item.id))
+				const newIngredients: Ingredient[] = [];
+				for (const row of proposal.ingredients) {
+					let item = row.catalogKey ? byKey.get(row.catalogKey) : undefined;
+					if (
+						!num(row.quantity) ||
+						row.quantity <= 0 ||
+						row.quantity > 100000 ||
+						!["shared", "Member A", "Member B"].includes(row.member)
+					)
+						throw new Error(
+							"AI returned an unsupported ingredient or quantity. Please retry.",
+						);
+					if (item) {
+						if (!item.suggestible && !existingIds.has(item.id))
+							throw new Error(
+								"AI returned an unsupported ingredient. Please retry.",
+							);
+					} else if (
+						!row.usdaQuery ||
+						typeof row.usdaQuery !== "string" ||
+						row.usdaQuery.length > 120 ||
+						row.catalogKey
+					)
 						throw new Error(
 							"AI returned an unsupported ingredient. Please retry.",
 						);
-				} else if (
-					!row.usdaQuery ||
-					typeof row.usdaQuery !== "string" ||
-					row.usdaQuery.length > 120 ||
-					row.catalogKey
-				)
-					throw new Error(
-						"AI returned an unsupported ingredient. Please retry.",
-					);
-				else {
-					if (input.meal.ingredients.length && index === 0)
-						throw new Error(
-							"AI changed ingredients in the quantity-only option. Please retry.",
+					else {
+						if (input.meal.ingredients.length && index === 0)
+							throw new Error(
+								"AI changed ingredients in the quantity-only option. Please retry.",
+							);
+						const match = (await searchUsda(row.usdaQuery)).find(
+							(candidate) =>
+								candidate.description.trim().toLocaleLowerCase() ===
+								row.usdaQuery.trim().toLocaleLowerCase(),
 						);
-					const match = (await searchUsda(row.usdaQuery)).find(
-						(candidate) =>
-							candidate.description.trim().toLocaleLowerCase() ===
-							row.usdaQuery.trim().toLocaleLowerCase(),
-					);
-					if (!match)
-						throw new Error(
-							"No exact verified USDA match was found for an external ingredient.",
+						if (!match)
+							throw new Error(
+								"No exact verified USDA match was found for an external ingredient.",
+							);
+						const existingMatch = input.catalog.find(
+							(candidate) =>
+								candidate.source.includes(`FDC ${match.fdcId}`) ||
+								candidate.name.toLocaleLowerCase() ===
+									match.description.toLocaleLowerCase() ||
+								candidate.aliases.some(
+									(alias) =>
+										alias.toLocaleLowerCase() ===
+										match.description.toLocaleLowerCase(),
+								),
 						);
-					const existingMatch = input.catalog.find(
-						(candidate) =>
-							candidate.source.includes(`FDC ${match.fdcId}`) ||
-							candidate.name.toLocaleLowerCase() ===
-								match.description.toLocaleLowerCase() ||
-							candidate.aliases.some(
-								(alias) =>
-									alias.toLocaleLowerCase() ===
-									match.description.toLocaleLowerCase(),
-							),
-					);
-					item = existingMatch ?? {
-						id: `fdc-${match.fdcId}`,
-						name: match.description,
-						aliases: [],
-						unit: "g",
-						basisAmount: 100,
-						preparation: "",
-						source: match.source,
-						suggestible: true,
-						nutrition: match.nutrition,
-					};
-					if (
-						!existingMatch &&
-						!newIngredients.some((entry) => entry.id === item?.id)
-					)
-						newIngredients.push(item);
-				}
-				known.set(item.id, item);
-				const gramsPerUnit = item.unit === "g" ? 1 : item.equivalentGrams;
-				const perPersonQuantity =
-					input.meal.slot === "dinner" &&
-					!input.meal.ingredients.find(
-						(current) => current.ingredientId === item.id,
-					)?.memberId
-						? row.quantity / 2
-						: row.quantity;
-				if (
-					item.nutrition.protein >= 10 &&
-					gramsPerUnit !== undefined &&
-					perPersonQuantity * gramsPerUnit > 250
-				)
-					throw new Error(
-						"AI returned an impractical ingredient quantity. Please retry.",
-					);
-				row.quantity =
-					item.unit === "g"
-						? Math.max(5, Math.round(row.quantity / 5) * 5)
-						: item.unit === "tbsp"
-							? Math.max(0.5, Math.round(row.quantity * 2) / 2)
-							: Math.max(1, Math.round(row.quantity));
-				row.ingredientId = item.id;
-				if (input.meal.slot === "dinner" && row.member !== "shared") {
-					const member = input.memberLabels.find(
-						(entry) => entry.member === row.member,
-					);
-					if (!member)
-						throw new Error(
-							"AI returned an invalid shared-dinner portion. Please retry.",
-						);
-					row.memberId = member.memberId;
-				}
-				delete row.member;
-				delete row.catalogKey;
-				delete row.usdaQuery;
-			}
-			if (index === 0 && input.meal.ingredients.length) {
-				const key = (row: MenuIngredient) =>
-					`${row.ingredientId}:${row.memberId ?? "shared"}`;
-				const before = input.meal.ingredients.map(key).sort().join("|");
-				const after = proposal.ingredients.map(key).sort().join("|");
-				if (before !== after)
-					throw new Error(
-						"AI changed ingredients in the quantity-only option. Please retry.",
-					);
-			}
-			const rowKey = (ingredientId: string, memberId?: MemberId) =>
-				JSON.stringify([ingredientId, memberId ?? "shared"]);
-			const retainedCounts = new Map<string, number>();
-			for (const row of proposal.ingredients as MenuIngredient[]) {
-				const key = rowKey(row.ingredientId, row.memberId);
-				retainedCounts.set(key, (retainedCounts.get(key) ?? 0) + 1);
-			}
-			const removedRows: MenuIngredient[] = [];
-			for (const row of input.meal.ingredients) {
-				const key = rowKey(row.ingredientId, row.memberId);
-				const count = retainedCounts.get(key) ?? 0;
-				if (count) retainedCounts.set(key, count - 1);
-				else removedRows.push(row);
-			}
-			if (index === 0 && input.meal.ingredients.length && removedRows.length)
-				throw new Error(
-					"AI changed ingredients in the quantity-only option. Please retry.",
-				);
-			proposal.removals = removedRows.map((row) => {
-				const name =
-					input.catalog.find((item) => item.id === row.ingredientId)?.name ??
-					"Ingredient";
-				return row.memberId
-					? name +
-							" (" +
-							(input.memberLabels.find(
-								(entry) => entry.memberId === row.memberId,
-							)?.member ?? "member") +
-							")"
-					: name;
-			});
-			if (
-				input.meal.slot === "snack" &&
-				input.snackLimitCalories !== undefined
-			) {
-				const calories = proposal.ingredients.reduce(
-					(sum: number, row: MenuIngredient) =>
-						sum +
-						((known.get(row.ingredientId)?.nutrition.calories ?? 0) *
-							row.quantity) /
-							(known.get(row.ingredientId)?.basisAmount ?? 1),
-					0,
-				);
-				if (calories > input.snackLimitCalories)
-					throw new Error(
-						"Suggested snack would exceed 25% of the daily calorie target. Please retry.",
-					);
-			}
-			const maxCompanions =
-				input.meal.slot === "dinner" ? 2 : input.meal.slot === "lunch" ? 1 : 0;
-			if (
-				!Array.isArray(proposal.companionSnacks) ||
-				proposal.companionSnacks.length > maxCompanions
-			)
-				throw new Error("AI returned invalid companion snacks. Please retry.");
-			const companionSnacks: Proposal["companionSnacks"] = [];
-			for (const snack of proposal.companionSnacks) {
-				if (
-					!snack ||
-					typeof snack.member !== "string" ||
-					typeof snack.name !== "string" ||
-					!snack.name.trim() ||
-					snack.name.length > 120 ||
-					typeof snack.justification !== "string" ||
-					!Array.isArray(snack.ingredients) ||
-					snack.ingredients.length === 0 ||
-					snack.ingredients.length > 20
-				)
-					throw new Error(
-						"AI returned invalid companion snacks. Please retry.",
-					);
-				const member = input.memberLabels.find(
-					(entry) => entry.member === snack.member,
-				);
-				if (
-					!member ||
-					input.settledSnackMembers.includes(snack.member) ||
-					(input.meal.slot !== "dinner" &&
-						member.memberId !== input.meal.memberId)
-				)
-					continue;
-				const limit = input.dailySnackLimits.find(
-					(entry) => entry.member === snack.member,
-				)?.calories;
-				if (!limit) continue;
-				const nutrition: Nutrition = {
-					calories: 0,
-					protein: 0,
-					carbs: 0,
-					fat: 0,
-					fiber: 0,
-				};
-				const rows: MenuIngredient[] = [];
-				for (const row of snack.ingredients) {
-					const item = byKey.get(row.catalogKey);
-					if (
-						!item?.suggestible ||
-						!num(row.quantity) ||
-						row.quantity <= 0 ||
-						row.quantity > 100000
-					)
-						throw new Error(
-							"AI returned an unsupported snack ingredient. Please retry.",
-						);
+						item = existingMatch ?? {
+							id: `fdc-${match.fdcId}`,
+							name: match.description,
+							aliases: [],
+							unit: "g",
+							basisAmount: 100,
+							preparation: "",
+							source: match.source,
+							suggestible: true,
+							nutrition: match.nutrition,
+						};
+						if (
+							!existingMatch &&
+							!newIngredients.some((entry) => entry.id === item?.id)
+						)
+							newIngredients.push(item);
+					}
+					known.set(item.id, item);
 					const gramsPerUnit = item.unit === "g" ? 1 : item.equivalentGrams;
+					const perPersonQuantity =
+						input.meal.slot === "dinner" &&
+						!input.meal.ingredients.find(
+							(current) => current.ingredientId === item.id,
+						)?.memberId
+							? row.quantity / 2
+							: row.quantity;
 					if (
 						item.nutrition.protein >= 10 &&
 						gramsPerUnit !== undefined &&
-						row.quantity * gramsPerUnit > 250
+						perPersonQuantity * gramsPerUnit > 250
 					)
 						throw new Error(
-							"AI returned an impractical snack quantity. Please retry.",
+							"AI returned an impractical ingredient quantity. Please retry.",
 						);
-					const quantity =
+					row.quantity =
 						item.unit === "g"
 							? Math.max(5, Math.round(row.quantity / 5) * 5)
 							: item.unit === "tbsp"
 								? Math.max(0.5, Math.round(row.quantity * 2) / 2)
 								: Math.max(1, Math.round(row.quantity));
-					rows.push({ ingredientId: item.id, quantity });
-					for (const key of [
-						"calories",
-						"protein",
-						"carbs",
-						"fat",
-						"fiber",
-					] as const)
-						nutrition[key] +=
-							(item.nutrition[key] * quantity) / item.basisAmount;
+					row.ingredientId = item.id;
+					if (input.meal.slot === "dinner" && row.member !== "shared") {
+						const member = input.memberLabels.find(
+							(entry) => entry.member === row.member,
+						);
+						if (!member)
+							throw new Error(
+								"AI returned an invalid shared-dinner portion. Please retry.",
+							);
+						row.memberId = member.memberId;
+					}
+					delete row.member;
+					delete row.catalogKey;
+					delete row.usdaQuery;
 				}
-				if (nutrition.calories <= limit)
-					companionSnacks.push({
-						memberId: member.memberId,
-						name: snack.name,
-						justification: snack.justification,
-						ingredients: rows,
-						nutrition,
-					});
-			}
-			const mealNutrition = (rows: MenuIngredient[], memberId: MemberId) =>
-				rows.reduce(
-					(total, row) => {
-						const item = known.get(row.ingredientId);
+				if (index === 0 && input.meal.ingredients.length) {
+					const key = (row: MenuIngredient) =>
+						`${row.ingredientId}:${row.memberId ?? "shared"}`;
+					const before = input.meal.ingredients.map(key).sort().join("|");
+					const after = proposal.ingredients.map(key).sort().join("|");
+					if (before !== after)
+						throw new Error(
+							"AI changed ingredients in the quantity-only option. Please retry.",
+						);
+				}
+				const rowKey = (ingredientId: string, memberId?: MemberId) =>
+					JSON.stringify([ingredientId, memberId ?? "shared"]);
+				const retainedCounts = new Map<string, number>();
+				for (const row of proposal.ingredients as MenuIngredient[]) {
+					const key = rowKey(row.ingredientId, row.memberId);
+					retainedCounts.set(key, (retainedCounts.get(key) ?? 0) + 1);
+				}
+				const removedRows: MenuIngredient[] = [];
+				for (const row of input.meal.ingredients) {
+					const key = rowKey(row.ingredientId, row.memberId);
+					const count = retainedCounts.get(key) ?? 0;
+					if (count) retainedCounts.set(key, count - 1);
+					else removedRows.push(row);
+				}
+				if (index === 0 && input.meal.ingredients.length && removedRows.length)
+					throw new Error(
+						"AI changed ingredients in the quantity-only option. Please retry.",
+					);
+				proposal.removals = removedRows.map((row) => {
+					const name =
+						input.catalog.find((item) => item.id === row.ingredientId)?.name ??
+						"Ingredient";
+					return row.memberId
+						? name +
+								" (" +
+								(input.memberLabels.find(
+									(entry) => entry.memberId === row.memberId,
+								)?.member ?? "member") +
+								")"
+						: name;
+				});
+				if (
+					input.meal.slot === "snack" &&
+					input.snackLimitCalories !== undefined
+				) {
+					const calories = proposal.ingredients.reduce(
+						(sum: number, row: MenuIngredient) =>
+							sum +
+							((known.get(row.ingredientId)?.nutrition.calories ?? 0) *
+								row.quantity) /
+								(known.get(row.ingredientId)?.basisAmount ?? 1),
+						0,
+					);
+					if (calories > input.snackLimitCalories)
+						throw new Error(
+							"Suggested snack would exceed 25% of the daily calorie target. Please retry.",
+						);
+				}
+				const maxCompanions =
+					input.meal.slot === "dinner"
+						? 2
+						: input.meal.slot === "lunch"
+							? 1
+							: 0;
+				if (
+					!Array.isArray(proposal.companionSnacks) ||
+					proposal.companionSnacks.length > maxCompanions
+				)
+					throw new Error(
+						"AI returned invalid companion snacks. Please retry.",
+					);
+				const companionSnacks: Proposal["companionSnacks"] = [];
+				for (const snack of proposal.companionSnacks) {
+					if (
+						!snack ||
+						typeof snack.member !== "string" ||
+						typeof snack.name !== "string" ||
+						!snack.name.trim() ||
+						snack.name.length > 120 ||
+						typeof snack.justification !== "string" ||
+						!Array.isArray(snack.ingredients) ||
+						snack.ingredients.length === 0 ||
+						snack.ingredients.length > 20
+					)
+						throw new Error(
+							"AI returned invalid companion snacks. Please retry.",
+						);
+					const member = input.memberLabels.find(
+						(entry) => entry.member === snack.member,
+					);
+					if (
+						!member ||
+						input.settledSnackMembers.includes(snack.member) ||
+						(input.meal.slot !== "dinner" &&
+							member.memberId !== input.meal.memberId)
+					)
+						continue;
+					const limit = input.dailySnackLimits.find(
+						(entry) => entry.member === snack.member,
+					)?.calories;
+					if (!limit) continue;
+					const nutrition: Nutrition = {
+						calories: 0,
+						protein: 0,
+						carbs: 0,
+						fat: 0,
+						fiber: 0,
+					};
+					const rows: MenuIngredient[] = [];
+					for (const row of snack.ingredients) {
+						const item = byKey.get(row.catalogKey);
 						if (
-							!item ||
-							(input.meal.slot !== "dinner" &&
-								input.meal.memberId !== memberId) ||
-							(input.meal.slot === "dinner" &&
-								row.memberId &&
-								row.memberId !== memberId)
+							!item?.suggestible ||
+							!num(row.quantity) ||
+							row.quantity <= 0 ||
+							row.quantity > 100000
 						)
-							return total;
-						const factor =
-							input.meal.slot === "dinner" && !row.memberId ? 0.5 : 1;
+							throw new Error(
+								"AI returned an unsupported snack ingredient. Please retry.",
+							);
+						const gramsPerUnit = item.unit === "g" ? 1 : item.equivalentGrams;
+						if (
+							item.nutrition.protein >= 10 &&
+							gramsPerUnit !== undefined &&
+							row.quantity * gramsPerUnit > 250
+						)
+							throw new Error(
+								"AI returned an impractical snack quantity. Please retry.",
+							);
+						const quantity =
+							item.unit === "g"
+								? Math.max(5, Math.round(row.quantity / 5) * 5)
+								: item.unit === "tbsp"
+									? Math.max(0.5, Math.round(row.quantity * 2) / 2)
+									: Math.max(1, Math.round(row.quantity));
+						rows.push({ ingredientId: item.id, quantity });
 						for (const key of [
 							"calories",
 							"protein",
@@ -762,20 +738,33 @@ export async function recommend(input: {
 							"fat",
 							"fiber",
 						] as const)
-							total[key] +=
-								((item.nutrition[key] * row.quantity) / item.basisAmount) *
-								factor;
-						return total;
-					},
-					{ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
-				);
-			const deltas = input.targets.map((target) => {
-				const oldMeal = mealNutrition(input.meal.ingredients, target.memberId);
-				const newMeal = mealNutrition(proposal.ingredients, target.memberId);
-				const companion = companionSnacks
-					.filter((snack) => snack.memberId === target.memberId)
-					.reduce(
-						(total, snack) => {
+							nutrition[key] +=
+								(item.nutrition[key] * quantity) / item.basisAmount;
+					}
+					if (nutrition.calories <= limit)
+						companionSnacks.push({
+							memberId: member.memberId,
+							name: snack.name,
+							justification: snack.justification,
+							ingredients: rows,
+							nutrition,
+						});
+				}
+				const mealNutrition = (rows: MenuIngredient[], memberId: MemberId) =>
+					rows.reduce(
+						(total, row) => {
+							const item = known.get(row.ingredientId);
+							if (
+								!item ||
+								(input.meal.slot !== "dinner" &&
+									input.meal.memberId !== memberId) ||
+								(input.meal.slot === "dinner" &&
+									row.memberId &&
+									row.memberId !== memberId)
+							)
+								return total;
+							const factor =
+								input.meal.slot === "dinner" && !row.memberId ? 0.5 : 1;
 							for (const key of [
 								"calories",
 								"protein",
@@ -783,97 +772,121 @@ export async function recommend(input: {
 								"fat",
 								"fiber",
 							] as const)
-								total[key] += snack.nutrition[key];
+								total[key] +=
+									((item.nutrition[key] * row.quantity) / item.basisAmount) *
+									factor;
 							return total;
 						},
 						{ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
 					);
-				const caloriesAfter =
-					target.currentCalories -
-					oldMeal.calories +
-					newMeal.calories +
-					companion.calories;
-				const currentCalories = target.currentCalories;
-				if (
-					!target.referenceOnly &&
-					caloriesAfter > target.dailyCalories * 1.05 &&
-					caloriesAfter > currentCalories
-				)
-					return null;
-				const proteinSources = new Map<string, number>();
-				proposal.ingredients.forEach((row: MenuIngredient) => {
-					const item = known.get(row.ingredientId);
-					if (
-						!item ||
-						(input.meal.slot === "dinner" &&
-							row.memberId &&
-							row.memberId !== target.memberId)
-					)
-						return;
-					const protein =
-						((item.nutrition.protein * row.quantity) / item.basisAmount) *
-						(input.meal.slot === "dinner" && !row.memberId ? 0.5 : 1);
-					if (protein > 0.5)
-						proteinSources.set(
-							item.id,
-							(proteinSources.get(item.id) ?? 0) + protein,
+				const deltas = input.targets.map((target) => {
+					const oldMeal = mealNutrition(
+						input.meal.ingredients,
+						target.memberId,
+					);
+					const newMeal = mealNutrition(proposal.ingredients, target.memberId);
+					const companion = companionSnacks
+						.filter((snack) => snack.memberId === target.memberId)
+						.reduce(
+							(total, snack) => {
+								for (const key of [
+									"calories",
+									"protein",
+									"carbs",
+									"fat",
+									"fiber",
+								] as const)
+									total[key] += snack.nutrition[key];
+								return total;
+							},
+							{ calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 },
 						);
+					const caloriesAfter =
+						target.currentCalories -
+						oldMeal.calories +
+						newMeal.calories +
+						companion.calories;
+					const currentCalories = target.currentCalories;
+					if (
+						!target.referenceOnly &&
+						caloriesAfter > target.dailyCalories * 1.05 &&
+						caloriesAfter > currentCalories
+					)
+						return null;
+					const proteinSources = new Map<string, number>();
+					proposal.ingredients.forEach((row: MenuIngredient) => {
+						const item = known.get(row.ingredientId);
+						if (
+							!item ||
+							(input.meal.slot === "dinner" &&
+								row.memberId &&
+								row.memberId !== target.memberId)
+						)
+							return;
+						const protein =
+							((item.nutrition.protein * row.quantity) / item.basisAmount) *
+							(input.meal.slot === "dinner" && !row.memberId ? 0.5 : 1);
+						if (protein > 0.5)
+							proteinSources.set(
+								item.id,
+								(proteinSources.get(item.id) ?? 0) + protein,
+							);
+					});
+					const alternatives = available.filter(
+						(item) => item.suggestible && item.nutrition.protein > 0,
+					).length;
+					const sourceWarning =
+						newMeal.protein > 30 &&
+						alternatives > 1 &&
+						(proteinSources.size < 2 ||
+							Math.max(...proteinSources.values(), 0) / newMeal.protein > 0.7);
+					if (sourceWarning && index > 0) return null;
+					return {
+						member: target.member,
+						caloriesAfter,
+						calorieTarget: target.dailyCalories,
+						overCaloriesBy: Math.max(0, caloriesAfter - target.dailyCalories),
+						proteinAfter:
+							target.currentProtein -
+							oldMeal.protein +
+							newMeal.protein +
+							companion.protein,
+						proteinTarget: target.dailyProtein,
+						carbsAfter:
+							target.currentCarbs -
+							oldMeal.carbs +
+							newMeal.carbs +
+							companion.carbs,
+						carbsTarget: target.dailyCarbs,
+						fatAfter:
+							target.currentFat - oldMeal.fat + newMeal.fat + companion.fat,
+						fatTarget: target.dailyFat,
+						fiberAfter:
+							target.currentFiber -
+							oldMeal.fiber +
+							newMeal.fiber +
+							companion.fiber,
+						fiberTarget: target.dailyFiber,
+						proteinDelta: newMeal.protein - oldMeal.protein + companion.protein,
+						carbsDelta: newMeal.carbs - oldMeal.carbs + companion.carbs,
+						fatDelta: newMeal.fat - oldMeal.fat + companion.fat,
+						fiberDelta: newMeal.fiber - oldMeal.fiber + companion.fiber,
+						...(sourceWarning
+							? {
+									sourceWarning:
+										"Protein comes from one main source; consider adding a second source.",
+								}
+							: {}),
+					};
 				});
-				const alternatives = available.filter(
-					(item) => item.suggestible && item.nutrition.protein > 0,
-				).length;
-				const sourceWarning =
-					newMeal.protein > 30 &&
-					alternatives > 1 &&
-					(proteinSources.size < 2 ||
-						Math.max(...proteinSources.values(), 0) / newMeal.protein > 0.7);
-				if (sourceWarning && index > 0) return null;
+				if (deltas.includes(null)) return null;
 				return {
-					member: target.member,
-					caloriesAfter,
-					calorieTarget: target.dailyCalories,
-					overCaloriesBy: Math.max(0, caloriesAfter - target.dailyCalories),
-					proteinAfter:
-						target.currentProtein -
-						oldMeal.protein +
-						newMeal.protein +
-						companion.protein,
-					proteinTarget: target.dailyProtein,
-					carbsAfter:
-						target.currentCarbs -
-						oldMeal.carbs +
-						newMeal.carbs +
-						companion.carbs,
-					carbsTarget: target.dailyCarbs,
-					fatAfter:
-						target.currentFat - oldMeal.fat + newMeal.fat + companion.fat,
-					fatTarget: target.dailyFat,
-					fiberAfter:
-						target.currentFiber -
-						oldMeal.fiber +
-						newMeal.fiber +
-						companion.fiber,
-					fiberTarget: target.dailyFiber,
-					proteinDelta: newMeal.protein - oldMeal.protein + companion.protein,
-					carbsDelta: newMeal.carbs - oldMeal.carbs + companion.carbs,
-					fatDelta: newMeal.fat - oldMeal.fat + companion.fat,
-					fiberDelta: newMeal.fiber - oldMeal.fiber + companion.fiber,
-					...(sourceWarning
-						? {
-								sourceWarning:
-									"Protein comes from one main source; consider adding a second source.",
-							}
-						: {}),
-				};
-			});
-			if (deltas.includes(null)) return null;
-			return {
-				...proposal,
-				newIngredients,
-				ingredients: proposal.ingredients as MenuIngredient[],
-				companionSnacks,
-				deltas,
-			} as Proposal;
+					...proposal,
+					newIngredients,
+					ingredients: proposal.ingredients as MenuIngredient[],
+					companionSnacks,
+					deltas,
+				} as Proposal;
 			}),
 		)
 	).filter((proposal): proposal is Proposal => proposal !== null);

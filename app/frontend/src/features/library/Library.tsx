@@ -329,7 +329,7 @@ export function Library({
 		}
 	}
 
-	async function findIngredientNutrition() {
+	async function findIngredientNutrition(checkExisting = false) {
 		if (!ingredientDraftState?.name.trim()) return;
 		const normalizedName = ingredientDraftState.name.trim().toLocaleLowerCase();
 		const catalogMatch = ingredients.find((item) =>
@@ -337,7 +337,7 @@ export function Library({
 				(term) => term.trim().toLocaleLowerCase() === normalizedName,
 			),
 		);
-		if (catalogMatch) {
+		if (catalogMatch && !checkExisting) {
 			clearLookup();
 			setLookupResult({
 				query: ingredientDraftState.name.trim(),
@@ -353,11 +353,12 @@ export function Library({
 		const requestId = ++lookupRequestId.current;
 		setLookupBusy(true);
 		setLookupWarning("");
-		setLookupResult(null);
+		if (!checkExisting) setLookupResult(null);
 		try {
 			const result = await api.lookupIngredient(
 				ingredientDraftState.name.trim(),
 				ingredientDraftState.preparation.trim(),
+				checkExisting,
 			);
 			if (lookupRequestId.current !== requestId) return;
 			setLookupResult(result);
@@ -367,7 +368,9 @@ export function Library({
 				);
 				if (existing) {
 					setLookupWarning(
-						`This is already in the catalog as “${existing.name}”.`,
+						result.matches.length
+							? `This is already in the catalog as “${existing.name}”.`
+							: `This is already in the catalog as “${existing.name}”. No verified USDA match was found.`,
 					);
 					return;
 				}
@@ -843,18 +846,19 @@ export function Library({
 											<input
 												required
 												value={ingredientDraftState.name}
-												onChange={(event) =>
+												onChange={(event) => {
+													clearLookup();
 													setIngredientDraftState({
 														...ingredientDraftState,
 														name: event.target.value,
-													})
-												}
+													});
+												}}
 											/>
 										</label>
 										<div className="ingredient-lookup-panel">
 											<button
 												type="button"
-												onClick={findIngredientNutrition}
+												onClick={() => void findIngredientNutrition()}
 												disabled={
 													lookupBusy || !ingredientDraftState.name.trim()
 												}
@@ -888,6 +892,97 @@ export function Library({
 														Edit {existing.name}
 													</button>
 												) : null;
+											})()}
+											{lookupResult?.existing && (
+												<button
+													type="button"
+													className="secondary"
+													disabled={lookupBusy || lookupAvailable === false}
+													onClick={() => void findIngredientNutrition(true)}
+												>
+													Check with AI
+												</button>
+											)}
+											{lookupResult?.existing &&
+												lookupResult.matches.length > 0 &&
+												(() => {
+												const existing = ingredients.find(
+													(item) => item.id === lookupResult.existing,
+												);
+												if (!existing) return null;
+												const gramsPerBasis =
+													existing.unit === "g"
+														? existing.basisAmount
+														: existing.equivalentGrams == null
+															? null
+															: existing.equivalentGrams * existing.basisAmount;
+												const scale = gramsPerBasis
+													? 100 / gramsPerBasis
+													: 1;
+												const currentSource = existing.source.match(
+													/\((https?:\/\/[^)]+)\)/,
+												)?.[1];
+												return (
+													<div
+														className="usda-matches"
+														aria-label="Nutrition comparison"
+													>
+														<p>
+															<strong>Current catalog: {existing.name}</strong>
+															{currentSource && (
+																<>
+																	{" · "}
+																	<a
+																		href={currentSource}
+																		target="_blank"
+																		rel="noreferrer"
+																	>
+																		Source
+																	</a>
+																</>
+															)}
+														</p>
+														<p>
+															{gramsPerBasis == null
+																? `Per ${existing.basisAmount} ${existing.unit}: `
+																: "Per 100 g: "}
+																{(existing.nutrition.calories * scale).toFixed(2)} kcal,
+																{" "}protein {(existing.nutrition.protein * scale).toFixed(2)} g,
+																{" "}carbs {(existing.nutrition.carbs * scale).toFixed(2)} g,
+																{" "}fat {(existing.nutrition.fat * scale).toFixed(2)} g,
+																{" "}fiber {(existing.nutrition.fiber * scale).toFixed(2)} g
+															{gramsPerBasis == null &&
+																". No gram conversion is saved, so this cannot be compared directly."}
+														</p>
+														<p>
+															<strong>External USDA results (per 100 g):</strong>
+														</p>
+														{lookupResult.matches.map((match) => {
+															const source = match.source.match(
+																/\((https?:\/\/[^)]+)\)/,
+															)?.[1];
+															return (
+																<div key={match.fdcId}>
+																	{match.description} · {match.dataType}: {match.nutrition.calories} kcal,
+																	{" "}protein {match.nutrition.protein} g, carbs {match.nutrition.carbs} g,
+																	{" "}fat {match.nutrition.fat} g, fiber {match.nutrition.fiber} g
+																	{source && (
+																		<>
+																			{" · "}
+																	<a
+																		href={source}
+																		target="_blank"
+																		rel="noreferrer"
+																	>
+																				Source
+																			</a>
+																		</>
+																	)}
+																</div>
+															);
+														})}
+													</div>
+												);
 											})()}
 											{lookupResult && !lookupResult.existing && (
 												<div className="usda-matches">
@@ -987,12 +1082,13 @@ export function Library({
 											Preparation state
 											<input
 												value={ingredientDraftState.preparation}
-												onChange={(event) =>
+												onChange={(event) => {
+													clearLookup();
 													setIngredientDraftState({
 														...ingredientDraftState,
 														preparation: event.target.value,
-													})
-												}
+													});
+												}}
 											/>
 										</label>
 										<label>

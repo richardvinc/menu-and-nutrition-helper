@@ -1077,6 +1077,72 @@ describe("backend API", () => {
 			expect(response.status).toBe(200);
 			expect(await response.json()).toMatchObject({ existing: "watermelon" });
 			expect(usdaCalls).toBe(0);
+			const checked = await fetch(`${base}/api/ai/ingredient-lookup`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ name: "semangka", checkExisting: true }),
+			});
+			expect(checked.status).toBe(200);
+			expect(await checked.json()).toMatchObject({
+				existing: "watermelon",
+				matches: [{ fdcId: 123 }],
+			});
+			expect(usdaCalls).toBe(1);
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
+			else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY;
+			else process.env.USDA_API_KEY = oldUsda;
+		}
+	});
+
+	test("explicit ingredient check bypasses direct catalog matches for USDA comparison", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		const oldUsda = process.env.USDA_API_KEY;
+		delete process.env.OPENROUTER_API_KEY;
+		process.env.USDA_API_KEY = "test-only";
+		let usdaCalls = 0;
+		globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			if (String(input).startsWith(base)) return oldFetch(input, init);
+			if (!String(input).includes("api.nal.usda.gov"))
+				throw new Error(`unexpected fetch: ${String(input)}`);
+			usdaCalls++;
+			return new Response(JSON.stringify({
+				foods: [{
+					fdcId: 123,
+				description: "Egg, raw",
+					dataType: "SR Legacy",
+					foodNutrients: [
+						{ nutrientNumber: "208", value: 85 },
+						{ nutrientNumber: "203", value: 9 },
+						{ nutrientNumber: "205", value: 2 },
+						{ nutrientNumber: "204", value: 5 },
+						{ nutrientNumber: "291", value: 1 },
+					],
+				}],
+			}), { status: 200 });
+		}) as typeof fetch;
+		try {
+			const normal = await fetch(`${base}/api/ai/ingredient-lookup`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ name: "egg" }),
+			});
+			expect(await normal.json()).toMatchObject({ existing: "egg", matches: [] });
+			expect(usdaCalls).toBe(0);
+			const checked = await fetch(`${base}/api/ai/ingredient-lookup`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ name: "egg", checkExisting: true }),
+			});
+			expect(checked.status).toBe(200);
+			expect(await checked.json()).toMatchObject({
+				existing: "egg",
+				matches: [{ fdcId: 123, nutrition: { calories: 85 } }],
+			});
+			expect(usdaCalls).toBe(1);
 		} finally {
 			globalThis.fetch = oldFetch;
 			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;

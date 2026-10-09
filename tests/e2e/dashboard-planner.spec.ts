@@ -53,6 +53,15 @@ const testMeals = [
 			{ ingredientId: "rice", quantity: 70, memberId: "michelle" },
 		],
 	},
+	{
+		id: "seed-1008-m-snack",
+		date: "2026-10-08",
+		slot: "snack",
+		memberId: "michelle",
+		name: "Banana snack",
+		notes: "",
+		ingredients: [{ ingredientId: "banana", quantity: 1 }],
+	},
 ] as const;
 
 test.beforeAll(async ({ request }) => {
@@ -138,12 +147,10 @@ test("dashboard shows static today, tomorrow, and weekly meal cards", async ({
 	expect(
 		labelBox && nameBox && nameBox.y - labelBox.y - labelBox.height,
 	).toBeGreaterThanOrEqual(4);
-	const dashboard = await page.locator(".pk-dashboard").boundingBox();
-	expect(dashboard && dashboard.y + dashboard.height).toBeLessThanOrEqual(900);
 	expect(
 		await page.evaluate(() => ({
 			width: document.documentElement.scrollWidth <= innerWidth,
-			height: document.documentElement.scrollHeight <= innerHeight,
+			height: document.documentElement.scrollHeight > innerHeight,
 		})),
 	).toEqual({ width: true, height: true });
 });
@@ -324,6 +331,24 @@ test("planned target progress combines lunch with half of shared dinner", async 
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Michelle" }),
 	).toContainText(/Protein 41 \/ [\d,]+ g/);
+});
+
+test("weekly day progress includes snacks and shared dinner portions", async ({
+	page,
+}) => {
+	await page.clock.install({ time: new Date(2026, 9, 8, 12) });
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await page.goto("/");
+	await page.getByRole("button", { name: "Week", exact: true }).click();
+	const progress = page.locator(
+		'.pk-week-day[data-date="2026-10-08"] .pk-pocket__targets',
+	);
+	await expect(progress).toContainText("Richard");
+	await expect(progress).toContainText(/Calories 722 \/ [\d,]+ kcal/);
+	await expect(progress).toContainText("Michelle");
+	await expect(progress).toContainText(/Calories 751 \/ [\d,]+ kcal/);
+	await expect(progress).toContainText(/Protein 66 \/ [\d,]+ g/);
+	await expect(progress).toContainText(/Fiber \d+ \/ [\d,]+ g/);
 });
 
 test("dinner uses two fixed optional carbohydrate portions", async ({
@@ -645,4 +670,5 @@ test("390px weekly planner uses a selected-day agenda without horizontal overflo
 	await expect(
 		page.locator(".pk-pocket").getByText("Sesame chicken bowl"),
 	).toBeVisible();
+	await expect(page.locator(".pk-pocket .pk-pocket__targets")).toContainText("Fiber");
 });

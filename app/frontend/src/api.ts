@@ -144,7 +144,7 @@ export const api = {
 			method: "POST",
 			body: JSON.stringify({ meal, prior, pendingIngredients, companions }),
 		}),
-	lookupIngredient: (name: string, preparation = "") =>
+	lookupIngredient: (name: string, preparation = "", checkExisting = false) =>
 		request<{
 			query: string;
 			aliases: string[];
@@ -159,7 +159,7 @@ export const api = {
 			}[];
 		}>("/api/ai/ingredient-lookup", {
 			method: "POST",
-			body: JSON.stringify({ name, preparation }),
+			body: JSON.stringify({ name, preparation, checkExisting }),
 		}),
 	previewTarget: (proposal: TargetPreviewRequest) =>
 		request<TargetPreview>("/api/targets/preview", {
