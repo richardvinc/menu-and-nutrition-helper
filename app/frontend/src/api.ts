@@ -26,6 +26,17 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const api = {
 	data: () => request<AppData>("/api/data"),
+	restoreDatabase: (file: File) =>
+		fetch("/api/database.sqlite", {
+			method: "POST",
+			headers: { "Content-Type": "application/vnd.sqlite3" },
+			body: file,
+		}).then(async (response) => {
+			if (!response.ok) {
+				const body = (await response.json().catch(() => null)) as { error?: string } | null;
+				throw new Error(body?.error ?? `Request failed (${response.status})`);
+			}
+		}),
 	aiStatus: () =>
 		request<{ recommendations: boolean; ingredientLookup: boolean }>(
 			"/api/ai/status",
@@ -102,6 +113,7 @@ export const api = {
 		prior: string[][],
 		pendingIngredients: Ingredient[],
 		companions: ScheduledMeal[],
+		adjustExisting = false,
 	) =>
 		request<{
 			recommendations: {
@@ -147,7 +159,13 @@ export const api = {
 			}[];
 		}>("/api/ai/recommendations", {
 			method: "POST",
-			body: JSON.stringify({ meal, prior, pendingIngredients, companions }),
+			body: JSON.stringify({
+				meal,
+				prior,
+				pendingIngredients,
+				companions,
+				adjustExisting,
+			}),
 		}),
 	lookupIngredient: (name: string, preparation = "", checkExisting = false) =>
 		request<{

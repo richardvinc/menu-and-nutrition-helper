@@ -18,6 +18,7 @@ export type LibraryProps = {
 	onDeleteMenu: (id: string) => Promise<void>;
 	onSaveIngredient: (ingredient: Ingredient) => Promise<void>;
 	onDeleteIngredient: (id: string) => Promise<void>;
+	onRestoreDatabase: (file: File) => Promise<void>;
 };
 
 type MenuDraft = {
@@ -131,6 +132,7 @@ export function Library({
 	onDeleteMenu,
 	onSaveIngredient,
 	onDeleteIngredient,
+	onRestoreDatabase,
 }: LibraryProps) {
 	const [section, setSection] = useState<"menus" | "ingredients">("menus");
 	const [menuSearch, setMenuSearch] = useState("");
@@ -141,6 +143,9 @@ export function Library({
 	const activeIngredientDraftId = useRef<string | null>(null);
 	activeIngredientDraftId.current = ingredientDraftState?.id ?? null;
 	const [error, setError] = useState("");
+	const [restoring, setRestoring] = useState(false);
+	const [restoreMessage, setRestoreMessage] = useState("");
+	const backupInput = useRef<HTMLInputElement>(null);
 	const [saving, setSaving] = useState(false);
 	const [lookupBusy, setLookupBusy] = useState(false);
 	const [lookupResult, setLookupResult] = useState<Awaited<
@@ -637,6 +642,48 @@ export function Library({
 
 	return (
 		<main className="library-page">
+			<section className="library-backup" aria-labelledby="database-backup-title">
+				<div>
+					<h2 id="database-backup-title">Database backup</h2>
+					<p>Download or restore the complete SQLite database.</p>
+				</div>
+				<div className="feature-actions">
+					<a className="button secondary" href="/api/database.sqlite" download>
+						Download database
+					</a>
+					<button type="button" className="secondary" disabled={restoring} onClick={() => backupInput.current?.click()}>
+						{restoring ? "Restoring…" : "Restore database"}
+					</button>
+					<input
+						ref={backupInput}
+						type="file"
+						aria-label="Choose SQLite database backup"
+						accept=".sqlite,.sqlite3,.db,application/vnd.sqlite3"
+						disabled={restoring}
+						hidden
+						onChange={async (event) => {
+							const file = event.currentTarget.files?.[0];
+							event.currentTarget.value = "";
+							if (!file || !window.confirm("Replace all meal planner data with this database?")) return;
+							setRestoring(true);
+							setError("");
+							setRestoreMessage("");
+							try {
+								await onRestoreDatabase(file);
+								setMenuDraft(null);
+								setIngredientDraftState(null);
+								clearLookup();
+								setRestoreMessage("Database restored.");
+							} catch (reason) {
+								setError(reason instanceof Error ? reason.message : "Could not restore the database.");
+							} finally {
+								setRestoring(false);
+							}
+						}}
+					/>
+				</div>
+			</section>
+			{restoreMessage && <p role="status">{restoreMessage}</p>}
 			<header className="feature-heading">
 				<p className="feature-eyebrow">Reusable planning collection</p>
 				<h1>Library</h1>

@@ -1,6 +1,6 @@
-import type { Database } from "bun:sqlite";
+import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AppData, TargetPreviewRequest } from "@piring-kita/shared";
@@ -364,6 +364,23 @@ describe("backend API", () => {
 			};
 			const converted = await recommend({ ...input, catalog: [piece] });
 			expect(converted[0].ingredients[0]).toMatchObject({ ingredientId: piece.id, quantity: 2 });
+			const adjusted = await recommend({
+				...input,
+				meal: { ...input.meal, name: "Tofu bowl" },
+				adjustExisting: true,
+				savedMenus: [
+					{ key: "saved-one", name: "Saved one", ingredients: [] },
+					{ key: "saved-two", name: "Saved two", ingredients: [] },
+				],
+				catalog: [piece],
+			});
+			expect(JSON.parse(requests[2].messages[1].content)).toMatchObject({
+				name: "Tofu bowl",
+				adjustExisting: true,
+				savedMenuChoices: [],
+				constraints: { adjustedSavedMenus: 0, newCompositions: 5 },
+			});
+			expect(adjusted[0].origin).toBe("new");
 		} finally {
 			globalThis.fetch = oldFetch;
 			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
@@ -1937,7 +1954,78 @@ describe("backend API", () => {
 		expect(sqlite.headers.get("content-type")).toContain(
 			"application/vnd.sqlite3",
 		);
-		expect((await sqlite.arrayBuffer()).byteLength).toBeGreaterThan(0);
+		const snapshot = Database.deserialize(new Uint8Array(await sqlite.arrayBuffer()));
+		expect(snapshot.query("SELECT COUNT(*) AS count FROM members").get()).toEqual({ count: 2 });
+		snapshot.close();
+	});
+
+	test("validates SQLite restores before replacing data and rolls back failures", async () => {
+		const exportResponse = await fetch(`${base}/api/database.sqlite`);
+		const bytes = new Uint8Array(await exportResponse.arrayBuffer());
+		const before = (await (await fetch(`${base}/api/data`)).json()) as AppData;
+		const restore = (body: Uint8Array) => fetch(`${base}/api/database.sqlite`, {
+			method: "POST",
+			headers: { "content-type": "application/vnd.sqlite3" },
+			body,
+		});
+		const invalidFile = await restore(new TextEncoder().encode("not a database"));
+		expect(invalidFile.status).toBe(400);
+		const wrongSchema = Database.deserialize(bytes);
+		wrongSchema.exec("ALTER TABLE members ADD COLUMN extra TEXT");
+		const invalidSchema = await restore(wrongSchema.serialize());
+		wrongSchema.close();
+		expect(invalidSchema.status).toBe(400);
+		const wrongIndex = Database.deserialize(bytes);
+		wrongIndex.exec("DROP INDEX scheduled_slot; CREATE UNIQUE INDEX scheduled_slot ON scheduled_meals(date, slot)");
+		const invalidIndex = await restore(wrongIndex.serialize());
+		wrongIndex.close();
+		expect(invalidIndex.status).toBe(400);
+		const invalidData = Database.deserialize(bytes);
+		invalidData.query("UPDATE members SET data = ? WHERE id = 'richard'").run(JSON.stringify({ ...before.members[0], name: 12 }));
+		const invalidDomain = await restore(invalidData.serialize());
+		invalidData.close();
+		expect(invalidDomain.status).toBe(400);
+		const inconsistentMeal = Database.deserialize(bytes);
+		inconsistentMeal.exec("UPDATE scheduled_meals SET date = '2026-10-19'");
+		expect((await restore(inconsistentMeal.serialize())).status).toBe(400);
+		inconsistentMeal.close();
+		expect(await (await fetch(`${base}/api/data`)).json()).toEqual(before);
+		const legacy = Database.deserialize(bytes);
+		const menu = legacy.query("SELECT data FROM saved_menus WHERE id = 'workbook-r-nasi-telur-miso'").get() as { data: string };
+		const { slot: _slot, ...legacyMenu } = JSON.parse(menu.data);
+		legacy.query("UPDATE saved_menus SET data = ? WHERE id = ?").run(JSON.stringify(legacyMenu), legacyMenu.id);
+		expect((await restore(legacy.serialize())).status).toBe(200);
+		legacy.close();
+		expect(await (await fetch(`${base}/api/data`)).json()).toEqual(before);
+
+		db.exec("CREATE TRIGGER reject_restore BEFORE INSERT ON members BEGIN SELECT RAISE(ABORT, 'restore failed'); END");
+		const failedRestore = await restore(bytes);
+		expect(failedRestore.status).toBe(400);
+		db.exec("DROP TRIGGER reject_restore");
+		expect(await (await fetch(`${base}/api/data`)).json()).toEqual(before);
+	});
+
+	test("exports a standalone SQLite snapshot with committed WAL data", async () => {
+		const directory = mkdtempSync(join(tmpdir(), "piring-kita-wal-"));
+		const walDb = createDatabase(join(directory, "planner.sqlite"), false);
+		const listener = createApp(walDb).listen(0);
+		await new Promise<void>((resolve) => listener.once("listening", resolve));
+		const address = listener.address();
+		if (!address || typeof address === "string") throw new Error("test server did not bind a TCP port");
+		try {
+			walDb.exec("PRAGMA journal_mode = WAL");
+			walDb.query("INSERT INTO ingredients (id, data) VALUES (?, ?)").run("wal-snapshot", '{"id":"wal-snapshot"}');
+			const response = await fetch(`http://127.0.0.1:${address.port}/api/database.sqlite`);
+			const path = join(directory, "snapshot.sqlite");
+			writeFileSync(path, Buffer.from(await response.arrayBuffer()));
+			const snapshot = new Database(path, { readonly: true });
+			expect(snapshot.query("SELECT data FROM ingredients WHERE id = 'wal-snapshot'").get()).toEqual({ data: '{"id":"wal-snapshot"}' });
+			snapshot.close();
+		} finally {
+			await new Promise<void>((resolve) => listener.close(() => resolve()));
+			walDb.close();
+			rmSync(directory, { recursive: true, force: true });
+		}
 	});
 
 	test("persists API writes across database reopen", async () => {

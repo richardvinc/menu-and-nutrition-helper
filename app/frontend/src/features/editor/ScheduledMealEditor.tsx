@@ -282,6 +282,7 @@ export function ScheduledMealEditor({
 	const [recommendations, setRecommendations] = useState<
 		Awaited<ReturnType<typeof api.recommendMeals>>["recommendations"]
 	>([]);
+	const recommendationContext = useRef("");
 	const [recommendationPrior, setRecommendationPrior] = useState<string[][]>(
 		[],
 	);
@@ -428,6 +429,16 @@ export function ScheduledMealEditor({
 		notes,
 		ingredients: [...rows, ...carbRows],
 	};
+	const adjustExisting =
+		(meal.slot === "lunch" || meal.slot === "dinner") &&
+		(Boolean(name.trim()) || meal.ingredients.length > 0);
+	const currentRecommendationContext = JSON.stringify({
+		date: meal.date,
+		slot: meal.slot,
+		memberId: meal.memberId,
+		name: name.trim(),
+		ingredients: meal.ingredients,
+	});
 	const mealTotal = totalsFor(meal, catalog);
 	const dayMeals = data.scheduledMeals.filter(
 		(item) => item.date === mealDate && item.id !== initialMeal?.id,
@@ -573,14 +584,17 @@ export function ScheduledMealEditor({
 	const fetchRecommendations = async () => {
 		setRecommendationLoading(true);
 		setRecommendationError("");
+		const context = currentRecommendationContext;
 		try {
 			const result = await api.recommendMeals(
 				{ ...meal, name: name.trim() || "Meal" },
 				recommendationPrior,
 				pendingIngredients,
 				pendingCompanions,
+				adjustExisting,
 			);
 			setRecommendations(result.recommendations);
+			recommendationContext.current = context;
 			setSelectedRecommendations([]);
 			setSaveRecommendationsError("");
 			setSaveRecommendationsStatus("");
@@ -643,7 +657,11 @@ export function ScheduledMealEditor({
 	};
 	const openRecommendations = () => {
 		setAiOpen(true);
-		if (!recommendationLoading && !recommendations.length)
+		if (
+			!recommendationLoading &&
+			(!recommendations.length ||
+				recommendationContext.current !== currentRecommendationContext)
+		)
 			void fetchRecommendations();
 	};
 	const applyRecommendation = (
@@ -1036,10 +1054,10 @@ export function ScheduledMealEditor({
 								disabled={recommendationAvailable === false}
 							>
 								<span aria-hidden="true">✦</span>
-								{recommendations.length
-									? "View AI recommendations"
-									: name.trim()
-										? "Improve with AI"
+								{adjustExisting
+									? "Adjust with AI"
+									: recommendations.length
+										? "View AI recommendations"
 										: "Recommend me"}
 							</button>
 							{recommendationAvailable === false && (

@@ -123,7 +123,9 @@ sudo systemctl status piring-kita
 journalctl -u piring-kita -f
 ```
 
-JSON backup, JSON restore, and raw SQLite download are available from the
-application API for both deployment methods.
+From the Library page, download a full SQLite backup or restore one to replace
+all current meal planner data. Restore checks the app schema, SQLite integrity,
+and the stored meal data before changing the database. The JSON backup API
+remains available for both deployment methods.
 
 The original dependency-free prototype remains under `.scratch/meal-planning-app/prototypes/dashboard-prototype/` as a reference.
