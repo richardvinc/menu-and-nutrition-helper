@@ -646,6 +646,9 @@
 	font-size: 9px;
 	font-weight: 600;
 }
+.pk-ai-card__nutrition strong {
+	font-size: 12px;
+}
 .pk-ai-card__targets {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -660,12 +663,18 @@
 	color: var(--app-muted);
 	font-size: 10px;
 }
+.pk-ai-card__targets > div:only-child {
+	grid-column: 1 / -1;
+}
 .pk-ai-card__targets strong {
 	color: var(--app-ink);
 	font-size: 11px;
 }
 .pk-ai-card__targets small {
 	color: var(--app-coral);
+}
+.pk-ai-card__targets .pk-ai-card__target-legend {
+	color: var(--app-muted);
 }
 .pk-ai-card .pk-ai-card__notice {
 	margin: -4px 0 0;
@@ -674,6 +683,20 @@
 	background: color-mix(in srgb, var(--app-yellow) 16%, var(--app-canvas));
 	color: var(--app-ink);
 	font-size: 10px;
+}
+.pk-ai-error {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 12px;
+	border-radius: 10px;
+	background: color-mix(in srgb, var(--app-coral) 12%, var(--app-canvas));
+	color: var(--app-ink);
+	font-size: 12px;
+}
+.pk-ai-error button {
+	flex: 0 0 auto;
 }
 .pk-ai-apply {
 	width: 100%;

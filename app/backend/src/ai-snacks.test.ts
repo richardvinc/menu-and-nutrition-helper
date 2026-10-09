@@ -98,5 +98,12 @@ test("meal recommendation accepts an optional sub-10% companion and drops duplic
 	expect(results[1].companionSnacks).toHaveLength(0);
 	expect(results[1].deltas[0].caloriesAfter).toBeCloseTo(120);
 	expect(results[0].deltas[0].memberId).toBe("richard");
+	expect(results[0].deltas[0].before).toEqual({
+		calories: 100,
+		protein: 15,
+		carbs: 2,
+		fat: 4,
+		fiber: 1,
+	});
 	expect(requestBody?.messages[0].content).toContain("Evaluate meal-only and meal-plus-snack combinations");
 });

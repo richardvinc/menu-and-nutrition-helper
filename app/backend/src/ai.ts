@@ -25,6 +25,7 @@ type Proposal = {
 	deltas: {
 		member: string;
 		memberId: MemberId;
+		before: Nutrition;
 		caloriesAfter: number;
 		calorieTarget: number;
 		overCaloriesBy: number;
@@ -864,6 +865,13 @@ export async function recommend(input: {
 					return {
 						member: target.member,
 						memberId: target.memberId,
+						before: {
+							calories: target.currentCalories,
+							protein: target.currentProtein,
+							carbs: target.currentCarbs,
+							fat: target.currentFat,
+							fiber: target.currentFiber,
+						},
 						caloriesAfter,
 						calorieTarget: target.dailyCalories,
 						overCaloriesBy: Math.max(0, caloriesAfter - target.dailyCalories),

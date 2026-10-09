@@ -1,6 +1,7 @@
 import type {
 	AppData,
 	Ingredient,
+	Nutrition,
 	SavedMenu,
 	ScheduledMeal,
 	TargetPreview,
@@ -140,6 +141,7 @@ export const api = {
 				deltas: {
 					member: string;
 					memberId: import("@piring-kita/shared").MemberId;
+					before: Nutrition;
 					caloriesAfter: number;
 					calorieTarget: number;
 					overCaloriesBy: number;

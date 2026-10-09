@@ -511,10 +511,21 @@ test("AI recommendations open in a mobile-friendly modal with a cooking state", 
 		}),
 	);
 	let releaseRecommendations!: () => void;
+	let recommendationRequests = 0;
 	await page.route("**/api/ai/recommendations", async (route) => {
-		await new Promise<void>((resolve) => {
-			releaseRecommendations = resolve;
-		});
+		recommendationRequests += 1;
+		if (recommendationRequests === 1) {
+			await new Promise<void>((resolve) => {
+				releaseRecommendations = resolve;
+			});
+		} else if (recommendationRequests === 3) {
+			await route.fulfill({
+				status: 503,
+				contentType: "application/json",
+				body: JSON.stringify({ error: "Refresh temporarily failed." }),
+			});
+			return;
+		}
 		const recommendations = Array.from({ length: 5 }, (_, index) => ({
 			name: `Balanced tofu idea ${index + 1}`,
 			origin: index < 2 ? "saved" : "new",
@@ -534,7 +545,9 @@ test("AI recommendations open in a mobile-friendly modal with a cooking state", 
 			deltas: [
 				{
 					member: "Member A",
+					memberId: "michelle",
 					caloriesAfter: 540,
+					before: { calories: 420, protein: 24, carbs: 42, fat: 12, fiber: 7 },
 					calorieTarget: 960,
 					overCaloriesBy: 0,
 					proteinAfter: 48,
@@ -586,13 +599,42 @@ test("AI recommendations open in a mobile-friendly modal with a cooking state", 
 		"Building balanced meal ideas",
 	);
 	await expect(dialog.locator('img[src="/ai-cooking.webp"]')).toBeVisible();
+	await dialog.getByRole("button", { name: "Close AI recommendations" }).click();
+	await page.locator(".pk-editor-row input").first().fill("333");
+	await page.getByRole("button", { name: "Adjust with AI" }).click();
+	await expect(dialog.getByRole("status")).toContainText("Building balanced meal ideas");
+	expect(recommendationRequests).toBe(1);
 	releaseRecommendations();
 	await expect(dialog.locator(".pk-ai-card")).toHaveCount(5);
+	const firstCardIngredients = dialog.locator(".pk-ai-card").first().locator(".pk-ai-card__ingredients li");
+	await expect(firstCardIngredients.filter({ hasText: "Dada ayam tanpa kulit" })).toContainText("150 → 0 g");
+	await expect(firstCardIngredients.filter({ hasText: "Tahu firm" })).toContainText("0 → 150 g");
+	await expect(dialog.locator(".pk-ai-card").first()).toContainText("Calories");
+	await expect(dialog.locator(".pk-ai-card").first()).toContainText("491 → 216");
+	await expect(dialog.locator(".pk-ai-card").first()).toContainText("Michelle");
+	await dialog.getByRole("button", { name: "Close AI recommendations" }).click();
+	await page.getByLabel("Meal slot").selectOption("dinner");
+	await page.getByRole("button", { name: "Adjust with AI" }).click();
+	await expect(dialog.getByRole("status")).toContainText("Refresh ideas before applying");
+	await expect(dialog.getByRole("button", { name: "Apply this idea" }).first()).toBeDisabled();
+	expect(recommendationRequests).toBe(1);
+	await dialog.getByRole("button", { name: "↻ Refresh ideas" }).click();
+	await expect.poll(() => recommendationRequests).toBe(2);
+	await expect(dialog.getByRole("button", { name: "Apply this idea" }).first()).toBeEnabled();
 	expect(
 		await dialog.evaluate(
 			(element) => element.scrollWidth <= element.clientWidth,
 		),
 	).toBe(true);
+	await page.screenshot({ path: "output/playwright/ai-before-after-mobile.png" });
+	await page.setViewportSize({ width: 1280, height: 900 });
+	await dialog.locator(".pk-ai-modal__body").evaluate((element) => { element.scrollTop = 330; });
+	await page.screenshot({ path: "output/playwright/ai-before-after-desktop.png" });
+	await page.setViewportSize({ width: 390, height: 844 });
+	await dialog.getByRole("button", { name: "↻ Refresh ideas" }).click();
+	await expect(dialog.getByRole("alert")).toContainText("Refresh temporarily failed.");
+	await expect(dialog.locator(".pk-ai-card")).toHaveCount(5);
+	expect(recommendationRequests).toBe(3);
 	const draftName = await page.getByLabel("Meal name").inputValue();
 	const draftQuantities = await page
 		.locator(".pk-editor-row input")
@@ -631,6 +673,17 @@ test("AI recommendations open in a mobile-friendly modal with a cooking state", 
 	expect(savedMenus).toHaveLength(2);
 	await dialog.getByRole("button", { name: "Apply this idea" }).first().click();
 	await expect(dialog).toHaveCount(0);
+	await page.getByRole("button", { name: "Adjust with AI" }).click();
+	await expect(page.getByRole("dialog", { name: "Improve this meal" }).locator(".pk-ai-card")).toHaveCount(5);
+	expect(recommendationRequests).toBe(3);
+	await page.getByRole("button", { name: "Close AI recommendations" }).click();
+	page.once("dialog", (confirm) => confirm.accept());
+	await page.keyboard.press("Escape");
+	await expect(page.locator(".pk-editor-scrim")).toHaveCount(0);
+	await page.locator(".pk-week-meal").filter({ hasText: "Sesame chicken bowl" }).getByRole("button", { name: "Edit", exact: true }).click();
+	await page.getByRole("button", { name: "Adjust with AI" }).click();
+	await expect(page.getByRole("dialog", { name: "Improve this meal" }).locator(".pk-ai-card")).toHaveCount(5);
+	expect(recommendationRequests).toBe(4);
 });
 
 test("scheduled meal can be saved to the master menu without closing", async ({

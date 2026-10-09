@@ -22,6 +22,7 @@ const recommendation = {
 	deltas: [{
 		member: "Richard",
 		memberId: "richard",
+		before: { calories: 100, protein: 15, carbs: 2, fat: 4, fiber: 1 },
 		caloriesAfter: 505,
 		calorieTarget: 960,
 		overCaloriesBy: 0,
@@ -82,12 +83,20 @@ for (const choice of ["meal only", "meal + snack"] as const) {
 			await scheduledMeal.getByRole("button", { name: "Edit", exact: true }).click();
 			await page.getByRole("button", { name: "Adjust with AI" }).click();
 			const card = page.locator(".pk-ai-card").first();
-			await expect(card).toContainText("Planned totals · meal only: 400 / 960 kcal");
-			await expect(card).toContainText("Planned totals · meal + snack: 505 / 960 kcal");
-			await expect(card).toContainText("Protein 34 / 60 g");
+			await expect(card).toContainText("Calories: 100 → 400 → 505 / 960 kcal");
+			await expect(card).toContainText("Protein: 15 → 34 → 35 / 60 g");
+			await expect(card).toContainText("Carbohydrate: 2 → 17 → 44 / 108 g");
+			await expect(card).toContainText("Fat: 4 → 14 → 14 / 32 g");
+			await expect(card).toContainText("Fiber: 1 → 4 → 7 / 15 g");
+			const snackCompare = card.locator(".pk-ai-card__snack-comparison");
+			await expect(snackCompare).toContainText("Pisang sedang");
+			await expect(snackCompare.locator(".pk-ai-card__ingredients li").first()).toContainText("0 → 1 piece");
+			await expect(snackCompare.locator(".pk-ai-card__nutrition")).toContainText("Calories0 → 105kcal");
 			if (choice === "meal only") {
 				await card.getByRole("button", { name: "Apply meal + snack" }).click();
+				const requestCountBeforeReopen = recommendationRequests.length;
 				await page.getByRole("button", { name: "Adjust with AI" }).click();
+				expect(recommendationRequests).toHaveLength(requestCountBeforeReopen);
 				const previousRequests = recommendationRequests.length;
 				await page.getByRole("button", { name: "↻ Refresh ideas" }).click();
 				await expect.poll(() => recommendationRequests.length).toBe(previousRequests + 1);
