@@ -28,6 +28,7 @@ export interface ScheduledMealEditorProps {
 		companions?: ScheduledMeal[],
 	) => void | Promise<void>;
 	onSaveMenu: (menu: SavedMenu, exists: boolean) => void | Promise<void>;
+	onSaveMenus: (menus: SavedMenu[], pendingIngredients: Ingredient[]) => void | Promise<void>;
 	onCancel: () => void;
 }
 const blank = (): Nutrition => ({
@@ -226,6 +227,7 @@ export function ScheduledMealEditor({
 	memberId,
 	onSave,
 	onSaveMenu,
+	onSaveMenus,
 	onCancel,
 }: ScheduledMealEditorProps) {
 	const [name, setName] = useState(initialMeal?.name ?? "");
@@ -284,6 +286,10 @@ export function ScheduledMealEditor({
 		boolean | null
 	>(null);
 	const [saveRecommendedMenu, setSaveRecommendedMenu] = useState(false);
+	const [selectedRecommendations, setSelectedRecommendations] = useState<number[]>([]);
+	const [savingRecommendations, setSavingRecommendations] = useState(false);
+	const [saveRecommendationsError, setSaveRecommendationsError] = useState("");
+	const [saveRecommendationsStatus, setSaveRecommendationsStatus] = useState("");
 	const [pendingIngredients, setPendingIngredients] = useState<Ingredient[]>(
 		[],
 	);
@@ -569,6 +575,9 @@ export function ScheduledMealEditor({
 				pendingCompanions,
 			);
 			setRecommendations(result.recommendations);
+			setSelectedRecommendations([]);
+			setSaveRecommendationsError("");
+			setSaveRecommendationsStatus("");
 			setRecommendationPrior((current) =>
 				[
 					...current,
@@ -583,6 +592,47 @@ export function ScheduledMealEditor({
 			);
 		} finally {
 			setRecommendationLoading(false);
+		}
+	};
+	const saveSelectedRecommendations = async () => {
+		const selected = selectedRecommendations
+			.map((index) => recommendations[index])
+			.filter((item): item is (typeof recommendations)[number] => Boolean(item));
+		if (!selected.length) return;
+		const menus = selected.map((item, index) => {
+			return {
+				id: `ai-menu-${Date.now()}-${index}`,
+				name: item.name.trim(),
+				slot: mealSlot,
+				...(mealSlot === "dinner" || !mealMember ? {} : { memberId: mealMember }),
+				ingredients: item.ingredients.map((row) => ({ ...row })),
+			} satisfies SavedMenu;
+		});
+		const ids = new Set(
+			menus.flatMap((menu) => menu.ingredients.map((row) => row.ingredientId)),
+		);
+		const allPending = [
+			...pendingIngredients,
+			...selected.flatMap((item) => item.newIngredients),
+		];
+		const pending = allPending.filter(
+			(ingredient, index) =>
+				ids.has(ingredient.id) &&
+				allPending.findIndex((entry) => entry.id === ingredient.id) === index,
+		);
+		setSavingRecommendations(true);
+		setSaveRecommendationsError("");
+		setSaveRecommendationsStatus("");
+		try {
+			await onSaveMenus(menus, pending);
+			setSelectedRecommendations([]);
+			setSaveRecommendationsStatus(
+				`Added ${menus.length} ${menus.length === 1 ? "menu" : "menus"} to the master menu.`,
+			);
+		} catch (error) {
+			setSaveRecommendationsError(error instanceof Error ? error.message : "Could not save selected menus.");
+		} finally {
+			setSavingRecommendations(false);
 		}
 	};
 	const openRecommendations = () => {
@@ -1134,8 +1184,13 @@ export function ScheduledMealEditor({
 												Save chosen idea to menu collection
 											</label>
 										</div>
-										<button type="button" className="pk-ai-refresh" onClick={() => void fetchRecommendations()}>↻ Refresh ideas</button>
+										<button type="button" className="pk-ai-refresh" disabled={!selectedRecommendations.length || savingRecommendations} onClick={() => void saveSelectedRecommendations()}>
+											{savingRecommendations ? "Adding menus…" : `Add ${selectedRecommendations.length || "selected"} to master menu`}
+										</button>
+										<button type="button" className="pk-ai-refresh" disabled={savingRecommendations || recommendationLoading} onClick={() => void fetchRecommendations()}>↻ Refresh ideas</button>
 									</div>
+									{saveRecommendationsError && <p role="alert">{saveRecommendationsError}</p>}
+									{saveRecommendationsStatus && <p role="status">{saveRecommendationsStatus}</p>}
 									<div className="pk-ai-grid">
 										{recommendations.map((item, index) => (
 											<article className="pk-ai-card" key={`${item.name}-${index}`}>
@@ -1143,12 +1198,31 @@ export function ScheduledMealEditor({
 													<span>Option {index + 1} · {item.origin === "saved" ? "Adjusted favorite" : "New idea"}</span>
 													<h3>{item.name}</h3>
 												</div>
+											<label className="pk-ai-check">
+												<input
+													type="checkbox"
+													disabled={savingRecommendations}
+													checked={selectedRecommendations.includes(index)}
+													onChange={(event) => {
+														setSelectedRecommendations((current) =>
+															event.target.checked
+																? [...current, index]
+																: current.filter((selected) => selected !== index),
+														);
+													}}
+												/>
+												Add to master menu
+											</label>
 												<p className="pk-ai-card__why">{item.justification}</p>
 												<ul className="pk-ai-card__ingredients">
 													{item.ingredientDetails.map((row, rowIndex) => (
 														<li key={`${row.ingredientId}-${row.memberId ?? "shared"}-${rowIndex}`}>
 															<span>{row.name}{row.memberId ? ` · ${data.members.find((member) => member.id === row.memberId)?.name}` : ""}</span>
-															<strong>{row.quantity} {catalog.get(row.ingredientId)?.unit}</strong>
+													<strong>
+														{row.quantity}{" "}
+														{catalog.get(row.ingredientId)?.unit ??
+															item.newIngredients.find((ingredient) => ingredient.id === row.ingredientId)?.unit}
+													</strong>
 														</li>
 													))}
 												</ul>

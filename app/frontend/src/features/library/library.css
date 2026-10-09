@@ -258,6 +258,14 @@
 .usda-matches button {
 	text-align: left;
 }
+.ingredient-lookup-panel .usda-matches .usda-replace-link {
+	min-height: 0;
+	border: 0;
+	padding: 0;
+	background: none;
+	color: var(--app-purple);
+	text-decoration: underline;
+}
 @media (max-width: 600px) {
 	.library-page,
 	.targets-page {

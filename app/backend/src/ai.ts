@@ -189,7 +189,7 @@ export async function recommend(input: {
 			? "For dinner ingredients, use member shared when both people eat an ingredient; use Member A or Member B only for a deliberately individual portion."
 			: "This is a single-member meal. Every ingredients entry must use member shared; the meal already identifies its owner.";
 	const system =
-		"Create exactly five practical Indonesian/simple japanese/simple korean meal suggestions using cheap, easy sources such as tofu, tempeh, eggs, beans and lentils. Use supplied suggestible catalog keys first. Ingredient nutrition arrays are ordered as calories, protein, carbs, fat, fiber. Use a USDA query only when the supplied catalog cannot sensibly fit; never supply nutrition values. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Add a companion snack only when portions would otherwise be impractical, and never for a member with a settled snack. Keep each snack below its daily calorie cap. For an existing draft, every option uses origin new and an empty savedMenuKey; the first option returns exactly its current ingredient set with adjusted quantities only. Later options may remove a current ingredient only when necessary; for every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal with at least two saved menus, return exactly two adjusted saved-menu choices followed by exactly three genuinely new compositions. Use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. If fewer than two saved menus are available, use every available saved menu and fill the remaining choices with new compositions. Return complete ingredient lists for each option. Use English names and explanations. Keep each justification under 60 words and each cooking note under 25 words. Quantities use each catalog ingredient's unit; USDA query quantities are grams. " +
+		"Create exactly five practical meal suggestions. Prioritize cheap ingredients that are easy to find in Indonesian markets, such as tofu, tempeh, eggs, beans, lentils, rice, and common vegetables; Indonesian food is welcome, and basic Japanese, Korean, or Italian dishes are also fine when their ingredients are locally available. Use supplied suggestible catalog keys when they fit, but a recommendation may use no catalog ingredients if suitable options are absent or a better simple dish needs other ingredients. For those ingredients, provide exact USDA food names in usdaQuery and leave catalogKey empty; never invent nutrition values. Ingredient nutrition arrays are ordered as calories, protein, carbs, fat, fiber. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Add a companion snack only when portions would otherwise be impractical, and never for a member with a settled snack. Keep each snack below its daily calorie cap. For an existing draft, every option uses origin new and an empty savedMenuKey; the first option returns exactly its current ingredient set with adjusted quantities only. Later options may remove a current ingredient only when necessary; for every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal with at least two saved menus, return exactly two adjusted saved-menu choices followed by exactly three genuinely new compositions. Use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. If fewer than two saved menus are available, use every available saved menu and fill the remaining choices with new compositions. Return complete ingredient lists for each option. Use English names and explanations. Keep each justification under 60 words and each cooking note under 25 words. Quantities use each catalog ingredient's unit; USDA query quantities are grams. " +
 		memberRule;
 	const requestBody = {
 		model,
@@ -451,6 +451,7 @@ export async function recommend(input: {
 					typeof proposal.cookingNote !== "string" ||
 					proposal.cookingNote.length > 1000 ||
 					!Array.isArray(proposal.ingredients) ||
+					proposal.ingredients.length === 0 ||
 					proposal.ingredients.length > 50 ||
 					!Array.isArray(proposal.removals) ||
 					proposal.removals.length > 50 ||
@@ -531,7 +532,8 @@ export async function recommend(input: {
 							);
 						const existingMatch = input.catalog.find(
 							(candidate) =>
-								candidate.source.includes(`FDC ${match.fdcId}`) ||
+								candidate.id === `fdc-${match.fdcId}` ||
+								new RegExp(`\\bFDC ${match.fdcId}\\b`).test(candidate.source) ||
 								candidate.name.toLocaleLowerCase() ===
 									match.description.toLocaleLowerCase() ||
 								candidate.aliases.some(
@@ -551,6 +553,13 @@ export async function recommend(input: {
 							suggestible: true,
 							nutrition: match.nutrition,
 						};
+						if (item.unit !== "g") {
+							if (!item.equivalentGrams)
+								throw new Error(
+									"USDA ingredients must map to grams or a catalog unit with a gram equivalent.",
+								);
+							row.quantity /= item.equivalentGrams;
+						}
 						if (
 							!existingMatch &&
 							!newIngredients.some((entry) => entry.id === item?.id)

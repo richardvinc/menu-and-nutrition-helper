@@ -73,14 +73,19 @@ test.describe("Library and next-week targets", () => {
 		).toBeVisible();
 	});
 
-	test("new ingredient checks local names and aliases before AI", async ({ page }) => {
+	test("new ingredient checks local names and aliases before AI", async ({
+		page,
+	}) => {
 		let lookupCalls = 0;
 		let lookupBody: Record<string, unknown> | undefined;
 		await page.route("**/api/ai/status", (route) =>
 			route.fulfill({
 				status: 200,
 				contentType: "application/json",
-				body: JSON.stringify({ recommendations: false, ingredientLookup: true }),
+				body: JSON.stringify({
+					recommendations: false,
+					ingredientLookup: true,
+				}),
 			}),
 		);
 		await page.route("**/api/ai/ingredient-lookup", (route) => {
@@ -93,18 +98,29 @@ test.describe("Library and next-week targets", () => {
 					query: "tofu",
 					aliases: ["tofu"],
 					existing: "tofu",
-					matches: [{
-						fdcId: 999,
-						description: "Tofu, raw",
-						dataType: "Foundation",
-						source: "USDA FoodData Central, FDC 999",
-						nutrition: { calories: 85, protein: 9, carbs: 2, fat: 5, fiber: 1 },
-					}],
+					matches: [
+						{
+							fdcId: 999,
+							description: "Tofu, raw",
+							dataType: "Foundation",
+							source: "USDA FoodData Central, FDC 999",
+							nutrition: {
+								calories: 85,
+								protein: 9,
+								carbs: 2,
+								fat: 5,
+								fiber: 1,
+							},
+						},
+					],
 				}),
 			});
 		});
 		await page.goto("/");
-		await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
+		await page
+			.locator(".app-header")
+			.getByRole("button", { name: "Library" })
+			.click();
 		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
 		await page.getByRole("button", { name: "New ingredient" }).click();
 		await expect(
@@ -124,17 +140,206 @@ test.describe("Library and next-week targets", () => {
 		await expect(page.getByRole("status")).toContainText(
 			"already in the catalog as “Tahu firm”",
 		);
-		await expect(page.getByRole("button", { name: "Edit Tahu firm" })).toBeVisible();
+		await expect(
+			page.getByRole("button", { name: "Edit Tahu firm" }),
+		).toBeVisible();
 		const check = page.getByRole("button", { name: "Check with AI" });
 		await expect(check).toBeVisible();
 		expect(lookupCalls).toBe(0);
 		await check.click();
-		await expect(page.getByLabel("Nutrition comparison")).toContainText("Current catalog: Tahu firm");
-		await expect(page.getByLabel("Nutrition comparison")).toContainText("Tofu, raw");
+		await expect(page.getByLabel("Nutrition comparison")).toContainText(
+			"Current catalog: Tahu firm",
+		);
+		await expect(page.getByLabel("Nutrition comparison")).toContainText(
+			"Tofu, raw",
+		);
 		await expect(name).toHaveValue("tahu");
 		await expect(page.getByLabel("Calories (kcal)")).toHaveValue("0");
 		expect(lookupBody).toMatchObject({ name: "tahu", checkExisting: true });
 		expect(lookupCalls).toBe(1);
+	});
+
+	test("USDA replacement updates the open draft and preserves its quantity basis", async ({
+		page,
+	}) => {
+		const savedIngredients: Record<string, any>[] = [];
+		await page.route("**/api/ai/status", (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				body: JSON.stringify({
+					recommendations: false,
+					ingredientLookup: true,
+				}),
+			}),
+		);
+		await page.route("**/api/ai/ingredient-lookup", (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				body: JSON.stringify({
+					query: "pisang",
+					aliases: [],
+					existing: "banana",
+					matches: [
+						{
+							fdcId: 999,
+							description: "Banana, raw",
+							dataType: "Foundation",
+							source:
+								"USDA FoodData Central Foundation, FDC 999 (https://fdc.nal.usda.gov/food-details/999/nutrients)",
+							nutrition: {
+								calories: 89,
+								protein: 1.1,
+								carbs: 22.8,
+								fat: 0.3,
+								fiber: 2.6,
+							},
+						},
+					],
+				}),
+			}),
+		);
+		await page.route("**/api/ingredients/banana", async (route) => {
+			savedIngredients.push(route.request().postDataJSON());
+			await route.continue();
+		});
+		await page.goto("/");
+		await page
+			.locator(".app-header")
+			.getByRole("button", { name: "Library" })
+			.click();
+		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
+		const banana = page
+			.locator(".library-card")
+			.filter({ hasText: "Pisang sedang" })
+			.first();
+		await banana.getByRole("button", { name: "Edit" }).click();
+		const editor = page.getByRole("form", { name: "Edit ingredient" });
+		await editor.getByLabel("Nutrition basis amount (piece)").fill("2");
+		await expect(
+			editor.getByLabel("Nutrition basis amount (piece)"),
+		).toHaveValue("2");
+		await page.getByRole("button", { name: "Find nutrition with AI" }).click();
+		await page.getByRole("button", { name: "Check with AI" }).click();
+		await page.getByRole("button", { name: "   Use this instead" }).click();
+		await expect(page.getByRole("status")).toContainText(
+			"Updated Pisang sedang from USDA",
+		);
+		await expect(editor.getByLabel("Calories (kcal)")).toHaveValue("210.04");
+		await expect(editor.getByLabel("Protein (g)")).toHaveValue("2.596");
+		await expect(
+			editor.getByLabel("Nutrition basis amount (piece)"),
+		).toHaveValue("2");
+		await expect(editor.getByLabel("Primary ingredient name")).toHaveValue(
+			"Pisang sedang",
+		);
+		expect(savedIngredients[0]).toMatchObject({
+			basisAmount: 1,
+			nutrition: {
+				calories: 105.02,
+				protein: 1.298,
+				carbs: 26.904,
+				fat: 0.354,
+				fiber: 3.068,
+			},
+		});
+		await editor.getByRole("button", { name: "Save ingredient" }).click();
+		expect(savedIngredients).toHaveLength(2);
+		expect(savedIngredients[1]).toMatchObject({
+			id: "banana",
+			name: "Pisang sedang",
+			aliases: ["pisang", "banana"],
+			unit: "piece",
+			basisAmount: 2,
+			equivalentGrams: 118,
+			preparation: "Banana, raw",
+			source:
+				"USDA FoodData Central Foundation, FDC 999 (https://fdc.nal.usda.gov/food-details/999/nutrients)",
+			nutrition: {
+				calories: 210.04,
+				protein: 2.596,
+				carbs: 53.808,
+				fat: 0.708,
+				fiber: 6.136,
+			},
+		});
+		await expect(
+			page
+				.locator(".library-card")
+				.filter({ hasText: "Pisang sedang" })
+				.first(),
+		).toContainText("210.04 kcal");
+	});
+
+	test("USDA replacement needs a gram equivalent for piece-based ingredients", async ({
+		page,
+	}) => {
+		await page.route("**/api/ai/status", (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				body: JSON.stringify({
+					recommendations: false,
+					ingredientLookup: true,
+				}),
+			}),
+		);
+		await page.route("**/api/data", async (route) => {
+			const response = await route.fetch();
+			const data = await response.json();
+			delete data.ingredients.find(
+				(item: { id: string }) => item.id === "banana",
+			).equivalentGrams;
+			await route.fulfill({ response, json: data });
+		});
+		await page.route("**/api/ai/ingredient-lookup", (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				body: JSON.stringify({
+					query: "pisang",
+					aliases: [],
+					existing: "banana",
+					matches: [
+						{
+							fdcId: 999,
+							description: "Banana, raw",
+							dataType: "Foundation",
+							source: "USDA FoodData Central, FDC 999",
+							nutrition: {
+								calories: 89,
+								protein: 1.1,
+								carbs: 22.8,
+								fat: 0.3,
+								fiber: 2.6,
+							},
+						},
+					],
+				}),
+			}),
+		);
+		await page.goto("/");
+		await page
+			.locator(".app-header")
+			.getByRole("button", { name: "Library" })
+			.click();
+		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
+		const banana = page
+			.locator(".library-card")
+			.filter({ hasText: "Pisang sedang" })
+			.first();
+		await banana.getByRole("button", { name: "Edit" }).click();
+		await page.getByRole("button", { name: "Find nutrition with AI" }).click();
+		await page.getByRole("button", { name: "Check with AI" }).click();
+		await expect(
+			page.getByRole("button", { name: "   Use this instead" }),
+		).toBeDisabled();
+		await expect(
+			page.getByText(
+				"Add this ingredient’s gram equivalent before replacing its nutrition.",
+			),
+		).toBeVisible();
 	});
 
 	test("blurred library actions preserve an ingredient draft without prompting", async ({
@@ -146,21 +351,29 @@ test.describe("Library and next-week targets", () => {
 			await dialog.dismiss();
 		});
 		await page.goto("/");
-		await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
+		await page
+			.locator(".app-header")
+			.getByRole("button", { name: "Library" })
+			.click();
 		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
 		const ingredient = page.locator(".library-card").first();
 		await ingredient.getByRole("button", { name: "Edit" }).click();
-		await ingredient.getByLabel("Primary ingredient name").fill("Unsaved ingredient name");
+		await ingredient
+			.getByLabel("Primary ingredient name")
+			.fill("Unsaved ingredient name");
 		await page.evaluate(() => {
 			window.dispatchEvent(new Event("blur"));
 			window.dispatchEvent(new Event("focus"));
-			(document.querySelector('[role="tab"][aria-selected="false"]') as HTMLElement).click();
+			(
+				document.querySelector(
+					'[role="tab"][aria-selected="false"]',
+				) as HTMLElement
+			).click();
 		});
 		expect(dialogs).toBe(0);
-		await expect(page.getByRole("tab", { name: "Ingredient catalog" })).toHaveAttribute(
-			"aria-selected",
-			"true",
-		);
+		await expect(
+			page.getByRole("tab", { name: "Ingredient catalog" }),
+		).toHaveAttribute("aria-selected", "true");
 		await expect(ingredient.getByLabel("Primary ingredient name")).toHaveValue(
 			"Unsaved ingredient name",
 		);

@@ -491,6 +491,13 @@ test("AI recommendations open in a mobile-friendly modal with a cooking state", 
 		}));
 		await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ recommendations }) });
 	});
+	let savedMenus: unknown[] = [];
+	let releaseSave!: () => void;
+	await page.route("**/api/menus/recommendations", async (route) => {
+		savedMenus = route.request().postDataJSON().menus;
+		await new Promise<void>((resolve) => { releaseSave = resolve; });
+		await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(savedMenus) });
+	});
 	await page.goto("/");
 	await page.getByRole("button", { name: "Week", exact: true }).click();
 	await page.locator(".pk-week__day-strip button").nth(3).click();
@@ -503,6 +510,18 @@ test("AI recommendations open in a mobile-friendly modal with a cooking state", 
 	releaseRecommendations();
 	await expect(dialog.locator(".pk-ai-card")).toHaveCount(5);
 	expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+	const draftName = await page.getByLabel("Meal name").inputValue();
+	const draftQuantities = await page.locator(".pk-editor-row input").evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value));
+	await dialog.locator(".pk-ai-card").nth(0).getByLabel("Add to master menu").check();
+	await dialog.locator(".pk-ai-card").nth(2).getByLabel("Add to master menu").check();
+	await dialog.getByRole("button", { name: "Add 2 to master menu" }).click();
+	await expect(dialog.getByRole("button", { name: "Adding menus…" })).toBeDisabled();
+	await expect(dialog.locator(".pk-ai-card").nth(1).getByLabel("Add to master menu")).toBeDisabled();
+	expect(await page.getByLabel("Meal name").inputValue()).toBe(draftName);
+	expect(await page.locator(".pk-editor-row input").evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value))).toEqual(draftQuantities);
+	releaseSave();
+	await expect(dialog.getByRole("status")).toContainText("Added 2 menus to the master menu");
+	expect(savedMenus).toHaveLength(2);
 	await dialog.getByRole("button", { name: "Apply this idea" }).first().click();
 	await expect(dialog).toHaveCount(0);
 });

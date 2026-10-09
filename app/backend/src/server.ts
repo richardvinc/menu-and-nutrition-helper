@@ -2032,6 +2032,58 @@ export function createApp(db = createDatabase()) {
 		put(db, "saved_menus", value.id, value);
 		return res.status(201).json(value);
 	});
+	app.post("/api/menus/recommendations", async (req, res) => {
+		const menus: SavedMenu[] = req.body?.menus;
+		const requestedIngredients: Ingredient[] = req.body?.pendingIngredients ?? [];
+		if (
+			!Array.isArray(menus) ||
+			menus.length < 1 ||
+			menus.length > 5 ||
+			!Array.isArray(requestedIngredients) ||
+			requestedIngredients.length > 50
+		)
+			return fail(res, "invalid recommended menus");
+		const currentIngredients = rows<Ingredient>(db, "ingredients");
+		const pendingIngredients: Ingredient[] = [];
+		try {
+			for (const item of requestedIngredients) {
+				const fdc = typeof item?.id === "string" ? /^fdc-(\d+)$/.exec(item.id) : null;
+				if (!fdc || !validIngredient(item))
+					return fail(res, "invalid pending USDA ingredient");
+				if (currentIngredients.some((existingItem) => existingItem.id === item.id))
+					continue;
+				if (pendingIngredients.some((existingItem) => existingItem.id === item.id))
+					continue;
+				const verified = await usdaIngredient(Number(fdc[1]));
+				if (
+					JSON.stringify(verified.nutrition) !== JSON.stringify(item.nutrition) ||
+					verified.source !== item.source
+				)
+					return fail(res, "USDA ingredient values changed; look up the ingredient again.", 409);
+				pendingIngredients.push(verified);
+			}
+		} catch (error) {
+			return fail(res, error, 503);
+		}
+		const ids = new Set([...currentIngredients, ...pendingIngredients].map((item) => item.id));
+		const menuIds = new Set<string>();
+		for (const menu of menus) {
+			if (!validMenu(menu, ids) || menuIds.has(menu.id))
+				return fail(res, "invalid recommended menus");
+			menuIds.add(menu.id);
+		}
+		try {
+			db.transaction(() => {
+				if (menus.some((menu) => existing("saved_menus", menu.id)))
+					throw new Error("menu id already exists");
+				pendingIngredients.forEach((item) => put(db, "ingredients", item.id, item));
+				menus.forEach((menu) => put(db, "saved_menus", menu.id, menu));
+			})();
+			return res.json(menus);
+		} catch (error) {
+			return fail(res, error, 409);
+		}
+	});
 	app.put("/api/menus/:id", (req, res) => {
 		if (!existing("saved_menus", req.params.id))
 			return fail(res, "menu not found", 404);

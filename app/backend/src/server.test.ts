@@ -244,6 +244,94 @@ describe("backend API", () => {
 		}
 	});
 
+	test("AI recommendations work with only USDA ingredients and convert catalog gram equivalents", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		const oldUsda = process.env.USDA_API_KEY;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		process.env.USDA_API_KEY = "test-only";
+		const food = {
+			fdcId: 777,
+			description: "Egg, whole, raw",
+			dataType: "Foundation",
+			foodNutrients: [
+				{ nutrientNumber: "208", value: 143 },
+				{ nutrientNumber: "203", value: 12.6 },
+				{ nutrientNumber: "205", value: 0.7 },
+				{ nutrientNumber: "204", value: 9.5 },
+				{ nutrientNumber: "291", value: 0 },
+			],
+		};
+		const proposal = {
+			name: "Simple egg plate",
+			origin: "new",
+			savedMenuKey: "",
+			justification: "Uses an affordable, easy-to-find protein.",
+			cookingNote: "Boil and serve with rice.",
+			ingredients: [{ catalogKey: "", usdaQuery: food.description, quantity: 100, member: "shared" }],
+			removals: [],
+			companionSnacks: [],
+		};
+		const requests: any[] = [];
+		globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			if (String(input).includes("openrouter.ai")) {
+				requests.push(JSON.parse(String(init?.body)));
+				return new Response(
+					JSON.stringify({ choices: [{ message: { content: JSON.stringify({ recommendations: [proposal] }) } }] }),
+					{ status: 200 },
+				);
+			}
+			if (String(input).includes("api.nal.usda.gov/fdc/v1/foods/search"))
+				return new Response(JSON.stringify({ foods: [food] }), { status: 200 });
+			return oldFetch(input, init);
+		}) as typeof fetch;
+		const input = {
+			meal: {
+				id: "external-only",
+				date: "2026-10-08",
+				slot: "lunch" as const,
+				memberId: "richard" as const,
+				name: "Meal",
+				notes: "",
+				ingredients: [],
+			},
+			currentDay: [],
+			savedMenus: [],
+			targets: [],
+			dailySnackLimits: [],
+			settledSnackMembers: [],
+			memberLabels: [],
+			prior: [],
+		};
+		try {
+			const externalOnly = await recommend({ ...input, catalog: [] });
+			expect(externalOnly[0].newIngredients[0].id).toBe("fdc-777");
+			expect(externalOnly[0].ingredients[0].quantity).toBe(100);
+			expect(requests[0].messages[0].content).toContain("Japanese, Korean, or Italian");
+			expect(requests[0].messages[0].content).toContain("may use no catalog ingredients");
+			const piece = {
+				id: "egg-piece",
+				name: food.description,
+				aliases: [],
+				unit: "piece" as const,
+				basisAmount: 1,
+				equivalentGrams: 50,
+				preparation: "",
+				source: "workbook",
+				suggestible: true,
+				nutrition: { calories: 72, protein: 6, carbs: 0, fat: 5, fiber: 0 },
+			};
+			const converted = await recommend({ ...input, catalog: [piece] });
+			expect(converted[0].ingredients[0]).toMatchObject({ ingredientId: piece.id, quantity: 2 });
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
+			else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY;
+			else process.env.USDA_API_KEY = oldUsda;
+		}
+	});
+
 	test("AI recommendations keep usable options when a later protein mix is rejected", async () => {
 		const oldFetch = globalThis.fetch;
 		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
@@ -1404,6 +1492,83 @@ describe("backend API", () => {
 				)
 			).scheduledMeals.some((meal) => meal.id === "atomic-meal"),
 		).toBe(false);
+	});
+
+	test("selected recommended menus save together with verified USDA ingredients", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldUsda = process.env.USDA_API_KEY;
+		const food = {
+			fdcId: 555,
+			description: "Verified soybean food",
+			dataType: "Foundation",
+			foodNutrients: [
+				{ nutrient: { number: "208" }, amount: 80 },
+				{ nutrient: { number: "203" }, amount: 5 },
+				{ nutrient: { number: "205" }, amount: 10 },
+				{ nutrient: { number: "204" }, amount: 2 },
+				{ nutrient: { number: "291" }, amount: 2 },
+			],
+		};
+		process.env.USDA_API_KEY = "test-only";
+		globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) =>
+			String(input).includes("api.nal.usda.gov/fdc/v1/food/555")
+				? new Response(JSON.stringify(food), { status: 200 })
+				: oldFetch(input, init)) as typeof fetch;
+		try {
+			const ingredient = {
+				id: "fdc-555",
+				name: food.description,
+				aliases: [],
+				unit: "g",
+				basisAmount: 100,
+				preparation: "",
+				source: "USDA FoodData Central Foundation, FDC 555 (https://fdc.nal.usda.gov/food-details/555/nutrients)",
+				suggestible: true,
+				nutrition: { calories: 80, protein: 5, carbs: 10, fat: 2, fiber: 2 },
+			};
+			const menus = ["Quick bowl", "Soybean plate"].map((name, index) => ({
+				id: `recommended-${index}`,
+				name,
+				slot: "lunch",
+				memberId: "richard",
+				ingredients: [{ ingredientId: ingredient.id, quantity: 100 }],
+			}));
+			const invalidBatch = await fetch(`${base}/api/menus/recommendations`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					pendingIngredients: [ingredient],
+					menus: [menus[0], { ...menus[1], ingredients: [{ ingredientId: "missing", quantity: 100 }] }],
+				}),
+			});
+			expect(invalidBatch.status).toBe(400);
+			let data = (await fetch(`${base}/api/data`).then((r) => r.json())) as AppData;
+			expect(data.ingredients.some((item) => item.id === ingredient.id)).toBe(false);
+			expect(data.savedMenus.some((item) => item.id.startsWith("recommended-"))).toBe(false);
+			const response = await fetch(`${base}/api/menus/recommendations`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ pendingIngredients: [ingredient], menus }),
+			});
+			expect(response.status).toBe(200);
+			data = (await fetch(`${base}/api/data`).then((r) => r.json())) as AppData;
+			expect(data.ingredients.some((item) => item.id === ingredient.id)).toBe(true);
+			expect(data.savedMenus.filter((item) => item.id.startsWith("recommended-")).map((item) => item.name)).toEqual(["Quick bowl", "Soybean plate"]);
+			const collision = await fetch(`${base}/api/menus/recommendations`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					menus: [{ ...menus[0], name: "Overwritten menu", ingredients: [{ ingredientId: "rice", quantity: 100 }] }],
+				}),
+			});
+			expect(collision.status).toBe(409);
+			data = (await fetch(`${base}/api/data`).then((r) => r.json())) as AppData;
+			expect(data.savedMenus.find((item) => item.id === "recommended-0")?.name).toBe("Quick bowl");
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY;
+			else process.env.USDA_API_KEY = oldUsda;
+		}
 	});
 
 	test("USDA ingredient and companion snack persist with the meal after server verification", async () => {

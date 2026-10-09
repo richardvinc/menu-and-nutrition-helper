@@ -137,6 +137,8 @@ export function Library({
 	const [menuDraft, setMenuDraft] = useState<MenuDraft | null>(null);
 	const [ingredientDraftState, setIngredientDraftState] =
 		useState<IngredientDraft | null>(null);
+	const activeIngredientDraftId = useRef<string | null>(null);
+	activeIngredientDraftId.current = ingredientDraftState?.id ?? null;
 	const [error, setError] = useState("");
 	const [saving, setSaving] = useState(false);
 	const [lookupBusy, setLookupBusy] = useState(false);
@@ -145,6 +147,7 @@ export function Library({
 	> | null>(null);
 	const [lookupWarning, setLookupWarning] = useState("");
 	const [lookupAvailable, setLookupAvailable] = useState<boolean | null>(null);
+	const [applyingMatch, setApplyingMatch] = useState<number | null>(null);
 	const [menuPortalTarget, setMenuPortalTarget] =
 		useState<HTMLDivElement | null>(null);
 	const [ingredientPortalTarget, setIngredientPortalTarget] =
@@ -257,7 +260,7 @@ export function Library({
 	async function saveIngredient(event: FormEvent) {
 		event.preventDefault();
 		const draft = ingredientDraftState;
-		if (!draft) return;
+		if (!draft || applyingMatch !== null) return;
 		const numbers = [
 			draft.basisAmount,
 			draft.calories,
@@ -392,6 +395,85 @@ export function Library({
 			);
 		} finally {
 			if (lookupRequestId.current === requestId) setLookupBusy(false);
+		}
+	}
+
+	async function useUsdaMatch(
+		existing: Ingredient,
+		match: NonNullable<typeof lookupResult>["matches"][number],
+	) {
+		if (saving || applyingMatch !== null) return;
+		const gramsPerBasis =
+			existing.unit === "g"
+				? existing.basisAmount
+				: existing.equivalentGrams == null
+					? null
+					: existing.equivalentGrams * existing.basisAmount;
+		if (gramsPerBasis == null) return;
+		setApplyingMatch(match.fdcId);
+		setError("");
+		setLookupWarning("");
+		const nutrition = {
+			calories: (match.nutrition.calories * gramsPerBasis) / 100,
+			protein: (match.nutrition.protein * gramsPerBasis) / 100,
+			carbs: (match.nutrition.carbs * gramsPerBasis) / 100,
+			fat: (match.nutrition.fat * gramsPerBasis) / 100,
+			fiber: (match.nutrition.fiber * gramsPerBasis) / 100,
+		};
+		try {
+			await onSaveIngredient({
+				...existing,
+				preparation: match.description,
+				source: match.source,
+				nutrition,
+			});
+			setIngredientDraftState((current) => {
+				if (current?.id !== existing.id) return current;
+				const draftGramsPerBasis =
+					current.unit === "g"
+						? Number(current.basisAmount)
+						: Number(current.equivalentGrams) * Number(current.basisAmount);
+				const draftNutrition =
+					Number.isFinite(draftGramsPerBasis) && draftGramsPerBasis > 0
+						? {
+								calories: (match.nutrition.calories * draftGramsPerBasis) / 100,
+								protein: (match.nutrition.protein * draftGramsPerBasis) / 100,
+								carbs: (match.nutrition.carbs * draftGramsPerBasis) / 100,
+								fat: (match.nutrition.fat * draftGramsPerBasis) / 100,
+								fiber: (match.nutrition.fiber * draftGramsPerBasis) / 100,
+							}
+						: nutrition;
+				return {
+					...current,
+					...(draftNutrition === nutrition
+						? {
+								unit: existing.unit,
+								basisAmount: String(existing.basisAmount),
+								equivalentGrams:
+									existing.equivalentGrams == null
+										? ""
+										: String(existing.equivalentGrams),
+							}
+						: {}),
+					preparation: match.description,
+					source: match.source,
+					calories: String(draftNutrition.calories),
+					protein: String(draftNutrition.protein),
+					carbs: String(draftNutrition.carbs),
+					fat: String(draftNutrition.fat),
+					fiber: String(draftNutrition.fiber),
+				};
+			});
+			if (activeIngredientDraftId.current === existing.id)
+				setLookupWarning(`Updated ${existing.name} from USDA.`);
+		} catch (reason) {
+			setError(
+				reason instanceof Error
+					? reason.message
+					: "Could not update nutrition.",
+			);
+		} finally {
+			setApplyingMatch(null);
 		}
 	}
 	function selectUsdaMatch(
@@ -876,23 +958,24 @@ export function Library({
 													{lookupWarning}
 												</p>
 											)}
-											{lookupResult?.existing && (() => {
-												const existing = ingredients.find(
-													(item) => item.id === lookupResult.existing,
-												);
-												return existing ? (
-													<button
-														type="button"
-														className="secondary"
-														onClick={() => {
-															openIngredientDraft(ingredientDraft(existing));
-															setIngredientSearch(existing.name);
-														}}
-													>
-														Edit {existing.name}
-													</button>
-												) : null;
-											})()}
+											{lookupResult?.existing &&
+												(() => {
+													const existing = ingredients.find(
+														(item) => item.id === lookupResult.existing,
+													);
+													return existing ? (
+														<button
+															type="button"
+															className="secondary"
+															onClick={() => {
+																openIngredientDraft(ingredientDraft(existing));
+																setIngredientSearch(existing.name);
+															}}
+														>
+															Edit {existing.name}
+														</button>
+													) : null;
+												})()}
 											{lookupResult?.existing && (
 												<button
 													type="button"
@@ -906,84 +989,121 @@ export function Library({
 											{lookupResult?.existing &&
 												lookupResult.matches.length > 0 &&
 												(() => {
-												const existing = ingredients.find(
-													(item) => item.id === lookupResult.existing,
-												);
-												if (!existing) return null;
-												const gramsPerBasis =
-													existing.unit === "g"
-														? existing.basisAmount
-														: existing.equivalentGrams == null
-															? null
-															: existing.equivalentGrams * existing.basisAmount;
-												const scale = gramsPerBasis
-													? 100 / gramsPerBasis
-													: 1;
-												const currentSource = existing.source.match(
-													/\((https?:\/\/[^)]+)\)/,
-												)?.[1];
-												return (
-													<div
-														className="usda-matches"
-														aria-label="Nutrition comparison"
-													>
-														<p>
-															<strong>Current catalog: {existing.name}</strong>
-															{currentSource && (
-																<>
-																	{" · "}
-																	<a
-																		href={currentSource}
-																		target="_blank"
-																		rel="noreferrer"
-																	>
-																		Source
-																	</a>
-																</>
-															)}
-														</p>
-														<p>
-															{gramsPerBasis == null
-																? `Per ${existing.basisAmount} ${existing.unit}: `
-																: "Per 100 g: "}
-																{(existing.nutrition.calories * scale).toFixed(2)} kcal,
-																{" "}protein {(existing.nutrition.protein * scale).toFixed(2)} g,
-																{" "}carbs {(existing.nutrition.carbs * scale).toFixed(2)} g,
-																{" "}fat {(existing.nutrition.fat * scale).toFixed(2)} g,
-																{" "}fiber {(existing.nutrition.fiber * scale).toFixed(2)} g
-															{gramsPerBasis == null &&
-																". No gram conversion is saved, so this cannot be compared directly."}
-														</p>
-														<p>
-															<strong>External USDA results (per 100 g):</strong>
-														</p>
-														{lookupResult.matches.map((match) => {
-															const source = match.source.match(
-																/\((https?:\/\/[^)]+)\)/,
-															)?.[1];
-															return (
-																<div key={match.fdcId}>
-																	{match.description} · {match.dataType}: {match.nutrition.calories} kcal,
-																	{" "}protein {match.nutrition.protein} g, carbs {match.nutrition.carbs} g,
-																	{" "}fat {match.nutrition.fat} g, fiber {match.nutrition.fiber} g
-																	{source && (
-																		<>
-																			{" · "}
-																	<a
-																		href={source}
-																		target="_blank"
-																		rel="noreferrer"
-																	>
-																				Source
-																			</a>
-																		</>
-																	)}
-																</div>
-															);
-														})}
-													</div>
-												);
-											})()}
+													const existing = ingredients.find(
+														(item) => item.id === lookupResult.existing,
+													);
+													if (!existing) return null;
+													const gramsPerBasis =
+														existing.unit === "g"
+															? existing.basisAmount
+															: existing.equivalentGrams == null
+																? null
+																: existing.equivalentGrams *
+																	existing.basisAmount;
+													const scale = gramsPerBasis ? 100 / gramsPerBasis : 1;
+													const currentSource = existing.source.match(
+														/\((https?:\/\/[^)]+)\)/,
+													)?.[1];
+													return (
+														<div
+															className="usda-matches"
+															aria-label="Nutrition comparison"
+														>
+															<p>
+																<strong>
+																	Current catalog: {existing.name}
+																</strong>
+																{currentSource && (
+																	<>
+																		{" · "}
+																		<a
+																			href={currentSource}
+																			target="_blank"
+																			rel="noreferrer"
+																		>
+																			Source
+																		</a>
+																	</>
+																)}
+															</p>
+															<p>
+																{gramsPerBasis == null
+																	? `Per ${existing.basisAmount} ${existing.unit}: `
+																	: "Per 100 g: "}
+																{(existing.nutrition.calories * scale).toFixed(
+																	2,
+																)}{" "}
+																kcal, protein{" "}
+																{(existing.nutrition.protein * scale).toFixed(
+																	2,
+																)}{" "}
+																g, carbs{" "}
+																{(existing.nutrition.carbs * scale).toFixed(2)}{" "}
+																g, fat{" "}
+																{(existing.nutrition.fat * scale).toFixed(2)} g,{" "}
+																fiber{" "}
+																{(existing.nutrition.fiber * scale).toFixed(2)}{" "}
+																g
+																{gramsPerBasis == null &&
+																	". No gram conversion is saved, so this cannot be compared directly."}
+															</p>
+															<p>
+																<strong>
+																	External USDA results (per 100 g):
+																</strong>
+															</p>
+															{lookupResult.matches.map((match) => {
+																const source = match.source.match(
+																	/\((https?:\/\/[^)]+)\)/,
+																)?.[1];
+																return (
+																	<div key={match.fdcId}>
+																		{match.description} · {match.dataType}:{" "}
+																		{match.nutrition.calories} kcal, protein{" "}
+																		{match.nutrition.protein} g, carbs{" "}
+																		{match.nutrition.carbs} g, fat{" "}
+																		{match.nutrition.fat} g, fiber{" "}
+																		{match.nutrition.fiber} g
+																		{source && (
+																			<>
+																				{" · "}
+																				<a
+																					href={source}
+																					target="_blank"
+																					rel="noreferrer"
+																				>
+																					Source
+																				</a>
+																			</>
+																		)}
+																		<button
+																			type="button"
+																			className="usda-replace-link"
+																			disabled={
+																				saving ||
+																				applyingMatch !== null ||
+																				gramsPerBasis == null
+																			}
+																			onClick={() =>
+																				void useUsdaMatch(existing, match)
+																			}
+																		>
+																			{applyingMatch === match.fdcId
+																				? "Updating…"
+																				: "   Use this instead"}
+																		</button>
+																		{gramsPerBasis == null && (
+																			<p className="feature-hint">
+																				Add this ingredient’s gram equivalent
+																				before replacing its nutrition.
+																			</p>
+																		)}
+																	</div>
+																);
+															})}
+														</div>
+													);
+												})()}
 											{lookupResult && !lookupResult.existing && (
 												<div className="usda-matches">
 													<p>
@@ -1165,7 +1285,10 @@ export function Library({
 										>
 											Cancel
 										</button>
-										<button type="submit" disabled={saving}>
+										<button
+											type="submit"
+											disabled={saving || applyingMatch !== null}
+										>
 											{saving ? "Saving…" : "Save ingredient"}
 										</button>
 									</div>

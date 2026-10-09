@@ -80,6 +80,11 @@ export const api = {
 			method: exists ? "PUT" : "POST",
 			body: JSON.stringify(menu),
 		}),
+	saveRecommendedMenus: (menus: SavedMenu[], pendingIngredients: Ingredient[]) =>
+		request<SavedMenu[]>("/api/menus/recommendations", {
+			method: "POST",
+			body: JSON.stringify({ menus, pendingIngredients }),
+		}),
 	deleteMenu: (id: string) =>
 		request<void>(`/api/menus/${id}`, { method: "DELETE" }),
 	saveIngredient: (ingredient: Ingredient, exists: boolean) =>
