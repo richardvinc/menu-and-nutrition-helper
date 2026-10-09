@@ -683,6 +683,11 @@
 	color: white;
 	font-weight: 750;
 }
+.pk-ai-apply-options {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+}
 .pk-ai-loading,
 .pk-ai-empty {
 	display: grid;
