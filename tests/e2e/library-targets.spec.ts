@@ -288,9 +288,11 @@ test.describe("Library and next-week targets", () => {
 		await page.route("**/api/data", async (route) => {
 			const response = await route.fetch();
 			const data = await response.json();
-			delete data.ingredients.find(
+			const banana = data.ingredients.find(
 				(item: { id: string }) => item.id === "banana",
-			).equivalentGrams;
+			);
+			banana.basisAmount = 1;
+			delete banana.equivalentGrams;
 			await route.fulfill({ response, json: data });
 		});
 		await page.route("**/api/ai/ingredient-lookup", (route) =>

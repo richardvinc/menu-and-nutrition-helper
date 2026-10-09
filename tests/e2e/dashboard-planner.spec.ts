@@ -502,7 +502,7 @@ test("AI recommendations open in a mobile-friendly modal with a cooking state", 
 	await page.getByRole("button", { name: "Week", exact: true }).click();
 	await page.locator(".pk-week__day-strip button").nth(3).click();
 	await page.locator(".pk-week-meal").filter({ hasText: "Sesame chicken bowl" }).getByRole("button", { name: "Edit", exact: true }).click();
-	await page.getByRole("button", { name: "Improve with AI" }).click();
+	await page.getByRole("button", { name: "Adjust with AI" }).click();
 	const dialog = page.getByRole("dialog", { name: "Improve this meal" });
 	await expect(dialog).toBeVisible();
 	await expect(dialog.getByRole("status")).toContainText("Building balanced meal ideas");
