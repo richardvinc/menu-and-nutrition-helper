@@ -446,9 +446,8 @@ export async function recommend(input: {
 			);
 	}
 	const known = new Map(input.catalog.map((item) => [item.id, item]));
-	const proposals = (
-		await Promise.all(
-			parsed.recommendations.map(async (proposal: any, index: number) => {
+	const proposalResults = await Promise.allSettled<Proposal | null>(
+		parsed.recommendations.map(async (proposal: any, index: number) => {
 				if (
 					!proposal ||
 					typeof proposal.name !== "string" ||
@@ -909,13 +908,20 @@ export async function recommend(input: {
 					companionSnacks,
 					deltas,
 				} as Proposal;
-			}),
-		)
-	).filter((proposal): proposal is Proposal => proposal !== null);
-	if (!proposals.length)
+		}),
+	);
+	const proposals = proposalResults.flatMap((result) =>
+		result.status === "fulfilled" && result.value ? [result.value] : [],
+	);
+	if (!proposals.length) {
+		const rejected = proposalResults.find(
+			(result): result is PromiseRejectedResult => result.status === "rejected",
+		);
+		if (rejected) throw rejected.reason;
 		throw new Error(
 			"AI could not produce a recommendation within the nutrition limits. Please retry.",
 		);
+	}
 	aiTrace("OpenRouter", "meal complete", {
 		durationMs: Math.round(performance.now() - recommendationStartedAt),
 		modelDurationMs,

@@ -876,6 +876,109 @@ describe("backend API", () => {
 		}
 	});
 
+	test("keeps valid ideas when other model candidates fail validation", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		const oldUsda = process.env.USDA_API_KEY;
+		const oldAiDebugLog = process.env.AI_DEBUG_LOG;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		process.env.USDA_API_KEY = "test-only";
+		process.env.AI_DEBUG_LOG = "false";
+		const catalog = (
+			(await (await fetch(`${base}/api/data`)).json()) as AppData
+		).ingredients;
+		const item = catalog.find((entry) => entry.suggestible)!;
+		const catalogKey = `ingredient-${catalog.filter((entry) => entry.suggestible).findIndex((entry) => entry.id === item.id) + 1}`;
+		const validRow = { catalogKey, usdaQuery: "", quantity: 100, member: "shared" };
+		const proposal = (
+			name: string,
+			ingredients: unknown[] = [validRow],
+			companionSnacks: unknown[] = [],
+		) => ({
+			name,
+			origin: "new",
+			savedMenuKey: "",
+			justification: "A practical meal.",
+			cookingNote: "",
+			ingredients,
+			removals: [],
+			companionSnacks,
+		});
+		const meal = {
+			id: "blank-lunch",
+			date: "2026-10-09",
+			slot: "lunch" as const,
+			memberId: "richard" as const,
+			name: "",
+			notes: "",
+			ingredients: [],
+		};
+		const run = async (recommendations: unknown[], content?: string) => {
+			const urls: string[] = [];
+			globalThis.fetch = (async (input: RequestInfo | URL) => {
+				const url = String(input);
+				urls.push(url);
+				if (url.includes("openrouter.ai"))
+					return new Response(JSON.stringify({
+						choices: [{ message: { content: content ?? JSON.stringify({ recommendations }) } }],
+					}), { status: 200 });
+				return new Response(JSON.stringify({ message: "USDA unavailable" }), { status: 503 });
+			}) as typeof fetch;
+			const results = await recommend({
+				meal,
+				catalog,
+				currentDay: [],
+				savedMenus: [],
+				targets: [],
+				dailySnackLimits: [{ member: "Member A", calories: 250 }],
+				settledSnackMembers: [],
+				memberLabels: [
+					{ member: "Member A", memberId: "richard" },
+					{ member: "Member B", memberId: "michelle" },
+				],
+				prior: [],
+			});
+			return { results, urls };
+		};
+		try {
+			const unusableUsda = proposal("USDA failure", [
+				{ catalogKey: "", usdaQuery: "unavailable food", quantity: 100, member: "shared" },
+			]);
+			const unsupported = proposal("Unsupported ingredient", [
+				{ catalogKey: "ingredient-999", usdaQuery: "", quantity: 100, member: "shared" },
+			]);
+			const badQuantity = proposal("Bad quantity", [{ ...validRow, quantity: 0 }]);
+			const invalidName = proposal("");
+			const batch = await run([
+				invalidName,
+				badQuantity,
+				unsupported,
+				unusableUsda,
+				proposal("Valid option"),
+			]);
+			expect(batch.results.map((entry) => entry.name)).toEqual(["Valid option"]);
+			expect(batch.urls.filter((url) => url.includes("api.nal.usda.gov"))).toHaveLength(1);
+			const invalidSnack = proposal("Invalid snack", undefined, [
+				{ member: "Member A", name: "", justification: "", ingredients: [validRow] },
+			]);
+			expect((await run([proposal("Valid first"), invalidSnack])).results.map((entry) => entry.name)).toEqual(["Valid first"]);
+			await expect(run([badQuantity])).rejects.toThrow(
+				"AI returned an unsupported ingredient or quantity. Please retry.",
+			);
+			await expect(run([], "not json")).rejects.toThrow(
+				"AI returned an unreadable recommendation. Please retry.",
+			);
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
+			else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY;
+			else process.env.USDA_API_KEY = oldUsda;
+			if (oldAiDebugLog === undefined) delete process.env.AI_DEBUG_LOG;
+			else process.env.AI_DEBUG_LOG = oldAiDebugLog;
+		}
+	});
+
 	test("normalizes stray model member labels for a single-member meal", async () => {
 		const oldFetch = globalThis.fetch;
 		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
