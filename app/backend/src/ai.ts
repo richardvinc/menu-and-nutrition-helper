@@ -1139,6 +1139,8 @@ export async function searchUsda(
 			"cubed",
 			"sliced",
 			"chopped",
+			"fruit",
+			"juice",
 		]);
 		const tokens = query
 			.toLocaleLowerCase()
@@ -1273,6 +1275,11 @@ export async function searchUsda(
 }
 
 export async function ingredientAliases(name: string, preparation = "") {
+	if (/^snake\s*fruit$/i.test(name.trim()))
+		return {
+			aliases: ["salak", "snake fruit", "snakefruit"],
+			usdaQuery: ["salak", preparation.trim()].filter(Boolean).join(" "),
+		};
 	const key = process.env.OPENROUTER_API_KEY;
 	const model = process.env.OPENROUTER_ALIAS_MODEL?.trim();
 	if (!key || !model) return { aliases: [], usdaQuery: name };
