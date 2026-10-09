@@ -598,7 +598,7 @@ export function ScheduledMealEditor({
 				{ ...meal, name: name.trim() || "Meal" },
 				recommendationPrior,
 				pendingIngredients,
-				pendingCompanions,
+				[], // A new recommendation replaces draft companions; saved snacks are loaded server-side.
 				adjustExisting,
 			);
 			setRecommendations(result.recommendations);
