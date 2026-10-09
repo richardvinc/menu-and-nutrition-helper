@@ -90,6 +90,11 @@ test.describe("Library and next-week targets", () => {
 		await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
 		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
 		await page.getByRole("button", { name: "New ingredient" }).click();
+		await expect(
+			page.getByRole("checkbox", {
+				name: "Allow this ingredient in macro suggestions",
+			}),
+		).toBeChecked();
 		const name = page.getByLabel("Primary ingredient name");
 		const lookup = page.getByRole("button", { name: "Find nutrition with AI" });
 		await name.fill("tahu");

@@ -1,0 +1,503 @@
+{
+  "scenario": "a",
+  "model": "deepseek/deepseek-v4.1-flash",
+  "routeStatus": 200,
+  "routeError": null,
+  "recommendationCount": 4,
+  "providerRequests": 1,
+  "rawRecommendationCount": 5,
+  "rawOriginCounts": {
+    "new": 5
+  },
+  "rawRecommendations": [
+    {
+      "name": "Ayam Brokoli Porsi Diperbesar",
+      "origin": "new",
+      "removals": [],
+      "ingredients": [
+        {
+          "catalogKey": "ingredient-8",
+          "member": "shared",
+          "quantity": 230
+        },
+        {
+          "catalogKey": "ingredient-5",
+          "member": "shared",
+          "quantity": 150
+        }
+      ]
+    },
+    {
+      "name": "Ayam Kentang Pir Porsi Protein",
+      "origin": "new",
+      "removals": [],
+      "ingredients": [
+        {
+          "catalogKey": "ingredient-8",
+          "member": "shared",
+          "quantity": 220
+        },
+        {
+          "catalogKey": "ingredient-16",
+          "member": "shared",
+          "quantity": 150
+        },
+        {
+          "catalogKey": "ingredient-15",
+          "member": "shared",
+          "quantity": 250
+        }
+      ]
+    },
+    {
+      "name": "Tempe Tahu Brokoli Bowl",
+      "origin": "new",
+      "removals": [],
+      "ingredients": [
+        {
+          "catalogKey": "ingredient-161",
+          "member": "shared",
+          "quantity": 200
+        },
+        {
+          "catalogKey": "ingredient-23",
+          "member": "shared",
+          "quantity": 150
+        },
+        {
+          "catalogKey": "ingredient-5",
+          "member": "shared",
+          "quantity": 150
+        }
+      ]
+    },
+    {
+      "name": "Telur Tahu Bayam",
+      "origin": "new",
+      "removals": [],
+      "ingredients": [
+        {
+          "catalogKey": "ingredient-76",
+          "member": "shared",
+          "quantity": 3
+        },
+        {
+          "catalogKey": "ingredient-23",
+          "member": "shared",
+          "quantity": 200
+        },
+        {
+          "catalogKey": "ingredient-152",
+          "member": "shared",
+          "quantity": 100
+        }
+      ]
+    },
+    {
+      "name": "Kacang Hijau dan Telur",
+      "origin": "new",
+      "removals": [],
+      "ingredients": [
+        {
+          "catalogKey": "ingredient-12",
+          "member": "shared",
+          "quantity": 300
+        },
+        {
+          "catalogKey": "ingredient-76",
+          "member": "shared",
+          "quantity": 3
+        }
+      ]
+    }
+  ],
+  "provider": [
+    {
+      "status": 200,
+      "model": "deepseek/deepseek-v4.1-flash",
+      "providerDurationMs": 1169,
+      "usage": {
+        "prompt_tokens": 9147,
+        "completion_tokens": 916,
+        "total_tokens": 10063,
+        "cost": 0.003768036,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 256,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.003768036,
+          "upstream_inference_prompt_cost": 0.002668836,
+          "upstream_inference_completions_cost": 0.0010992
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "requestBody": {
+        "model": "deepseek/deepseek-v4.1-flash",
+        "temperature": 0.4,
+        "reasoning": {
+          "effort": "none"
+        },
+        "provider": {
+          "require_parameters": true,
+          "sort": "throughput"
+        },
+        "messages": [
+          {
+            "role": "system",
+            "content": "Create exactly five practical Indonesian meal suggestions using cheap, easy sources such as tofu, tempeh, eggs, beans and lentils. Use supplied suggestible catalog keys first. Ingredient nutrition arrays are ordered as calories, protein, carbs, fat, fiber. Use a USDA query only when the supplied catalog cannot sensibly fit; never supply nutrition values. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Add a companion snack only when portions would otherwise be impractical, and never for a member with a settled snack. Keep each snack below its daily calorie cap. For an existing draft, every option uses origin new and an empty savedMenuKey; the first option returns exactly its current ingredient set with adjusted quantities only. Later options may remove a current ingredient only when necessary; for every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal with at least two saved menus, return exactly two adjusted saved-menu choices followed by exactly three genuinely new compositions. Use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. If fewer than two saved menus are available, use every available saved menu and fill the remaining choices with new compositions. Return complete ingredient lists for each option. Use English names and explanations. Keep each justification under 60 words and each cooking note under 25 words. Quantities use each catalog ingredient's unit; USDA query quantities are grams. This is a single-member meal. Every ingredients entry must use member shared; the meal already identifies its owner."
+          },
+          {
+            "role": "user",
+            "content": "{\"slot\":\"lunch\",\"current\":[],\"availableIngredients\":[{\"catalogKey\":\"ingredient-1\",\"name\":\"jeruk mandarin\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[97,1.5,25,0.2,10.6]},{\"catalogKey\":\"ingredient-2\",\"name\":\"Apel sedang\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[94.64,0.47,25.13,0.31,4.37]},{\"catalogKey\":\"ingredient-3\",\"name\":\"Alpukat\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[160,2,8.53,14.66,6.7]},{\"catalogKey\":\"ingredient-4\",\"name\":\"Pisang sedang\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[105.02,1.29,26.95,0.39,3.07]},{\"catalogKey\":\"ingredient-5\",\"name\":\"Brokoli\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[34,2.82,6.64,0.37,2.6]},{\"catalogKey\":\"ingredient-6\",\"name\":\"Kol\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[25,1.28,5.8,0.1,2.5]},{\"catalogKey\":\"ingredient-7\",\"name\":\"Wortel\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[41,0.93,9.58,0.24,2.8]},{\"catalogKey\":\"ingredient-8\",\"name\":\"Dada ayam tanpa kulit\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[157,32.06,0,3.24,0]},{\"catalogKey\":\"ingredient-9\",\"name\":\"Sawi putih\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[16,1.2,3.23,0.2,1.2]},{\"catalogKey\":\"ingredient-10\",\"name\":\"Putih telur besar\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[17.16,3.6,0.24,0.06,0]},{\"catalogKey\":\"ingredient-11\",\"name\":\"Yoghurt Yunani tawar\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[73,9.95,3.94,1.92,0]},{\"catalogKey\":\"ingredient-12\",\"name\":\"Kacang hijau rebus\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[105,7.02,19.15,0.38,7.6]},{\"catalogKey\":\"ingredient-13\",\"name\":\"Pakcoy\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[13,1.5,2.18,0.2,1]},{\"catalogKey\":\"ingredient-14\",\"name\":\"Pepaya\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[43,0.47,10.82,0.26,1.7]},{\"catalogKey\":\"ingredient-15\",\"name\":\"Pir\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[57,0.36,15.23,0.14,3.1]},{\"catalogKey\":\"ingredient-16\",\"name\":\"Kentang rebus\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[86,1.71,20.01,0.1,1.8]},{\"catalogKey\":\"ingredient-17\",\"name\":\"Selada romaine\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[17,1.23,3.29,0.3,2.1]},{\"catalogKey\":\"ingredient-18\",\"name\":\"Salmon Atlantik\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[208,20.42,0,13.42,0]},{\"catalogKey\":\"ingredient-19\",\"name\":\"Jamur shiitake\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[34,2.24,6.79,0.49,2.5]},{\"catalogKey\":\"ingredient-20\",\"name\":\"Jamur shimeji\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[33,2.18,6.76,0.45,3.14]},{\"catalogKey\":\"ingredient-21\",\"name\":\"Tahu sutra\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[61,7.17,1.18,3.69,0.2]},{\"catalogKey\":\"ingredient-22\",\"name\":\"Ubi rebus\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[76,1.37,17.72,0.14,2.5]},{\"catalogKey\":\"ingredient-23\",\"name\":\"Tahu firm\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[144,17.27,2.78,8.72,2.3]},{\"catalogKey\":\"ingredient-24\",\"name\":\"Tomat merah\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[18,0.88,3.89,0.2,1.2]},{\"catalogKey\":\"ingredient-25\",\"name\":\"Jamur kancing putih\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[22,3.09,3.26,0.34,1]},{\"catalogKey\":\"ingredient-26\",\"name\":\"Roti gandum\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[80.64,3.98,13.67,1.12,1.92]},{\"catalogKey\":\"ingredient-27\",\"name\":\"1 cube kare Japan\",\"unit\":\"package\",\"basisAmount\":1,\"nutrition\":[126.75,1.5,15,6.75,0]},{\"catalogKey\":\"ingredient-28\",\"name\":\"Almond milk\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[19.36,0.66,0.67,1.56,0.7]},{\"catalogKey\":\"ingredient-29\",\"name\":\"Almonds, with skin\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[666.6,20.4,16.2,57.8,11]},{\"catalogKey\":\"ingredient-30\",\"name\":\"Apple (1 medium)\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[101,1,22,1,2.1]},{\"catalogKey\":\"ingredient-31\",\"name\":\"Asparagus\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[25.08,2.2,3.8,0.12,2.1]},{\"catalogKey\":\"ingredient-32\",\"name\":\"Avocados\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[174.42,2,8.53,14.7,6.7]},{\"catalogKey\":\"ingredient-33\",\"name\":\"Bakso sapi (1 biji)\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[56,3,2,4,0]},{\"catalogKey\":\"ingredient-34\",\"name\":\"Banana (1 medium)\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[84,1,20,0,3.1]},{\"catalogKey\":\"ingredient-35\",\"name\":\"Basil leaves\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[33.01,2.54,4.34,0.61,3.9]},{\"catalogKey\":\"ingredient-36\",\"name\":\"Bawang goreng (1 teaspoon)\",\"unit\":\"package\",\"basisAmount\":1,\"nutrition\":[21.6,0.2,2.5,1.2,0]},{\"catalogKey\":\"ingredient-37\",\"name\":\"Beef, flank, steak, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[165,20.1,0,9.4,0]},{\"catalogKey\":\"ingredient-38\",\"name\":\"Beef, ground, 80% lean:20% fat, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[244.6,17.5,0,19.4,0]},{\"catalogKey\":\"ingredient-39\",\"name\":\"Beef, ground, 90% lean:10% fat, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[170,20,0,10,0]},{\"catalogKey\":\"ingredient-40\",\"name\":\"Beef lean shabu, low fat prime beef\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[114,24,0,2,0]},{\"catalogKey\":\"ingredient-41\",\"name\":\"Beef, loin, top loin, fat trimmed, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[148.71,22.8,0,6.39,0]},{\"catalogKey\":\"ingredient-42\",\"name\":\"Benfarm stikie (75 gr)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[117,12,15,1,0]},{\"catalogKey\":\"ingredient-43\",\"name\":\"Bihun jagung\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[234.5,3.5,54,0.5,0]},{\"catalogKey\":\"ingredient-44\",\"name\":\"Black salmon\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[81.72,18.99,0,0.64,0]},{\"catalogKey\":\"ingredient-45\",\"name\":\"Broccoli\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[38.42,2.57,6.27,0.34,2.4]},{\"catalogKey\":\"ingredient-46\",\"name\":\"Bubur kacang hijau\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[117,4.5,18,3,0]},{\"catalogKey\":\"ingredient-47\",\"name\":\"Burgreen black pepper steak bites\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[148,12,16,4,0]},{\"catalogKey\":\"ingredient-48\",\"name\":\"Cabbage (100 gr)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[27.7,1.2,5.5,0.1,1.2]},{\"catalogKey\":\"ingredient-49\",\"name\":\"Carrot, baby, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[40.78,0.8,9.08,0.14,2.7]},{\"catalogKey\":\"ingredient-50\",\"name\":\"Carrot, mature, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[48.11,0.94,10.3,0.35,3.1]},{\"catalogKey\":\"ingredient-51\",\"name\":\"Cashew nuts, roasted, salted\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[564.9,17.4,36.3,38.9,4.1]},{\"catalogKey\":\"ingredient-52\",\"name\":\"Cauliflower\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[30.3,1.9,5,0.3,0]},{\"catalogKey\":\"ingredient-53\",\"name\":\"Cedea otak-otak (1/2 porsi)\",\"unit\":\"package\",\"basisAmount\":1,\"nutrition\":[202.5,15,30,2.5,0]},{\"catalogKey\":\"ingredient-54\",\"name\":\"Chayote (1 medium)\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[45.5,1.7,9,0.3,0]},{\"catalogKey\":\"ingredient-55\",\"name\":\"Cheddar\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[415,25,0,35,0]},{\"catalogKey\":\"ingredient-56\",\"name\":\"Chia Seeds\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[510.7,16.5,42.1,30.7,34.4]},{\"catalogKey\":\"ingredient-57\",\"name\":\"Chicken breast, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[113.4,22.5,0,2.6,0]},{\"catalogKey\":\"ingredient-58\",\"name\":\"Chicken breast, skinless, cooked\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[156.13,31,0,3.57,0]},{\"catalogKey\":\"ingredient-59\",\"name\":\"Chicken porridge (120 gram - 1 bowl)\",\"unit\":\"package\",\"basisAmount\":1,\"nutrition\":[301,8,56,5,0]},{\"catalogKey\":\"ingredient-60\",\"name\":\"Chicken thigh, skin\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[269.8,28,1.2,17,0]},{\"catalogKey\":\"ingredient-61\",\"name\":\"Chicken thigh, skinless, boneless, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[234,27,0,14,0]},{\"catalogKey\":\"ingredient-62\",\"name\":\"Chili oil (1 tablespoon)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[117.4,0,0.1,13,0]},{\"catalogKey\":\"ingredient-63\",\"name\":\"Chinese cabbage\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[16.6,1.5,2.2,0.2,0]},{\"catalogKey\":\"ingredient-64\",\"name\":\"Chocolate powder\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[506.2,19.6,57.9,21.8,0]},{\"catalogKey\":\"ingredient-65\",\"name\":\"Corn (piece, around 100 gr)\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[102.18,3.34,19.1,1.38,2.04]},{\"catalogKey\":\"ingredient-66\",\"name\":\"Corn starch (1 tablespoon)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[28,0,7,0,0]},{\"catalogKey\":\"ingredient-67\",\"name\":\"Corn tortilla (each - 26g)\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[60.17,1.48,12.1,0.65,1.35]},{\"catalogKey\":\"ingredient-68\",\"name\":\"Crabstick\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[70,5,8,2,0]},{\"catalogKey\":\"ingredient-69\",\"name\":\"Cucumber\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[15.9,0.62,2.95,0.18,0]},{\"catalogKey\":\"ingredient-70\",\"name\":\"Dark chocolate (70 percent cocoa solids)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[558,9,36,42,0]},{\"catalogKey\":\"ingredient-71\",\"name\":\"Dori fillet\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[108.99,18,0,4.11,0]},{\"catalogKey\":\"ingredient-72\",\"name\":\"Edamame beans, frozen\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[127,12,4,7,0]},{\"catalogKey\":\"ingredient-73\",\"name\":\"Egg noodles, uncooked\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[330,12,66,2,0]},{\"catalogKey\":\"ingredient-74\",\"name\":\"Egg, white, dried, powder, stabilized (1 tbsp, 7 gr)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[24.32,5.77,0.31,0,0]},{\"catalogKey\":\"ingredient-75\",\"name\":\"Eggs, large, white, each\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[17.76,3.64,0.8,0,0]},{\"catalogKey\":\"ingredient-76\",\"name\":\"Eggs, large, whole, each\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[71.97,6.24,0.48,5.01,0]},{\"catalogKey\":\"ingredient-77\",\"name\":\"Eggs, large, yolk, each\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[55.78,2.75,0.17,4.9,0]},{\"catalogKey\":\"ingredient-78\",\"name\":\"Fussili (60 gr mentah)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[212,8,45,0,0]},{\"catalogKey\":\"ingredient-79\",\"name\":\"Gelatins, dry powder, unsweetened (1 tbsp, 7 gr)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[23.96,5.99,0,0,0]},{\"catalogKey\":\"ingredient-80\",\"name\":\"Gochujang (1 tablespoon)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[60.5,1,13,0.5,0]},{\"catalogKey\":\"ingredient-81\",\"name\":\"Greek yogurt\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[125.2,10.3,3,8,0]},{\"catalogKey\":\"ingredient-82\",\"name\":\"Green beans\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[37,1.8,7,0.2,0]},{\"catalogKey\":\"ingredient-83\",\"name\":\"Hazelnuts\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[656,14,6,64,0]},{\"catalogKey\":\"ingredient-84\",\"name\":\"Ikan cucut cooked (1 teaspoon)\",\"unit\":\"package\",\"basisAmount\":1,\"nutrition\":[4.85,1.1,0,0.05,0]},{\"catalogKey\":\"ingredient-85\",\"name\":\"Kaldu ceker (1 cup beras)\",\"unit\":\"package\",\"basisAmount\":1,\"nutrition\":[63,9,0,3,0]},{\"catalogKey\":\"ingredient-86\",\"name\":\"Kecap asin (1 table spoon)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[9.3,1.3,0.8,0.1,0]},{\"catalogKey\":\"ingredient-87\",\"name\":\"Kecap manis (1 table spoon)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[48.9,1,11,0.1,0]},{\"catalogKey\":\"ingredient-88\",\"name\":\"Kimchi\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[20,1,4,0,0]},{\"catalogKey\":\"ingredient-89\",\"name\":\"Kwetiau (1 porsi)\",\"unit\":\"package\",\"basisAmount\":1,\"nutrition\":[267,5.25,61.5,0,0]},{\"catalogKey\":\"ingredient-90\",\"name\":\"Ladang lima blackmond\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[162,1,17,10,0]},{\"catalogKey\":\"ingredient-91\",\"name\":\"Lettuce, romain, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[20.79,0.98,4.06,0.07,0]},{\"catalogKey\":\"ingredient-92\",\"name\":\"Mango (1 piece, around 366 gram)\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[224.16,2.76,50.4,1.28,5.38]},{\"catalogKey\":\"ingredient-93\",\"name\":\"Margarine (1 teaspoon)\",\"unit\":\"package\",\"basisAmount\":1,\"nutrition\":[18,0,0,2,0]},{\"catalogKey\":\"ingredient-94\",\"name\":\"Mayonnaise (1 tablespoon)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[98,1,1,10,0]},{\"catalogKey\":\"ingredient-95\",\"name\":\"Mie atom/burung dara\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[383,14,75,3,0]},{\"catalogKey\":\"ingredient-96\",\"name\":\"Milk (full fat)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[68,3,5,4,0]},{\"catalogKey\":\"ingredient-97\",\"name\":\"Milk (semi-skimmed)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[54,4,5,2,0]},{\"catalogKey\":\"ingredient-98\",\"name\":\"Milk (skimmed)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[36,4,5,0,0]},{\"catalogKey\":\"ingredient-99\",\"name\":\"Miso (1 tablespoon)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[33,2,4,1,0]},{\"catalogKey\":\"ingredient-100\",\"name\":\"Mozarella (grated)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[311,22,4,23,0]},{\"catalogKey\":\"ingredient-101\",\"name\":\"Mushroom, enoki\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[44.4,2.42,8.14,0.24,2.9]},{\"catalogKey\":\"ingredient-102\",\"name\":\"Mushroom, king oyster\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[46.43,2.41,8.5,0.31,3]},{\"catalogKey\":\"ingredient-103\",\"name\":\"Mushroom, oyster\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[41.07,2.9,6.94,0.19,2.8]},{\"catalogKey\":\"ingredient-104\",\"name\":\"Mushroom, portabella\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[32.43,2.75,4.66,0.31,1.9]},{\"catalogKey\":\"ingredient-105\",\"name\":\"Mushroom, shimeji\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[44,4,7,0,0]},{\"catalogKey\":\"ingredient-106\",\"name\":\"Mushroom, shitake\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[44.12,2.41,8.17,0.2,4.2]},{\"catalogKey\":\"ingredient-107\",\"name\":\"Mushroom, white button\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[31.21,2.89,4.08,0.37,1.7]},{\"catalogKey\":\"ingredient-108\",\"name\":\"Nila fillet\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[128.7,26.1,0,2.7,0]},{\"catalogKey\":\"ingredient-109\",\"name\":\"Oat milk, unsweetened\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[46,0,7,2,0]},{\"catalogKey\":\"ingredient-110\",\"name\":\"Odeng (50 gr)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[71.2,4.5,7,2.8,0]},{\"catalogKey\":\"ingredient-111\",\"name\":\"Okonomiyaki sauce (1 tablespoon)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[36,0,9,0,0]},{\"catalogKey\":\"ingredient-112\",\"name\":\"Olive oil, extra light (1 tablespoon, 17 gram)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[141.3,0,0,15.7,0]},{\"catalogKey\":\"ingredient-113\",\"name\":\"Olive oil, extra virgin (1 tablespoon, 17 gram)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[143.28,0,0,15.92,0]},{\"catalogKey\":\"ingredient-114\",\"name\":\"Onion\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[36,1,8,0,0]},{\"catalogKey\":\"ingredient-115\",\"name\":\"Orange (1 medium)\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[72.97,1.27,16.5,0.21,2.8]},{\"catalogKey\":\"ingredient-116\",\"name\":\"Pak choi\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[16.52,1.5,2.18,0.2,1]},{\"catalogKey\":\"ingredient-117\",\"name\":\"Papaya\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[47.42,0.47,10.8,0.26,1.7]},{\"catalogKey\":\"ingredient-118\",\"name\":\"Parmesan\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[418,36,1,30,0]},{\"catalogKey\":\"ingredient-119\",\"name\":\"Pasta singkong (kering)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[357,2,85,1,5]},{\"catalogKey\":\"ingredient-120\",\"name\":\"Pear (1 medium, around 250 gram)\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[127.99,1.38,29.2,0.63,9.9]},{\"catalogKey\":\"ingredient-121\",\"name\":\"Peas, frozen\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[73,5,11,1,0]},{\"catalogKey\":\"ingredient-122\",\"name\":\"Pepper (red)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[20,1,4,0,0]},{\"catalogKey\":\"ingredient-123\",\"name\":\"Pitta breads (each - 67g)\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[153,2,34,1,0]},{\"catalogKey\":\"ingredient-124\",\"name\":\"Popcorn, air-popped, unsalted\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[397.4,12,77.9,4.2,15.1]},{\"catalogKey\":\"ingredient-125\",\"name\":\"Popcorn, oil-popped, salted\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[517.7,9,57.2,28.1,10]},{\"catalogKey\":\"ingredient-126\",\"name\":\"Pork shoulder\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[120,21,0,4,0]},{\"catalogKey\":\"ingredient-127\",\"name\":\"Porridge (250gr - kaldu ceker)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[360,7,2,36,0.3]},{\"catalogKey\":\"ingredient-128\",\"name\":\"Potato\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[76.9,2,17,0.1,2.2]},{\"catalogKey\":\"ingredient-129\",\"name\":\"Potato, gold, without skin, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[73.54,1.8,16,0.26,13.8]},{\"catalogKey\":\"ingredient-130\",\"name\":\"Red onion\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[32,1,7,0,0]},{\"catalogKey\":\"ingredient-131\",\"name\":\"Red rice\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[108.4,2.3,23,0.8,6.2]},{\"catalogKey\":\"ingredient-132\",\"name\":\"Richeese chicken nugget bubble (100 gr)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[264,12,18,16,0]},{\"catalogKey\":\"ingredient-133\",\"name\":\"Ritz crackers (3 biji)\",\"unit\":\"piece\",\"basisAmount\":3,\"nutrition\":[56.33,0.6666666667,6.666666667,3,0]},{\"catalogKey\":\"ingredient-134\",\"name\":\"Salmon (fresh), raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[173.6,20,0,10.4,0]},{\"catalogKey\":\"ingredient-135\",\"name\":\"Saus jjajamyeong\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[138.19,4.125,16.5,6.1875,0]},{\"catalogKey\":\"ingredient-136\",\"name\":\"Savoy cabbage\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[24,2,4,0,0]},{\"catalogKey\":\"ingredient-137\",\"name\":\"Sayur asin\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[24,2,4,0,0]},{\"catalogKey\":\"ingredient-138\",\"name\":\"Sesame oil\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[122.4,0,0,13.6,0]},{\"catalogKey\":\"ingredient-139\",\"name\":\"Shirataki\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[12,0,3,0,3]},{\"catalogKey\":\"ingredient-140\",\"name\":\"Shirataki noodle\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[80,0,20,0,0]},{\"catalogKey\":\"ingredient-141\",\"name\":\"Shrimp\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[99.5,24,0.2,0.3,0]},{\"catalogKey\":\"ingredient-142\",\"name\":\"Sirloin steak, lean, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[141,24,0,5,0]},{\"catalogKey\":\"ingredient-143\",\"name\":\"Skippy (1 tsp)\",\"unit\":\"package\",\"basisAmount\":1,\"nutrition\":[33.1,1.2,1,2.7,0]},{\"catalogKey\":\"ingredient-144\",\"name\":\"Sliced noodle\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[249,8,52,1,0]},{\"catalogKey\":\"ingredient-145\",\"name\":\"Smoked salmon\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[186,23,1,10,0]},{\"catalogKey\":\"ingredient-146\",\"name\":\"Snow white mushroom\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[27.98,2.27,4.5,0.1,0]},{\"catalogKey\":\"ingredient-147\",\"name\":\"Sourdough (75g)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[209,9,41,1,0]},{\"catalogKey\":\"ingredient-148\",\"name\":\"Soy protein (1 tbsp, 7 gr)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[57.75,6.81,0,3.39,0]},{\"catalogKey\":\"ingredient-149\",\"name\":\"Spaghetti (dried)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[366,11,76,2,0]},{\"catalogKey\":\"ingredient-150\",\"name\":\"Spaghetti (la fonte - 1 sajian 60 gr)\",\"unit\":\"package\",\"basisAmount\":1,\"nutrition\":[217,9,43,1,0]},{\"catalogKey\":\"ingredient-151\",\"name\":\"Spanish mackerel (ikan tenggiri)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[162,21,6,6,0]},{\"catalogKey\":\"ingredient-152\",\"name\":\"Spinach (baby)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[21,3,0,1,0]},{\"catalogKey\":\"ingredient-153\",\"name\":\"Spring onions\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[29,2,3,1,0]},{\"catalogKey\":\"ingredient-154\",\"name\":\"Sriracha (1 tablespoon)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[56,0,14,0,0]},{\"catalogKey\":\"ingredient-155\",\"name\":\"Strawberries\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[37,1,6,1,0]},{\"catalogKey\":\"ingredient-156\",\"name\":\"Sweet corn, fresh, cooked, no added fat\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[99.59,3.26,18.6,1.35,2]},{\"catalogKey\":\"ingredient-157\",\"name\":\"Sweet potatoes, orange flesh, without skin, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[78.94,1.58,17.3,0.38,4.44]},{\"catalogKey\":\"ingredient-158\",\"name\":\"Sweet potatoes, with skin, raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[118.9,2,27.5,0.1,0]},{\"catalogKey\":\"ingredient-159\",\"name\":\"Tahu Sutera Firm Kotak Merah (100 gr)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[44,9,2,0,0]},{\"catalogKey\":\"ingredient-160\",\"name\":\"Telur asin bebek (1 butir)\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[134.43,9.51,1.08,10.23,0]},{\"catalogKey\":\"ingredient-161\",\"name\":\"Tempeh\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[162,21,6,6,0]},{\"catalogKey\":\"ingredient-162\",\"name\":\"Tenggiri\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[98,20,0,2,0]},{\"catalogKey\":\"ingredient-163\",\"name\":\"Tepung singkong (1 tablespoon)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[33.3,0.1,8,0.1,0]},{\"catalogKey\":\"ingredient-164\",\"name\":\"Tofu (firm)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[119,12,2,7,0]},{\"catalogKey\":\"ingredient-165\",\"name\":\"Tofu (silken)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[45,7,2,1,0]},{\"catalogKey\":\"ingredient-166\",\"name\":\"Tomato ketchup (1 tablespoon)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[16,0,4,0,0]},{\"catalogKey\":\"ingredient-167\",\"name\":\"Tomatoes (1 medium)\",\"unit\":\"piece\",\"basisAmount\":1,\"nutrition\":[20,1,4,0,0]},{\"catalogKey\":\"ingredient-168\",\"name\":\"Tteokbokki (50 gr)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[120,2.5,23,2,0]},{\"catalogKey\":\"ingredient-169\",\"name\":\"Tuna ayam brand (1 kaleng)\",\"unit\":\"package\",\"basisAmount\":1,\"nutrition\":[156,39,0,0,0]},{\"catalogKey\":\"ingredient-170\",\"name\":\"Tuna (canned, in water/brine, drained)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[109,25,0,1,0]},{\"catalogKey\":\"ingredient-171\",\"name\":\"Tuna (fresh), raw\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[113,26,0,1,0]},{\"catalogKey\":\"ingredient-172\",\"name\":\"Udang rebon (1 tablespoon)\",\"unit\":\"tbsp\",\"basisAmount\":1,\"nutrition\":[14.6,3.1,0.1,0.2,0]},{\"catalogKey\":\"ingredient-173\",\"name\":\"Udon noodles (dried)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[349,10,75,1,0]},{\"catalogKey\":\"ingredient-174\",\"name\":\"Water spinach\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[25.82,2.51,3.18,0.34,0]},{\"catalogKey\":\"ingredient-175\",\"name\":\"Watermelon\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[36.2,0.6,8,0.2,0]},{\"catalogKey\":\"ingredient-176\",\"name\":\"White rice\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[125.5,2.7,28,0.3,0.9]},{\"catalogKey\":\"ingredient-177\",\"name\":\"Wholemeal bread (1 slice)\",\"unit\":\"g\",\"basisAmount\":100,\"nutrition\":[81,4,14,1,0]}],\"settledMeals\":[],\"savedMenuChoices\":[{\"key\":\"saved-menu-1\",\"name\":\"Browser master bowl\",\"ingredients\":[{\"catalogKey\":\"ingredient-8\",\"name\":\"Dada ayam tanpa kulit\",\"quantity\":150},{\"catalogKey\":\"ingredient-5\",\"name\":\"Brokoli\",\"quantity\":100}]},{\"key\":\"saved-menu-2\",\"name\":\"Test ayam lunch\",\"ingredients\":[{\"catalogKey\":\"ingredient-8\",\"name\":\"Dada ayam tanpa kulit\",\"quantity\":150}]},{\"key\":\"saved-menu-3\",\"name\":\"Test ayam lunch\",\"ingredients\":[{\"catalogKey\":\"ingredient-8\",\"name\":\"Dada ayam tanpa kulit\",\"quantity\":150}]},{\"key\":\"saved-menu-4\",\"name\":\"Ayam kentang dan pir\",\"ingredients\":[{\"catalogKey\":\"ingredient-8\",\"name\":\"Dada ayam tanpa kulit\",\"quantity\":50},{\"catalogKey\":\"ingredient-16\",\"name\":\"Kentang rebus\",\"quantity\":150},{\"catalogKey\":\"ingredient-15\",\"name\":\"Pir\",\"quantity\":250}]},{\"key\":\"saved-menu-7\",\"name\":\"Telur balado\",\"ingredients\":[{\"catalogKey\":\"ingredient-10\",\"name\":\"Putih telur besar\",\"quantity\":2},{\"catalogKey\":\"ingredient-15\",\"name\":\"Pir\",\"quantity\":250}]},{\"key\":\"saved-menu-8\",\"name\":\"Ayam bakar dan nasi\",\"ingredients\":[{\"catalogKey\":\"ingredient-8\",\"name\":\"Dada ayam tanpa kulit\",\"quantity\":200}]},{\"key\":\"saved-menu-9\",\"name\":\"Nasi telur miso\",\"ingredients\":[{\"catalogKey\":\"ingredient-9\",\"name\":\"Sawi putih\",\"quantity\":50}]},{\"key\":\"saved-menu-10\",\"name\":\"Telur tahu dan apel\",\"ingredients\":[{\"catalogKey\":\"ingredient-23\",\"name\":\"Tahu firm\",\"quantity\":195},{\"catalogKey\":\"ingredient-2\",\"name\":\"Apel sedang\",\"quantity\":1}]},{\"key\":\"saved-menu-11\",\"name\":\"Telur tomat\",\"ingredients\":[{\"catalogKey\":\"ingredient-10\",\"name\":\"Putih telur besar\",\"quantity\":4},{\"catalogKey\":\"ingredient-15\",\"name\":\"Pir\",\"quantity\":125},{\"catalogKey\":\"ingredient-24\",\"name\":\"Tomat merah\",\"quantity\":123},{\"catalogKey\":\"ingredient-4\",\"name\":\"Pisang sedang\",\"quantity\":1}]}],\"targets\":[{\"member\":\"Member A\",\"referenceOnly\":false,\"dailyCalories\":1928.4571428571428,\"currentCalories\":693.59,\"calories\":1234.8671428571429,\"dailyProtein\":120.5,\"currentProtein\":36.160799999999995,\"protein\":84.3392,\"dailyCarbs\":216.9,\"currentCarbs\":89.593,\"carbs\":127.307,\"dailyFat\":64.26666666666667,\"currentFat\":20.7512,\"fat\":43.51546666666667,\"dailyFiber\":30,\"currentFiber\":3.21,\"fiber\":26.79}],\"priorCombinations\":[],\"settledSnackMembers\":[],\"dailySnackLimits\":[{\"member\":\"Member A\",\"calories\":482.1142857142857}],\"constraints\":{\"recommendations\":5,\"adjustedSavedMenus\":2,\"newCompositions\":3,\"maxProteinDenseGramsPerPersonPerMeal\":250,\"maxCaloriesOverTargetPercent\":5,\"maxCompanionSnacks\":1,\"sharedDinner\":false}}"
+          }
+        ],
+        "response_format": {
+          "type": "json_schema",
+          "json_schema": {
+            "name": "meal_recommendations",
+            "strict": true,
+            "schema": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "recommendations"
+              ],
+              "properties": {
+                "recommendations": {
+                  "type": "array",
+                  "minItems": 5,
+                  "maxItems": 5,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "origin",
+                      "savedMenuKey",
+                      "justification",
+                      "cookingNote",
+                      "ingredients",
+                      "removals",
+                      "companionSnacks"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "origin": {
+                        "type": "string",
+                        "enum": [
+                          "saved",
+                          "new"
+                        ]
+                      },
+                      "savedMenuKey": {
+                        "type": "string"
+                      },
+                      "justification": {
+                        "type": "string"
+                      },
+                      "cookingNote": {
+                        "type": "string"
+                      },
+                      "removals": {
+                        "type": "array",
+                        "maxItems": 50,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "catalogKey",
+                            "member"
+                          ],
+                          "properties": {
+                            "catalogKey": {
+                              "type": "string"
+                            },
+                            "member": {
+                              "type": "string",
+                              "enum": [
+                                "shared",
+                                "Member A",
+                                "Member B"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      "ingredients": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "catalogKey",
+                            "usdaQuery",
+                            "quantity",
+                            "member"
+                          ],
+                          "properties": {
+                            "catalogKey": {
+                              "type": "string"
+                            },
+                            "usdaQuery": {
+                              "type": "string"
+                            },
+                            "quantity": {
+                              "type": "number",
+                              "exclusiveMinimum": 0,
+                              "maximum": 100000
+                            },
+                            "member": {
+                              "type": "string",
+                              "enum": [
+                                "shared"
+                              ]
+                            }
+                          }
+                        }
+                      },
+                      "companionSnacks": {
+                        "type": "array",
+                        "maxItems": 2,
+                        "items": {
+                          "type": "object",
+                          "additionalProperties": false,
+                          "required": [
+                            "member",
+                            "name",
+                            "justification",
+                            "ingredients"
+                          ],
+                          "properties": {
+                            "member": {
+                              "type": "string",
+                              "enum": [
+                                "Member A",
+                                "Member B"
+                              ]
+                            },
+                            "name": {
+                              "type": "string"
+                            },
+                            "justification": {
+                              "type": "string"
+                            },
+                            "ingredients": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": [
+                                  "catalogKey",
+                                  "quantity"
+                                ],
+                                "properties": {
+                                  "catalogKey": {
+                                    "type": "string"
+                                  },
+                                  "quantity": {
+                                    "type": "number",
+                                    "exclusiveMinimum": 0,
+                                    "maximum": 100000
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "content": "{\n  \"recommendations\": [\n    {\n      \"name\": \"Ayam Brokoli Porsi Diperbesar\",\n      \"origin\": \"new\",\n      \"savedMenuKey\": \"\",\n      \"justification\": \"Adjusts saved menu 1 by increasing chicken to hit protein and calories. Broccoli adds fiber and volume. Simple, high-protein lunch.\",\n      \"cookingNote\": \"Grill chicken, steam broccoli, season lightly.\",\n      \"removals\": [],\n      \"ingredients\": [\n        {\"catalogKey\": \"ingredient-8\", \"usdaQuery\": \"\", \"quantity\": 230, \"member\": \"shared\"},\n        {\"catalogKey\": \"ingredient-5\", \"usdaQuery\": \"\", \"quantity\": 150, \"member\": \"shared\"}\n      ]\n    ,\n      \"companionSnacks\": []\n    },\n    {\n      \"name\": \"Ayam Kentang Pir Porsi Protein\",\n      \"origin\": \"new\",\n      \"savedMenuKey\": \"\",\n      \"justification\": \"Adjusts saved menu 4 by increasing chicken to meet protein. Potato and pear provide carbs and fiber. Balanced lunch.\",\n      \"cookingNote\": \"Boil potato, grill chicken, slice pear.\",\n      \"removals\": [],\n      \"ingredients\": [\n        {\"catalogKey\": \"ingredient-8\", \"usdaQuery\": \"\", \"quantity\": 220, \"member\": \"shared\"},\n        {\"catalogKey\": \"ingredient-16\", \"usdaQuery\": \"\", \"quantity\": 150, \"member\": \"shared\"},\n        {\"catalogKey\": \"ingredient-15\", \"usdaQuery\": \"\", \"quantity\": 250, \"member\": \"shared\"}\n      ]\n    ,\n      \"companionSnacks\": []\n    },\n    {\n      \"name\": \"Tempe Tahu Brokoli Bowl\",\n      \"origin\": \"new\",\n      \"savedMenuKey\": \"\",\n      \"justification\": \"Tempeh and tofu provide complete protein. Broccoli adds fiber. Low fat, moderate carbs.\",\n      \"cookingNote\": \"Pan-fry tempeh and tofu, steam broccoli.\",\n      \"removals\": [],\n      \"ingredients\": [\n        {\"catalogKey\": \"ingredient-161\", \"usdaQuery\": \"\", \"quantity\": 200, \"member\": \"shared\"},\n        {\"catalogKey\": \"ingredient-23\", \"usdaQuery\": \"\", \"quantity\": 150, \"member\": \"shared\"},\n        {\"catalogKey\": \"ingredient-5\", \"usdaQuery\": \"\", \"quantity\": 150, \"member\": \"shared\"}\n      ]\n    ,\n      \"companionSnacks\": []\n    },\n    {\n      \"name\": \"Telur Tahu Bayam\",\n      \"origin\": \"new\",\n      \"savedMenuKey\": \"\",\n      \"justification\": \"Eggs and tofu supply protein. Spinach adds fiber. Quick and easy.\",\n      \"cookingNote\": \"Scramble eggs with tofu, wilt spinach.\",\n      \"removals\": [],\n      \"ingredients\": [\n        {\"catalogKey\": \"ingredient-76\", \"usdaQuery\": \"\", \"quantity\": 3, \"member\": \"shared\"},\n        {\"catalogKey\": \"ingredient-23\", \"usdaQuery\": \"\", \"quantity\": 200, \"member\": \"shared\"},\n        {\"catalogKey\": \"ingredient-152\", \"usdaQuery\": \"\", \"quantity\": 100, \"member\": \"shared\"}\n      ]\n    ,\n      \"companionSnacks\": []\n    },\n    {\n      \"name\": \"Kacang Hijau dan Telur\",\n      \"origin\": \"new\",\n      \"savedMenuKey\": \"\",\n      \"justification\": \"Mung beans and eggs provide protein and fiber. Simple, cheap, filling.\",\n      \"cookingNote\": \"Boil mung beans, boil eggs, mix.\",\n      \"removals\": [],\n      \"ingredients\": [\n        {\"catalogKey\": \"ingredient-12\", \"usdaQuery\": \"\", \"quantity\": 300, \"member\": \"shared\"},\n        {\"catalogKey\": \"ingredient-76\", \"usdaQuery\": \"\", \"quantity\": 3, \"member\": \"shared\"}\n      ]\n    ,\n      \"companionSnacks\": []\n    }\n  ]\n}",
+      "error": null
+    }
+  ],
+  "responseSummary": [
+    {
+      "name": "Ayam Brokoli Porsi Diperbesar",
+      "origin": "new",
+      "ingredientCount": 2,
+      "ingredients": [
+        {
+          "name": "Dada ayam tanpa kulit",
+          "quantity": 230,
+          "memberId": null
+        },
+        {
+          "name": "Brokoli",
+          "quantity": 150,
+          "memberId": null
+        }
+      ],
+      "removals": [],
+      "nutrition": {
+        "calories": 412.1,
+        "protein": 77.968,
+        "carbs": 9.96,
+        "fat": 8.007000000000001,
+        "fiber": 3.9
+      },
+      "deltas": [
+        {
+          "member": "Member A",
+          "caloriesAfter": 1105.69,
+          "calorieTarget": 1928.4571428571428,
+          "overCaloriesBy": 0,
+          "proteinAfter": 114.1288,
+          "proteinTarget": 120.5,
+          "sourceWarning": "Protein comes from one main source; consider adding a second source."
+        }
+      ]
+    },
+    {
+      "name": "Tempe Tahu Brokoli Bowl",
+      "origin": "new",
+      "ingredientCount": 3,
+      "ingredients": [
+        {
+          "name": "Tempeh",
+          "quantity": 200,
+          "memberId": null
+        },
+        {
+          "name": "Tahu firm",
+          "quantity": 150,
+          "memberId": null
+        },
+        {
+          "name": "Brokoli",
+          "quantity": 150,
+          "memberId": null
+        }
+      ],
+      "removals": [],
+      "nutrition": {
+        "calories": 591,
+        "protein": 72.135,
+        "carbs": 26.13,
+        "fat": 25.634999999999998,
+        "fiber": 7.35
+      },
+      "deltas": [
+        {
+          "member": "Member A",
+          "caloriesAfter": 1284.5900000000001,
+          "calorieTarget": 1928.4571428571428,
+          "overCaloriesBy": 0,
+          "proteinAfter": 108.2958,
+          "proteinTarget": 120.5,
+          "sourceWarning": null
+        }
+      ]
+    },
+    {
+      "name": "Telur Tahu Bayam",
+      "origin": "new",
+      "ingredientCount": 3,
+      "ingredients": [
+        {
+          "name": "Eggs, large, whole, each",
+          "quantity": 3,
+          "memberId": null
+        },
+        {
+          "name": "Tahu firm",
+          "quantity": 200,
+          "memberId": null
+        },
+        {
+          "name": "Spinach (baby)",
+          "quantity": 100,
+          "memberId": null
+        }
+      ],
+      "removals": [],
+      "nutrition": {
+        "calories": 524.91,
+        "protein": 56.26,
+        "carbs": 7,
+        "fat": 33.47,
+        "fiber": 4.6
+      },
+      "deltas": [
+        {
+          "member": "Member A",
+          "caloriesAfter": 1218.5,
+          "calorieTarget": 1928.4571428571428,
+          "overCaloriesBy": 0,
+          "proteinAfter": 92.42079999999999,
+          "proteinTarget": 120.5,
+          "sourceWarning": null
+        }
+      ]
+    },
+    {
+      "name": "Kacang Hijau dan Telur",
+      "origin": "new",
+      "ingredientCount": 2,
+      "ingredients": [
+        {
+          "name": "Kacang hijau rebus",
+          "quantity": 300,
+          "memberId": null
+        },
+        {
+          "name": "Eggs, large, whole, each",
+          "quantity": 3,
+          "memberId": null
+        }
+      ],
+      "removals": [],
+      "nutrition": {
+        "calories": 530.91,
+        "protein": 39.78,
+        "carbs": 58.89,
+        "fat": 16.169999999999998,
+        "fiber": 22.8
+      },
+      "deltas": [
+        {
+          "member": "Member A",
+          "caloriesAfter": 1224.5,
+          "calorieTarget": 1928.4571428571428,
+          "overCaloriesBy": 0,
+          "proteinAfter": 75.9408,
+          "proteinTarget": 120.5,
+          "sourceWarning": null
+        }
+      ]
+    }
+  ],
+  "elapsedMs": 3466,
+  "requestMealHash": "266add744872953de56b1416092fedcdfbc1d5005f6e3d896c8b9f8bab6a8a08",
+  "sourceDatabaseUnchanged": true,
+  "routeRequest": {
+    "meal": {
+      "id": "live-check-a",
+      "date": "2026-10-09",
+      "slot": "lunch",
+      "memberId": "richard",
+      "name": "Live recommendation draft",
+      "notes": "",
+      "ingredients": []
+    },
+    "prior": [],
+    "pendingIngredients": [],
+    "companions": []
+  }
+}

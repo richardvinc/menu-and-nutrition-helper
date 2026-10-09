@@ -189,12 +189,13 @@ export async function recommend(input: {
 			? "For dinner ingredients, use member shared when both people eat an ingredient; use Member A or Member B only for a deliberately individual portion."
 			: "This is a single-member meal. Every ingredients entry must use member shared; the meal already identifies its owner.";
 	const system =
-		"Create exactly five practical Indonesian meal suggestions using cheap, easy sources such as tofu, tempeh, eggs, beans and lentils. Use supplied suggestible catalog keys first. Use a USDA query only when the supplied catalog cannot sensibly fit; never supply nutrition values. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Add a companion snack only when portions would otherwise be impractical, and never for a member with a settled snack. Keep each snack below its daily calorie cap. For an existing draft, the first option returns exactly its current ingredient set with adjusted quantities only. Later options may remove a current ingredient only when necessary; for every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal with at least two saved menus, return exactly two adjusted saved-menu choices followed by exactly three genuinely new compositions. Use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. If fewer than two saved menus are available, use every available saved menu and fill the remaining choices with new compositions. Return complete ingredient lists for each option. Use English names and explanations. Quantities use each catalog ingredient's unit; USDA query quantities are grams. " +
+		"Create exactly five practical Indonesian meal suggestions using cheap, easy sources such as tofu, tempeh, eggs, beans and lentils. Use supplied suggestible catalog keys first. Ingredient nutrition arrays are ordered as calories, protein, carbs, fat, fiber. Use a USDA query only when the supplied catalog cannot sensibly fit; never supply nutrition values. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Add a companion snack only when portions would otherwise be impractical, and never for a member with a settled snack. Keep each snack below its daily calorie cap. For an existing draft, every option uses origin new and an empty savedMenuKey; the first option returns exactly its current ingredient set with adjusted quantities only. Later options may remove a current ingredient only when necessary; for every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal with at least two saved menus, return exactly two adjusted saved-menu choices followed by exactly three genuinely new compositions. Use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. If fewer than two saved menus are available, use every available saved menu and fill the remaining choices with new compositions. Return complete ingredient lists for each option. Use English names and explanations. Keep each justification under 60 words and each cooking note under 25 words. Quantities use each catalog ingredient's unit; USDA query quantities are grams. " +
 		memberRule;
 	const requestBody = {
 		model,
 		temperature: 0.4,
-		provider: { require_parameters: true },
+		reasoning: { effort: "none" },
+		provider: { require_parameters: true, sort: "throughput" },
 		messages: [
 			{ role: "system", content: system },
 			{
@@ -202,6 +203,9 @@ export async function recommend(input: {
 				content: JSON.stringify({
 					slot: input.meal.slot,
 					current: input.meal.ingredients.map((row) => ({
+						catalogKey: [...byKey.entries()].find(
+							([, item]) => item.id === row.ingredientId,
+						)?.[0],
 						ingredient: input.catalog.find(
 							(item) => item.id === row.ingredientId,
 						)?.name,
@@ -217,8 +221,13 @@ export async function recommend(input: {
 						name: item.name,
 						unit: item.unit,
 						basisAmount: item.basisAmount,
-						suggestible: item.suggestible,
-						nutrition: item.nutrition,
+						nutrition: [
+							item.nutrition.calories,
+							item.nutrition.protein,
+							item.nutrition.carbs,
+							item.nutrition.fat,
+							item.nutrition.fiber,
+						],
 					})),
 					settledMeals: input.currentDay.map((row) => ({
 						ingredient: input.catalog.find(
@@ -369,7 +378,12 @@ export async function recommend(input: {
 	aiTrace("OpenRouter", "meal prompt", {
 		model: requestBody.model,
 		messages: requestBody.messages,
+		promptCharacters: requestBody.messages.reduce(
+			(total, message) => total + message.content.length,
+			0,
+		),
 	});
+	const recommendationStartedAt = performance.now();
 	const response = await fetch(
 		"https://openrouter.ai/api/v1/chat/completions",
 		{
@@ -384,9 +398,11 @@ export async function recommend(input: {
 		},
 	);
 	const payload = (await response.json()) as any;
+	const modelDurationMs = Math.round(performance.now() - recommendationStartedAt);
 	aiTrace("OpenRouter", "meal response", {
 		status: response.status,
 		model: payload?.model,
+		durationMs: modelDurationMs,
 		usage: payload?.usage,
 		content: payload?.choices?.[0]?.message?.content ?? null,
 	});
@@ -418,8 +434,9 @@ export async function recommend(input: {
 			);
 	}
 	const known = new Map(input.catalog.map((item) => [item.id, item]));
-	return Promise.all(
-		parsed.recommendations.map(async (proposal: any, index: number) => {
+	const proposals = (
+		await Promise.all(
+			parsed.recommendations.map(async (proposal: any, index: number) => {
 			if (
 				!proposal ||
 				typeof proposal.name !== "string" ||
@@ -443,6 +460,10 @@ export async function recommend(input: {
 				)
 			)
 				throw new Error("AI returned an invalid recommendation. Please retry.");
+			if (input.meal.ingredients.length) {
+				proposal.origin = "new";
+				proposal.savedMenuKey = "";
+			}
 			if (!input.meal.ingredients.length && proposal.origin === "saved") {
 				const savedMenu = input.savedMenus.find(
 					(menu) => menu.key === proposal.savedMenuKey,
@@ -598,39 +619,7 @@ export async function recommend(input: {
 				throw new Error(
 					"AI changed ingredients in the quantity-only option. Please retry.",
 				);
-			if (!input.meal.ingredients.length && proposal.removals.length)
-				throw new Error(
-					"AI claimed to remove an ingredient from a blank meal.",
-				);
-			const catalogKeyById = new Map(
-				[...byKey.entries()].map(([catalogKey, item]) => [item.id, catalogKey]),
-			);
-			const expectedRemovals = removedRows.map((row) => ({
-				catalogKey: catalogKeyById.get(row.ingredientId),
-				member: row.memberId
-					? input.memberLabels.find((entry) => entry.memberId === row.memberId)
-							?.member
-					: "shared",
-				row,
-			}));
-			const disclosedRemovals = proposal.removals.map((removal: any) => ({
-				catalogKey: removal.catalogKey,
-				member: removal.member,
-			}));
-			const removalKey = (removal: { catalogKey?: string; member: string }) =>
-				JSON.stringify([removal.catalogKey, removal.member]);
-			if (
-				expectedRemovals.length !== disclosedRemovals.length ||
-				expectedRemovals.some((expected) => !expected.catalogKey) ||
-				expectedRemovals.map(removalKey).sort().join("|") !==
-					disclosedRemovals.map(removalKey).sort().join("|")
-			)
-				throw new Error(
-					"AI removal disclosure did not match the changed ingredient list. Please retry.",
-				);
-			if (index === 0 && proposal.removals.length)
-				throw new Error("The quantity-only option cannot remove ingredients.");
-			proposal.removals = expectedRemovals.map(({ row }) => {
+			proposal.removals = removedRows.map((row) => {
 				const name =
 					input.catalog.find((item) => item.id === row.ingredientId)?.name ??
 					"Ingredient";
@@ -810,9 +799,7 @@ export async function recommend(input: {
 					caloriesAfter > target.dailyCalories * 1.05 &&
 					caloriesAfter > currentCalories
 				)
-					throw new Error(
-						"Suggested meal exceeds the 5% calorie tolerance. Please retry.",
-					);
+					return null;
 				const proteinSources = new Map<string, number>();
 				proposal.ingredients.forEach((row: MenuIngredient) => {
 					const item = known.get(row.ingredientId);
@@ -840,10 +827,7 @@ export async function recommend(input: {
 					alternatives > 1 &&
 					(proteinSources.size < 2 ||
 						Math.max(...proteinSources.values(), 0) / newMeal.protein > 0.7);
-				if (sourceWarning && index > 0)
-					throw new Error(
-						"Use at least two protein sources and avoid one source contributing over 70% when alternatives are available.",
-					);
+				if (sourceWarning && index > 0) return null;
 				return {
 					member: target.member,
 					caloriesAfter,
@@ -882,6 +866,7 @@ export async function recommend(input: {
 						: {}),
 				};
 			});
+			if (deltas.includes(null)) return null;
 			return {
 				...proposal,
 				newIngredients,
@@ -889,8 +874,19 @@ export async function recommend(input: {
 				companionSnacks,
 				deltas,
 			} as Proposal;
-		}),
-	);
+			}),
+		)
+	).filter((proposal): proposal is Proposal => proposal !== null);
+	if (!proposals.length)
+		throw new Error(
+			"AI could not produce a recommendation within the nutrition limits. Please retry.",
+		);
+	aiTrace("OpenRouter", "meal complete", {
+		durationMs: Math.round(performance.now() - recommendationStartedAt),
+		modelDurationMs,
+		recommendations: proposals.length,
+	});
+	return proposals;
 }
 
 export async function usdaIngredient(fdcId: number): Promise<Ingredient> {

@@ -256,6 +256,39 @@ test("meal quantity changes update nutrition before save", async ({ page }) => {
 		.click();
 });
 
+test("meal editor body contains its form at short desktop heights", async ({
+	page,
+}) => {
+	await page.setViewportSize({ width: 1235, height: 348 });
+	await page.goto("/");
+	await page.getByRole("button", { name: "Week", exact: true }).click();
+	await page
+		.locator(".pk-week-meal")
+		.filter({ hasText: "Sesame chicken bowl" })
+		.first()
+		.getByRole("button", { name: "Edit", exact: true })
+		.click();
+	await page.locator(".pk-editor-scrim").evaluate((element) => {
+		element.scrollTop = element.scrollHeight;
+	});
+	const [editor, body, notes, footer, bodyOverflow] = await Promise.all([
+		page.locator(".pk-editor").boundingBox(),
+		page.locator(".pk-editor__body").boundingBox(),
+		page.locator(".pk-editor__notes").boundingBox(),
+		page.locator(".pk-editor__footer").boundingBox(),
+		page.locator(".pk-editor__body").evaluate((element) => ({
+			clientHeight: element.clientHeight,
+			scrollHeight: element.scrollHeight,
+		})),
+	]);
+	expect(bodyOverflow.scrollHeight).toBe(bodyOverflow.clientHeight);
+	expect(notes!.y + notes!.height).toBeLessThanOrEqual(body!.y + body!.height);
+	expect(body!.y + body!.height).toBeLessThanOrEqual(footer!.y + 1);
+	expect(footer!.y + footer!.height).toBeLessThanOrEqual(
+		editor!.y + editor!.height,
+	);
+});
+
 test("planned target progress combines lunch with half of shared dinner", async ({
 	page,
 }) => {

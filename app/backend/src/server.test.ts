@@ -222,6 +222,13 @@ describe("backend API", () => {
 			).rejects.toThrow("unsupported ingredient");
 			expect(openRouterBody.model).toBe("test-meal-model");
 			const prompt = JSON.parse(openRouterBody.messages[1].content);
+			expect(openRouterBody.reasoning).toEqual({ effort: "none" });
+			expect(openRouterBody.provider).toEqual({
+				require_parameters: true,
+				sort: "throughput",
+			});
+			expect(prompt.availableIngredients[0].nutrition).toBeArray();
+			expect(prompt.availableIngredients[0]).not.toHaveProperty("suggestible");
 			expect(prompt.constraints).toMatchObject({ recommendations: 5, adjustedSavedMenus: 0, newCompositions: 5 });
 			expect(openRouterBody.response_format.json_schema.schema.properties.recommendations).toMatchObject({ minItems: 5, maxItems: 5 });
 			expect(openRouterBody.messages[1].content).not.toContain("ingredientId");
@@ -234,6 +241,214 @@ describe("backend API", () => {
 			else process.env.OPENROUTER_API_KEY = oldOpenRouter;
 			if (oldUsda === undefined) delete process.env.USDA_API_KEY;
 			else process.env.USDA_API_KEY = oldUsda;
+		}
+	});
+
+	test("AI recommendations keep usable options when a later protein mix is rejected", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		const catalog = (
+			(await (await fetch(`${base}/api/data`)).json()) as AppData
+		).ingredients;
+		const tofuKey = `ingredient-${catalog.filter((item) => item.suggestible).findIndex((item) => item.id === "tofu") + 1}`;
+		const proposal = {
+			name: "Tofu lunch",
+			origin: "new",
+			savedMenuKey: "",
+			justification: "High-protein lunch.",
+			cookingNote: "",
+			ingredients: [
+				{
+					catalogKey: tofuKey,
+					usdaQuery: "",
+					quantity: 200,
+					member: "shared",
+				},
+			],
+			removals: [],
+			companionSnacks: [],
+		};
+		try {
+			globalThis.fetch = (async () =>
+				new Response(
+					JSON.stringify({
+						choices: [
+							{
+								message: {
+									content: JSON.stringify({
+										recommendations: [proposal, proposal],
+									}),
+								},
+							},
+						],
+					}),
+					{ status: 200 },
+				)) as typeof fetch;
+			const results = await recommend({
+				meal: {
+					id: "protein-mix",
+					date: "2026-10-08",
+					slot: "lunch",
+					memberId: "richard",
+					name: "",
+					notes: "",
+					ingredients: [],
+				},
+				catalog,
+				currentDay: [],
+				savedMenus: [],
+				targets: [
+					{
+						member: "Member A",
+						memberId: "richard",
+						dailyCalories: 1000,
+						currentCalories: 0,
+						calories: 1000,
+						dailyProtein: 80,
+						currentProtein: 0,
+						protein: 80,
+						dailyCarbs: 100,
+						currentCarbs: 0,
+						carbs: 100,
+						dailyFat: 40,
+						currentFat: 0,
+						fat: 40,
+						dailyFiber: 20,
+						currentFiber: 0,
+						fiber: 20,
+					},
+				],
+				dailySnackLimits: [],
+				settledSnackMembers: [],
+				memberLabels: [
+					{ member: "Member A", memberId: "richard" },
+					{ member: "Member B", memberId: "michelle" },
+				],
+				prior: [],
+			});
+			expect(results).toHaveLength(1);
+			expect(results[0].deltas[0].sourceWarning).toContain("second source");
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
+			else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+		}
+	});
+
+	test("AI recommendations keep calorie-compliant options and fail when none remain", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		const catalog = (
+			(await (await fetch(`${base}/api/data`)).json()) as AppData
+		).ingredients;
+		const keyFor = (id: string) =>
+			`ingredient-${catalog.filter((item) => item.suggestible).findIndex((item) => item.id === id) + 1}`;
+		const proposal = (name: string, catalogKey: string, quantity: number) => ({
+			name,
+			origin: "new",
+			savedMenuKey: "",
+			justification: "Fits the meal.",
+			cookingNote: "",
+			ingredients: [{ catalogKey, usdaQuery: "", quantity, member: "shared" }],
+			removals: [],
+			companionSnacks: [],
+		});
+		const target = {
+			member: "Member A",
+			memberId: "richard" as const,
+			dailyCalories: 1000,
+			currentCalories: 0,
+			calories: 1000,
+			dailyProtein: 80,
+			currentProtein: 0,
+			protein: 80,
+			dailyCarbs: 100,
+			currentCarbs: 0,
+			carbs: 100,
+			dailyFat: 40,
+			currentFat: 0,
+			fat: 40,
+			dailyFiber: 20,
+			currentFiber: 0,
+			fiber: 20,
+		};
+		const meal = {
+			id: "calorie-filter",
+			date: "2026-10-08",
+			slot: "dinner" as const,
+			name: "",
+			notes: "",
+			ingredients: [],
+		};
+		const run = () =>
+			recommend({
+				meal,
+				catalog,
+				currentDay: [],
+				savedMenus: [],
+				targets: [
+					target,
+					{
+						...target,
+						member: "Member B",
+						memberId: "michelle",
+						dailyCalories: 100,
+						calories: 100,
+					},
+				],
+				dailySnackLimits: [],
+				settledSnackMembers: [],
+				memberLabels: [
+					{ member: "Member A", memberId: "richard" },
+					{ member: "Member B", memberId: "michelle" },
+				],
+				prior: [],
+			});
+		try {
+			const highCalorie = proposal("Tofu-heavy", keyFor("tofu"), 200);
+			const usable = proposal("Tofu", keyFor("tofu"), 50);
+			globalThis.fetch = (async () =>
+				new Response(
+					JSON.stringify({
+						choices: [
+							{
+								message: {
+									content: JSON.stringify({ recommendations: [usable, highCalorie] }),
+								},
+							},
+						],
+					}),
+					{ status: 200 },
+				)) as typeof fetch;
+			const results = await run();
+			expect(results.map((result) => result.name)).toEqual(["Tofu"]);
+			expect(
+				results[0].deltas.every(
+					({ caloriesAfter, calorieTarget }) =>
+						caloriesAfter <= calorieTarget * 1.05,
+				),
+			).toBe(true);
+
+			globalThis.fetch = (async () =>
+				new Response(
+					JSON.stringify({
+						choices: [
+							{
+								message: {
+									content: JSON.stringify({ recommendations: [highCalorie] }),
+								},
+							},
+						],
+					}),
+					{ status: 200 },
+				)) as typeof fetch;
+			await expect(run()).rejects.toThrow("within the nutrition limits");
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
+			else process.env.OPENROUTER_API_KEY = oldOpenRouter;
 		}
 	});
 
@@ -253,8 +468,8 @@ describe("backend API", () => {
 			`ingredient-${eligible.findIndex((item) => item.id === id) + 1}`;
 		const first = {
 			name: "Rice quantity adjustment",
-			origin: "new",
-			savedMenuKey: "",
+			origin: "saved",
+			savedMenuKey: "saved-menu-1",
 			justification: "Keeps the draft.",
 			cookingNote: "",
 			ingredients: [
@@ -322,6 +537,7 @@ describe("backend API", () => {
 				],
 				prior: [],
 			});
+			expect(results[0]).toMatchObject({ origin: "new", savedMenuKey: "" });
 			expect(results[0].removals).toEqual([]);
 			expect(results[1].removals).toEqual([existing.name]);
 			const falseClaim = {
@@ -343,8 +559,7 @@ describe("backend API", () => {
 					}),
 					{ status: 200 },
 				)) as typeof fetch;
-			await expect(
-				recommend({
+			const correctedFalseClaim = await recommend({
 					meal,
 					catalog,
 					currentDay: [],
@@ -357,8 +572,39 @@ describe("backend API", () => {
 						{ member: "Member B", memberId: "michelle" },
 					],
 					prior: [],
-				}),
-			).rejects.toThrow("removal disclosure");
+				});
+			expect(correctedFalseClaim[1].removals).toEqual([existing.name]);
+			const incorrectFirstDisclosure = { ...first, removals: later.removals };
+			globalThis.fetch = (async () =>
+				new Response(
+					JSON.stringify({
+						choices: [
+							{
+								message: {
+									content: JSON.stringify({
+										recommendations: [incorrectFirstDisclosure, later],
+									}),
+								},
+							},
+						],
+					}),
+					{ status: 200 },
+				)) as typeof fetch;
+			const correctedFirstDisclosure = await recommend({
+				meal,
+				catalog,
+				currentDay: [],
+				savedMenus: [],
+				targets: [],
+				dailySnackLimits: [],
+				settledSnackMembers: [],
+				memberLabels: [
+					{ member: "Member A", memberId: "richard" },
+					{ member: "Member B", memberId: "michelle" },
+				],
+				prior: [],
+			});
+			expect(correctedFirstDisclosure[0].removals).toEqual([]);
 		} finally {
 			globalThis.fetch = oldFetch;
 			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
@@ -415,12 +661,13 @@ describe("backend API", () => {
 					{ status: 200 },
 				);
 			}) as typeof fetch;
-			const result = await recommend({
+			for (const memberId of ["richard", "michelle"] as const) {
+				const result = await recommend({
 				meal: {
 					id: "single-member",
 					date: "2026-10-08",
 					slot: "lunch",
-					memberId: "richard",
+					memberId,
 					name: "Meal",
 					notes: "",
 					ingredients: [],
@@ -436,13 +683,105 @@ describe("backend API", () => {
 					{ member: "Member B", memberId: "michelle" },
 				],
 				prior: [],
+				});
+				expect(
+					requestBody.response_format.json_schema.schema.properties
+						.recommendations.items.properties.ingredients.items.properties.member
+						.enum,
+				).toEqual(["shared"]);
+				expect(result[0].ingredients[0].memberId).toBeUndefined();
+			}
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
+			else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+		}
+	});
+
+	test("derives dinner removal disclosure from ingredient ownership", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		const catalog = (
+			(await (await fetch(`${base}/api/data`)).json()) as AppData
+		).ingredients;
+		const rice = catalog.find((item) => item.id === "rice")!;
+		const tofu = catalog.find((item) => item.id === "tofu")!;
+		const eligible = catalog.filter(
+			(item) => item.suggestible || item.id === rice.id,
+		);
+		const keyFor = (id: string) =>
+			`ingredient-${eligible.findIndex((item) => item.id === id) + 1}`;
+		const sharedRice = {
+			catalogKey: keyFor(rice.id),
+			usdaQuery: "",
+			quantity: 100,
+			member: "shared",
+		};
+		const memberRice = { ...sharedRice, member: "Member A" };
+		const proposal = (ingredients: unknown[], removals: unknown[]) => ({
+			name: "Dinner",
+			origin: "new",
+			savedMenuKey: "",
+			justification: "Keeps portions clear.",
+			cookingNote: "",
+			ingredients,
+			removals,
+			companionSnacks: [],
+		});
+		const first = proposal([sharedRice, memberRice], []);
+		const later = proposal(
+			[
+				sharedRice,
+				{
+					catalogKey: keyFor(tofu.id),
+					usdaQuery: "",
+					quantity: 100,
+					member: "shared",
+				},
+			],
+			[],
+		);
+		try {
+			globalThis.fetch = (async () =>
+				new Response(
+					JSON.stringify({
+						choices: [
+							{
+								message: {
+									content: JSON.stringify({ recommendations: [first, later] }),
+								},
+							},
+						],
+					}),
+					{ status: 200 },
+				)) as typeof fetch;
+			const results = await recommend({
+				meal: {
+					id: "shared-dinner",
+					date: "2026-10-09",
+					slot: "dinner",
+					name: "Dinner",
+					notes: "",
+					ingredients: [
+						{ ingredientId: rice.id, quantity: 100 },
+						{ ingredientId: rice.id, quantity: 100, memberId: "richard" },
+					],
+				},
+				catalog,
+				currentDay: [],
+				savedMenus: [],
+				targets: [],
+				dailySnackLimits: [],
+				settledSnackMembers: [],
+				memberLabels: [
+					{ member: "Member A", memberId: "richard" },
+					{ member: "Member B", memberId: "michelle" },
+				],
+				prior: [],
 			});
-			expect(
-				requestBody.response_format.json_schema.schema.properties
-					.recommendations.items.properties.ingredients.items.properties.member
-					.enum,
-			).toEqual(["shared"]);
-			expect(result[0].ingredients[0].memberId).toBeUndefined();
+			expect(results[0].removals).toEqual([]);
+			expect(results[1].removals).toEqual([`${rice.name} (Member A)`]);
 		} finally {
 			globalThis.fetch = oldFetch;
 			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;

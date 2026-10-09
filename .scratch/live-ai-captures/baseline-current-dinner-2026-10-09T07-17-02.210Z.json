@@ -1,0 +1,185 @@
+{
+  "scenario": "dinner",
+  "model": "qwen/qwen3.5-35b-a3b-20260224",
+  "routeStatus": 200,
+  "routeError": null,
+  "recommendationCount": 5,
+  "providerRequests": 0,
+  "provider": [
+    {
+      "status": 200,
+      "model": "qwen/qwen3.5-35b-a3b",
+      "usage": {
+        "prompt_tokens": 10406,
+        "completion_tokens": 2560,
+        "total_tokens": 12966,
+        "cost": 0.0041209,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0.0041209,
+          "upstream_inference_prompt_cost": 0.0015609,
+          "upstream_inference_completions_cost": 0.00256
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "requestBody": null,
+      "content": "{\n  \"recommendations\": [\n    {\n      \"name\": \"Ayam Saus Inggris (Adjusted)\",\n      \"origin\": \"new\",\n      \"savedMenuKey\": \"\",\n      \"justification\": \"Uses existing shared ingredients with adjusted rice to fit Member A's protein gap while keeping calories under the 5% overage limit.\",\n      \"cookingNote\": \"Stir-fry chicken with onions and cabbage; serve with reduced rice for Member A.\",\n      \"removals\": [],\n      \"ingredients\": [\n        {\n          \"catalogKey\": \"ingredient-8\",\n          \"usdaQuery\": \"ingredient-8\",\n          \"quantity\": 166,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 280,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-9\",\n          \"usdaQuery\": \"ingredient-9\",\n          \"quantity\": 200,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-13\",\n          \"usdaQuery\": \"ingredient-13\",\n          \"quantity\": 34,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-14\",\n          \"usdaQuery\": \"ingredient-14\",\n          \"quantity\": 100,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 150,\n          \"member\": \"Member A\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 130,\n          \"member\": \"Member B\"\n        }\n      ]\n    ,\n    \"companionSnacks\": []\n  },\n    {\n      \"name\": \"Tempeh & Tahu Saus Tiram\",\n      \"origin\": \"new\",\n      \"savedMenuKey\": \"\",\n      \"justification\": \"Combines tempeh and tofu to maximize protein density using cheap sources, replacing chicken to diversify while meeting protein targets.\",\n      \"cookingNote\": \"Sauté tempeh and tofu with onions and cabbage; serve with rice.\",\n      \"removals\": [],\n      \"ingredients\": [\n        {\n          \"catalogKey\": \"ingredient-164\",\n          \"usdaQuery\": \"ingredient-164\",\n          \"quantity\": 150,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-167\",\n          \"usdaQuery\": \"ingredient-167\",\n          \"quantity\": 150,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-9\",\n          \"usdaQuery\": \"ingredient-9\",\n          \"quantity\": 200,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-14\",\n          \"usdaQuery\": \"ingredient-14\",\n          \"quantity\": 100,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-13\",\n          \"usdaQuery\": \"ingredient-13\",\n          \"quantity\": 25,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 200,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 100,\n          \"member\": \"Member A\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 100,\n          \"member\": \"Member B\"\n        }\n      ]\n    ,\n    \"companionSnacks\": []\n  },\n    {\n      \"name\": \"Eggs & Tempeh Stir-fry\",\n      \"origin\": \"new\",\n      \"savedMenuKey\": \"\",\n      \"justification\": \"Uses eggs and tempeh for high protein; reduces rice to stay within calorie limits while adding fiber from cabbage.\",\n      \"cookingNote\": \"Scramble eggs with tempeh and vegetables; serve with moderate rice.\",\n      \"removals\": [],\n      \"ingredients\": [\n        {\n          \"catalogKey\": \"ingredient-79\",\n          \"usdaQuery\": \"ingredient-79\",\n          \"quantity\": 4,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-164\",\n          \"usdaQuery\": \"ingredient-164\",\n          \"quantity\": 120,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-9\",\n          \"usdaQuery\": \"ingredient-9\",\n          \"quantity\": 200,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-14\",\n          \"usdaQuery\": \"ingredient-14\",\n          \"quantity\": 80,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-13\",\n          \"usdaQuery\": \"ingredient-13\",\n          \"quantity\": 20,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 180,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 90,\n          \"member\": \"Member A\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 90,\n          \"member\": \"Member B\"\n        }\n      ]\n    ,\n    \"companionSnacks\": []\n  },\n    {\n      \"name\": \"Tofu & Edamame Bowl\",\n      \"origin\": \"new\",\n      \"savedMenuKey\": \"\",\n      \"justification\": \"Combines firm tofu and edamame for plant-based protein; uses minimal oil and moderate rice to optimize macros.\",\n      \"cookingNote\": \"Sauté tofu and edamame with onions and cabbage; serve with rice.\",\n      \"removals\": [],\n      \"ingredients\": [\n        {\n          \"catalogKey\": \"ingredient-167\",\n          \"usdaQuery\": \"ingredient-167\",\n          \"quantity\": 200,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-75\",\n          \"usdaQuery\": \"ingredient-75\",\n          \"quantity\": 100,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-9\",\n          \"usdaQuery\": \"ingredient-9\",\n          \"quantity\": 200,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-14\",\n          \"usdaQuery\": \"ingredient-14\",\n          \"quantity\": 80,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-13\",\n          \"usdaQuery\": \"ingredient-13\",\n          \"quantity\": 20,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 180,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 90,\n          \"member\": \"Member A\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 90,\n          \"member\": \"Member B\"\n        }\n      ]\n    ,\n    \"companionSnacks\": []\n  },\n    {\n      \"name\": \"Ayam & Tahu Saus Tiram\",\n      \"origin\": \"new\",\n      \"savedMenuKey\": \"\",\n      \"justification\": \"Mixes chicken breast and tofu to ensure two protein sources; balances calories and protein for both members.\",\n      \"cookingNote\": \"Stir-fry chicken and tofu with onions and cabbage; serve with rice.\",\n      \"removals\": [],\n      \"ingredients\": [\n        {\n          \"catalogKey\": \"ingredient-8\",\n          \"usdaQuery\": \"ingredient-8\",\n          \"quantity\": 100,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-167\",\n          \"usdaQuery\": \"ingredient-167\",\n          \"quantity\": 150,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-9\",\n          \"usdaQuery\": \"ingredient-9\",\n          \"quantity\": 200,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-14\",\n          \"usdaQuery\": \"ingredient-14\",\n          \"quantity\": 80,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-13\",\n          \"usdaQuery\": \"ingredient-13\",\n          \"quantity\": 20,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 180,\n          \"member\": \"shared\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 90,\n          \"member\": \"Member A\"\n        },\n        {\n          \"catalogKey\": \"ingredient-19\",\n          \"usdaQuery\": \"ingredient-19\",\n          \"quantity\": 90,\n          \"member\": \"Member B\"\n        }\n      ]\n    ,\n    \"companionSnacks\": []\n  }\n]\n}",
+      "error": null
+    }
+  ],
+  "responseSummary": [
+    {
+      "name": "Ayam Saus Inggris (Adjusted)",
+      "origin": "new",
+      "ingredientCount": 7,
+      "removals": [],
+      "proteinByMember": [
+        {
+          "member": "Member B",
+          "proteinAfter": 35.462500000000006,
+          "proteinTarget": 41.0625
+        },
+        {
+          "member": "Member A",
+          "proteinAfter": 36.0005,
+          "proteinTarget": 60.25
+        }
+      ]
+    },
+    {
+      "name": "Tempeh & Tahu Saus Tiram",
+      "origin": "new",
+      "ingredientCount": 8,
+      "removals": [
+        "Dada ayam tanpa kulit"
+      ],
+      "proteinByMember": [
+        {
+          "member": "Member B",
+          "proteinAfter": 31.880000000000003,
+          "proteinTarget": 41.0625
+        },
+        {
+          "member": "Member A",
+          "proteinAfter": 31.880000000000003,
+          "proteinTarget": 60.25
+        }
+      ]
+    },
+    {
+      "name": "Eggs & Tempeh Stir-fry",
+      "origin": "new",
+      "ingredientCount": 8,
+      "removals": [
+        "Dada ayam tanpa kulit"
+      ],
+      "proteinByMember": [
+        {
+          "member": "Member B",
+          "proteinAfter": 31.561999999999998,
+          "proteinTarget": 41.0625
+        },
+        {
+          "member": "Member A",
+          "proteinAfter": 31.561999999999998,
+          "proteinTarget": 60.25
+        }
+      ]
+    },
+    {
+      "name": "Tofu & Edamame Bowl",
+      "origin": "new",
+      "ingredientCount": 8,
+      "removals": [
+        "Dada ayam tanpa kulit"
+      ],
+      "proteinByMember": [
+        {
+          "member": "Member B",
+          "proteinAfter": 24.482,
+          "proteinTarget": 41.0625
+        },
+        {
+          "member": "Member A",
+          "proteinAfter": 24.482,
+          "proteinTarget": 60.25
+        }
+      ]
+    },
+    {
+      "name": "Ayam & Tahu Saus Tiram",
+      "origin": "new",
+      "ingredientCount": 8,
+      "removals": [],
+      "proteinByMember": [
+        {
+          "member": "Member B",
+          "proteinAfter": 31.512,
+          "proteinTarget": 41.0625
+        },
+        {
+          "member": "Member A",
+          "proteinAfter": 31.512,
+          "proteinTarget": 60.25
+        }
+      ]
+    }
+  ],
+  "elapsedMs": 16,
+  "requestMealHash": "cb6a36f136389af700d60e0c4a855761390de12c330a27054b78e49da565117e",
+  "sourceDatabaseUnchanged": true,
+  "routeRequest": {
+    "meal": {
+      "id": "1791527845607",
+      "date": "2026-10-09",
+      "slot": "dinner",
+      "name": "Ayam saus Inggris",
+      "notes": "",
+      "ingredients": [
+        {
+          "ingredientId": "chicken",
+          "quantity": 166
+        },
+        {
+          "ingredientId": "rice",
+          "quantity": 280
+        },
+        {
+          "ingredientId": "chinese-cabbage",
+          "quantity": 200
+        },
+        {
+          "ingredientId": "olive-oil",
+          "quantity": 34
+        },
+        {
+          "ingredientId": "onion",
+          "quantity": 100
+        },
+        {
+          "ingredientId": "rice",
+          "quantity": 150,
+          "memberId": "richard"
+        },
+        {
+          "ingredientId": "rice",
+          "quantity": 130,
+          "memberId": "michelle"
+        }
+      ]
+    },
+    "prior": [],
+    "pendingIngredients": [],
+    "companions": []
+  }
+}

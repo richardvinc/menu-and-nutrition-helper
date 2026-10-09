@@ -60,7 +60,7 @@ const blankIngredient = (): IngredientDraft => ({
 	equivalentGrams: "",
 	preparation: "",
 	source: "",
-	suggestible: false,
+	suggestible: true,
 	calories: "0",
 	protein: "0",
 	carbs: "0",
