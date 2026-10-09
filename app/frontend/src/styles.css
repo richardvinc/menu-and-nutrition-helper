@@ -271,8 +271,7 @@ button {
 :root[data-theme="dark"] .library-card__badge,
 :root[data-theme="dark"] .pk-week-meal,
 :root[data-theme="dark"] .pk-week-add,
-:root[data-theme="dark"] .pk-pocket__targets,
-:root[data-theme="dark"] .pk-move-dialog__preview {
+:root[data-theme="dark"] .pk-pocket__targets {
 	background: #2b293b;
 	border-color: var(--app-line);
 }
@@ -316,7 +315,6 @@ button {
 :root[data-theme="dark"] .pk-editor__section-heading button,
 :root[data-theme="dark"] .pk-editor__footer button,
 :root[data-theme="dark"] .pk-week-meal__actions button,
-:root[data-theme="dark"] .pk-move-dialog__actions button,
 :root[data-theme="dark"] .library-page button.secondary,
 :root[data-theme="dark"] .targets-page button.secondary,
 :root[data-theme="dark"]

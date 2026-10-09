@@ -230,18 +230,19 @@
 	width: min(440px, 100%);
 	padding: 25px;
 	border-radius: 22px;
-	background: white;
+	background: var(--app-surface);
 	box-shadow: 0 24px 70px rgba(35, 28, 86, 0.28);
 }
 .pk-move-dialog__close {
 	position: absolute;
 	top: 14px;
 	right: 14px;
-	width: 36px;
-	height: 36px;
+	width: 44px;
+	height: 44px;
 	border: 0;
 	border-radius: 50%;
-	background: #f2f4ef;
+	background: var(--app-canvas);
+	color: var(--app-ink);
 	font-size: 23px;
 }
 .pk-move-dialog h2 {
@@ -249,7 +250,7 @@
 	font: 750 25px var(--font-display);
 }
 .pk-move-dialog > p:not(.pk-week__eyebrow) {
-	color: #65716a;
+	color: var(--app-muted);
 	font-size: 13px;
 	line-height: 1.5;
 }
@@ -265,13 +266,14 @@
 	padding: 8px;
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	background: white;
+	background: var(--app-surface);
+	color: var(--app-ink);
 }
 .pk-move-dialog__preview {
 	padding: 10px;
 	border-radius: 8px;
-	background: #f5f7f2;
-	color: #4d5d52;
+	background: var(--app-canvas);
+	color: var(--app-ink);
 	font-size: 12px;
 }
 .pk-move-dialog__actions {
@@ -285,13 +287,14 @@
 	padding: 0 14px;
 	border: 1px solid var(--line);
 	border-radius: 8px;
-	background: white;
+	background: var(--app-surface);
+	color: var(--app-ink);
 	font-size: 12px;
 }
 .pk-move-dialog__actions .pk-week__confirm {
 	border-color: var(--green);
 	background: var(--green);
-	color: white;
+	color: var(--app-surface);
 }
 .pk-week__confirm:disabled {
 	opacity: 0.45;
