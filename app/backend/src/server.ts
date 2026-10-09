@@ -1111,7 +1111,8 @@ function validAppData(x: any): x is AppData {
 		x.members.some(
 			(m: any) =>
 				!members.has(m?.id) ||
-				!m.name ||
+				typeof m.name !== "string" ||
+				!m.name.trim() ||
 				!validDate(m.birthday) ||
 				!["male", "female", "other"].includes(m.sex) ||
 				!finite(m.heightCm) ||
@@ -1317,7 +1318,7 @@ function targetForRequest(
 	};
 }
 
-function replaceData(db: Database, data: AppData) {
+function replaceData(db: Database, data: AppData, normalizeTargets = true) {
 	db.transaction(() => {
 		db.exec(
 			"DELETE FROM scheduled_meals; DELETE FROM saved_menus; DELETE FROM ingredients; DELETE FROM targets; DELETE FROM members;",
@@ -1327,7 +1328,7 @@ function replaceData(db: Database, data: AppData) {
 		data.savedMenus.forEach((x) => put(db, "saved_menus", x.id, x));
 		data.scheduledMeals.forEach((x) => putMeal(db, x));
 		data.targets.forEach((x) => {
-			const target = normalizeWeekendReserve(x);
+			const target = normalizeTargets ? normalizeWeekendReserve(x) : x;
 			put(
 				db,
 				"targets",
@@ -1338,6 +1339,59 @@ function replaceData(db: Database, data: AppData) {
 			);
 		});
 	})();
+}
+
+function validateSQLiteBackup(bytes: Uint8Array): AppData {
+	const backup = Database.deserialize(bytes);
+	try {
+		const reference = createDatabase(":memory:", false);
+		const schema = (database: Database) => database
+			.query("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name")
+			.all() as { type: string; name: string; sql: string }[];
+		const normalizeSchema = (rows: ReturnType<typeof schema>) =>
+			rows.map((x) => `${x.type}|${x.name}|${x.sql.toLowerCase().replace(/\s+/g, " ").trim()}`).join("\n");
+		let sameSchema: boolean;
+		try {
+			sameSchema = normalizeSchema(schema(backup)) === normalizeSchema(schema(reference));
+		} finally {
+			reference.close();
+		}
+		if (!sameSchema) throw new Error("SQLite backup schema does not match this app");
+		if (backup.query("PRAGMA integrity_check").get()?.integrity_check !== "ok")
+			throw new Error("SQLite backup failed its integrity check");
+		if ((backup.query("PRAGMA foreign_key_check").all() as unknown[]).length)
+			throw new Error("SQLite backup contains invalid foreign keys");
+		const data: AppData = {
+			members: rows<MemberProfile>(backup, "members"),
+			ingredients: rows<Ingredient>(backup, "ingredients"),
+			savedMenus: rows<SavedMenu>(backup, "saved_menus").map((menu) => ({
+				...menu,
+				slot: menu.slot ?? "lunch",
+			})),
+			scheduledMeals: rows<ScheduledMeal>(backup, "scheduled_meals"),
+			targets: rows<WeeklyTarget>(backup, "targets"),
+		};
+		const rowsWithIds = [
+			...backup.query("SELECT id, data FROM members").all() as { id: string; data: string }[],
+			...backup.query("SELECT id, data FROM ingredients").all() as { id: string; data: string }[],
+			...backup.query("SELECT id, data FROM saved_menus").all() as { id: string; data: string }[],
+			...backup.query("SELECT id, data FROM scheduled_meals").all() as { id: string; data: string }[],
+		];
+		if (rowsWithIds.some(({ id, data: json }) => id !== JSON.parse(json).id))
+			throw new Error("SQLite backup data is invalid");
+		if ((backup.query("SELECT id, date, slot, member_id, data FROM scheduled_meals").all() as { id: string; date: string; slot: string; member_id: string; data: string }[]).some((row) => {
+			const meal = JSON.parse(row.data);
+			return row.id !== meal.id || row.date !== meal.date || row.slot !== meal.slot || row.member_id !== (meal.memberId ?? "");
+		})) throw new Error("SQLite backup data is invalid");
+		if ((backup.query("SELECT member_id, week_start, data FROM targets").all() as { member_id: string; week_start: string; data: string }[]).some((row) => {
+			const target = JSON.parse(row.data);
+			return row.member_id !== target.memberId || row.week_start !== target.weekStart;
+		})) throw new Error("SQLite backup data is invalid");
+		if (!validAppData(data)) throw new Error("SQLite backup data is invalid");
+		return data;
+	} finally {
+		backup.close();
+	}
 }
 
 export function createApp(db = createDatabase()) {
@@ -2209,11 +2263,26 @@ export function createApp(db = createDatabase()) {
 			res
 				.attachment("piring-kita.sqlite")
 				.setHeader("Content-Type", "application/vnd.sqlite3")
-				.send(db.serialize());
+				.send(Buffer.from(db.serialize()));
 		} catch (e) {
 			return fail(res, e);
 		}
 	});
+	app.post(
+		"/api/database.sqlite",
+		express.raw({ type: ["application/vnd.sqlite3", "application/octet-stream"], limit: "50mb" }),
+		(req, res) => {
+			try {
+				if (!Buffer.isBuffer(req.body) || req.body.length === 0)
+					return fail(res, "SQLite backup file is required");
+				const data = validateSQLiteBackup(req.body);
+				replaceData(db, data, false);
+				return res.json({ ok: true });
+			} catch (e) {
+				return fail(res, e);
+			}
+		},
+	);
 
 	const frontend = resolve(import.meta.dir, "../../frontend/dist");
 	if (existsSync(resolve(frontend, "index.html"))) {

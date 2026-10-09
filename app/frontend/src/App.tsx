@@ -143,6 +143,10 @@ export function App() {
 					)
 				}
 				onDeleteIngredient={(id) => run(() => api.deleteIngredient(id))}
+				onRestoreDatabase={async (file) => {
+					await api.restoreDatabase(file);
+					await reload();
+				}}
 			/>
 		) : (
 			<Targets

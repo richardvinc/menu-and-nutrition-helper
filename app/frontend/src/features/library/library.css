@@ -5,6 +5,51 @@
 	padding: 28px 0 56px;
 	color: var(--app-ink);
 }
+.library-backup {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 24px;
+	padding: 16px;
+	border: 1px solid var(--app-line);
+	border-radius: 14px;
+	background: var(--app-surface);
+}
+.library-backup h2,
+.library-backup p {
+	margin: 0;
+}
+.library-backup p {
+	margin-top: 4px;
+	color: var(--app-muted);
+}
+.library-backup .button {
+	display: inline-flex;
+	align-items: center;
+	min-height: 44px;
+	border: 1px solid var(--app-line);
+	border-radius: 11px;
+	padding: 9px 15px;
+	background: var(--app-surface);
+	color: var(--app-ink);
+	font-weight: 700;
+	cursor: pointer;
+	text-decoration: none;
+}
+.library-backup button.secondary {
+	border-color: var(--app-line);
+	background: var(--app-surface);
+	color: var(--app-ink);
+}
+.library-backup .button:focus-within,
+.library-backup .button:focus-visible {
+	outline: 3px solid #a58dec;
+	outline-offset: 2px;
+}
+.library-backup input[type="file"] {
+	display: none;
+}
 .feature-heading {
 	margin-bottom: 20px;
 }
@@ -273,7 +318,8 @@
 		padding-top: 18px;
 	}
 	.library-toolbar,
-	.library-card {
+	.library-card,
+	.library-backup {
 		align-items: stretch;
 		flex-direction: column;
 	}
