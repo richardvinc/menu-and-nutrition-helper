@@ -5,7 +5,7 @@ import type {
 	WeeklyTarget,
 } from "@piring-kita/shared";
 import { useEffect, useMemo, useState } from "react";
-
+import "./targets.css";
 
 export type TargetsProps = {
 	members: MemberProfile[];
@@ -191,7 +191,7 @@ export function Targets({
 
 	if (!member || !current || !draft)
 		return (
-			<main className="mx-auto w-[calc(100%-24px)] max-w-[920px] py-[18px] text-[var(--app-ink)] sm:w-[calc(100%-32px)] sm:py-7">
+			<main className="targets-page">
 				<h1>Targets</h1>
 				<p>No target settings are available for this member and week.</p>
 			</main>
@@ -200,9 +200,9 @@ export function Targets({
 		draft.proteinPercent + draft.carbsPercent + draft.fatPercent;
 
 	return (
-		<main className="mx-auto w-[calc(100%-24px)] max-w-[920px] py-[18px] text-[var(--app-ink)] sm:w-[calc(100%-32px)] sm:py-7">
-			<header className="mb-5">
-				<p className="text-[0.82rem] font-extrabold uppercase tracking-[0.08em] text-[var(--app-purple)]">Next-week review</p>
+		<main className="targets-page">
+			<header className="feature-heading">
+				<p className="feature-eyebrow">Next-week review</p>
 				<h1>Targets</h1>
 				<p>
 					Stage changes for the week of{" "}
@@ -215,7 +215,7 @@ export function Targets({
 					. Current-week targets stay in place until then.
 				</p>
 			</header>
-			<section className="my-[18px] rounded-[22px] border border-[var(--app-line)] bg-[var(--app-surface)] p-4 shadow-[var(--app-shadow)] sm:p-6">
+			<section className="target-panel">
 				<label>
 					Member
 					<select
@@ -231,9 +231,9 @@ export function Targets({
 						))}
 					</select>
 				</label>
-				<aside className="mt-[18px] flex flex-col justify-between gap-3 rounded-2xl border border-[#dcd6ff] bg-[#f6f4ff] p-4 sm:flex-row sm:items-center" aria-label="Suggested targets">
+				<aside className="target-recommendation" aria-label="Suggested targets">
 					<div>
-						<p className="text-[0.82rem] font-extrabold uppercase tracking-[0.08em] text-[var(--app-purple)]">Suggested starting point</p>
+						<p className="feature-eyebrow">Suggested starting point</p>
 						<strong>
 							20% deficit · 25% protein · 45% carbohydrate · 30% fat
 						</strong>
@@ -244,7 +244,7 @@ export function Targets({
 					</div>
 					<button
 						type="button"
-						className="border border-[#c9c5d6] bg-white text-[#39354e]"
+						className="secondary"
 						onClick={() => {
 							setDraft({ ...draft, ...suggestedTargets });
 							setPreview(null);
@@ -255,7 +255,7 @@ export function Targets({
 						Use suggestion
 					</button>
 				</aside>
-				<div className="my-[18px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+				<div className="target-form-grid">
 					<label>
 						Weight check-in for next Monday (kg)
 						<input
@@ -273,7 +273,7 @@ export function Targets({
 							}
 						/>
 						{fieldErrors.weightKg ? (
-							<small className="block font-semibold text-[#9e2632]" id="weight-error">
+							<small className="target-error" id="weight-error">
 								{fieldErrors.weightKg}
 							</small>
 						) : (
@@ -326,7 +326,7 @@ export function Targets({
 								}
 							/>
 							{fieldErrors.activityFactor && (
-								<small className="block font-semibold text-[#9e2632]" id="activity-error">
+								<small className="target-error" id="activity-error">
 									{fieldErrors.activityFactor}
 								</small>
 							)}
@@ -349,7 +349,7 @@ export function Targets({
 							}
 						/>
 						{fieldErrors.deficitPercent ? (
-							<small className="block font-semibold text-[#9e2632]" id="deficit-error">
+							<small className="target-error" id="deficit-error">
 								{fieldErrors.deficitPercent}
 							</small>
 						) : (
@@ -359,9 +359,9 @@ export function Targets({
 						)}
 					</label>
 				</div>
-				<details className="mt-[18px] rounded-2xl border border-[var(--app-line)] bg-[var(--app-surface)] p-4">
+				<details className="target-disclosure">
 					<summary>Advanced settings</summary>
-					<div className="my-[18px] grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+					<div className="target-form-grid target-advanced">
 						<label>
 							Protein (%)
 							<input
@@ -417,7 +417,7 @@ export function Targets({
 								}
 							/>
 							{fieldErrors.fiberGrams && (
-								<small className="block font-semibold text-[#9e2632]" id="fiber-error">
+								<small className="target-error" id="fiber-error">
 									{fieldErrors.fiberGrams}
 								</small>
 							)}
@@ -438,7 +438,7 @@ export function Targets({
 								}
 							/>
 							{fieldErrors.weekendReserve ? (
-								<small className="block font-semibold text-[#9e2632]" id="reserve-error">
+								<small className="target-error" id="reserve-error">
 									{fieldErrors.weekendReserve}
 								</small>
 							) : (
@@ -458,15 +458,15 @@ export function Targets({
 							: `Macro percentages total ${macroTotal}%; they must equal 100%.`}
 					</p>
 					{fieldErrors.macros && (
-						<small className="block font-semibold text-[#9e2632]" role="alert">
+						<small className="target-error" role="alert">
 							{fieldErrors.macros}
 						</small>
 					)}
 				</details>
-				<div className="mt-[18px] flex flex-wrap justify-end gap-2">
+				<div className="target-actions">
 					<button
 						type="button"
-						className="border border-[#c9c5d6] bg-white text-[#39354e]"
+						className="secondary"
 						onClick={() => {
 							setDraft(initial);
 							setPreview(null);
@@ -484,19 +484,19 @@ export function Targets({
 			</section>
 
 			{error && (
-				<p className="border-l-4 border-[#b93442] bg-[#fff0f1] px-3 py-2 text-[#7d202a]" role="alert">
+				<p className="feature-error" role="alert">
 					{error}
 				</p>
 			)}
 			{preview && (
 				<section
-					className="my-[18px] rounded-[22px] border border-[var(--app-line)] bg-[var(--app-surface)] p-4 shadow-[var(--app-shadow)] sm:p-6"
+					className="target-panel target-preview"
 					aria-labelledby="preview-heading"
 					aria-live="polite"
 				>
-					<div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+					<div className="target-preview-heading">
 						<div>
-							<p className="text-[0.82rem] font-extrabold uppercase tracking-[0.08em] text-[var(--app-purple)]">Proposed target set</p>
+							<p className="feature-eyebrow">Proposed target set</p>
 							<h2 id="preview-heading">
 								Week of{" "}
 								{new Date(`${effectiveWeek}T12:00:00`).toLocaleDateString(
@@ -507,7 +507,7 @@ export function Targets({
 						</div>
 						<button
 							type="button"
-							className="border border-[#c9c5d6] bg-white text-[#39354e]"
+							className="secondary"
 							onClick={() => {
 								setPreview(null);
 								setDraft(initial);
@@ -519,11 +519,11 @@ export function Targets({
 					</div>
 					<p>{preview.recommendation}</p>
 					{advisory && (
-						<p className="rounded-lg border-l-4 border-[var(--app-yellow)] bg-[#fff9e7] px-3 py-2 text-[#5b4219]" role="status">
+						<p className="target-advisory" role="status">
 							{advisory}
 						</p>
 					)}
-					<div className="overflow-x-auto">
+					<div className="target-table-wrap">
 						<table>
 							<caption>Current versus proposed next-week targets</caption>
 							<thead>
@@ -584,7 +584,7 @@ export function Targets({
 							</tbody>
 						</table>
 					</div>
-					<p className="font-normal leading-[1.45] text-[#625f76]">
+					<p className="target-help">
 						The proposal takes effect on{" "}
 						{new Date(`${effectiveWeek}T12:00:00`).toLocaleDateString(
 							undefined,
@@ -593,7 +593,7 @@ export function Targets({
 						. Your weight check-in and all staged settings are included
 						together.
 					</p>
-					<div className="mt-[18px] flex flex-wrap justify-end gap-2">
+					<div className="target-actions">
 						<button type="button" onClick={apply} disabled={busy}>
 							{busy ? "Applying…" : "Apply next-week targets"}
 						</button>

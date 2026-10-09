@@ -4,7 +4,7 @@ import type {
 	Nutrition,
 	ScheduledMeal,
 } from "@piring-kita/shared";
-
+import "./dashboard.css";
 
 type DashboardData = Pick<
 	AppData,
@@ -102,14 +102,14 @@ export function Dashboard({ data, today = new Date() }: DashboardProps) {
 	] as const;
 
 	return (
-		<main className="mx-auto w-full max-w-[1500px] text-[var(--app-ink)]">
-			<header className="mb-[18px]">
-				<p className="mb-[9px] text-xs font-extrabold uppercase tracking-[1.3px] text-[var(--app-purple)]">PIRING KITA · PLANNING</p>
+		<main className="pk-dashboard">
+			<header className="pk-dashboard__header">
+				<p className="pk-eyebrow">PIRING KITA · PLANNING</p>
 				<h1>Good food, ready when you are.</h1>
-				<p className="text-[var(--app-muted)]">Today and tomorrow at a glance.</p>
+				<p className="pk-muted">Today and tomorrow at a glance.</p>
 			</header>
 
-			<div className="grid gap-[18px] lg:grid-cols-2">
+			<div className="pk-dashboard__days">
 				{[0, 1].map((offset) => {
 					const day = new Date(today);
 					day.setDate(today.getDate() + offset);
@@ -119,13 +119,13 @@ export function Dashboard({ data, today = new Date() }: DashboardProps) {
 					);
 					return (
 						<section
-							className="pt-0.5"
+							className="pk-day"
 							key={date}
 							aria-labelledby={`pk-day-${date}`}
 						>
-							<div className="mb-[14px] px-3 lg:px-0">
+							<div className="pk-day__heading">
 								<div>
-									<p className="mb-[9px] text-xs font-extrabold uppercase tracking-[1.3px] text-[var(--app-purple)]">
+									<p className="pk-eyebrow">
 										{offset === 0 ? "TODAY" : "TOMORROW"}
 									</p>
 									<h2 id={`pk-day-${date}`}>
@@ -137,7 +137,7 @@ export function Dashboard({ data, today = new Date() }: DashboardProps) {
 									</h2>
 								</div>
 							</div>
-							<div className="grid grid-cols-1 gap-2.5 lg:grid-cols-6">
+							<div className="pk-day__cards">
 								{mealCards.map((card) => {
 									const meal = dayMeals.find(
 										(item) =>
@@ -147,21 +147,21 @@ export function Dashboard({ data, today = new Date() }: DashboardProps) {
 									);
 									return (
 										<article
-											className={`col-span-1 min-w-0 rounded-[18px] border border-[var(--app-line)] border-t-4 border-t-[var(--app-purple)] bg-[var(--app-surface)] p-[18px] shadow-[0_10px_28px_rgba(47,43,89,0.07)] lg:col-span-2 ${card.slot === "snack" ? "lg:col-span-3" : ""} ${card.slot === "dinner" ? "bg-[#fff9f6]" : ""}`}
+											className={`pk-meal-card pk-meal-card--${card.slot}`}
 											key={card.label}
 										>
-											<p className="mb-2 text-xs font-extrabold uppercase tracking-[0.6px] text-[var(--app-purple)]">{card.label}</p>
+											<p className="pk-meal-card__label">{card.label}</p>
 											{meal ? (
 												<>
 													<h3>{meal.name}</h3>
-													<p className="mb-3 text-[13px] text-[var(--app-muted)]">
+													<p className="pk-meal-card__nutrition">
 														{fmt(mealNutrition(meal, ingredients).calories)}{" "}
 														kcal ·{" "}
 														{fmt(mealNutrition(meal, ingredients).protein)} g
 														protein
 													</p>
 													{meal.notes.trim() && (
-														<p className="mb-2.5 grid gap-0.5 rounded-[9px] bg-[#f5f4fa] p-2.5 text-xs leading-[1.4] text-[var(--app-muted)]">
+														<p className="pk-meal-card__notes">
 															<strong>Cooking note</strong>
 															<span>{meal.notes}</span>
 														</p>
@@ -185,7 +185,7 @@ export function Dashboard({ data, today = new Date() }: DashboardProps) {
 													</ul>
 												</>
 											) : (
-												<div className="grid min-h-[120px] place-content-center text-center text-[var(--app-muted)]">
+												<div className="pk-meal-card__empty">
 													<strong>Nothing planned</strong>
 													<p>No {card.slot} is scheduled.</p>
 												</div>
@@ -200,17 +200,17 @@ export function Dashboard({ data, today = new Date() }: DashboardProps) {
 			</div>
 
 			<section
-				className="mt-[30px] rounded-[20px] border border-[var(--app-line)] bg-[var(--app-surface)] p-3.5 shadow-[var(--app-shadow)]"
+				className="pk-panel pk-week-summary"
 				aria-labelledby="pk-week-summary-heading"
 			>
-				<div className="mb-4 flex items-start justify-between gap-3">
+				<div className="pk-panel__heading">
 					<div>
-						<p className="mb-[9px] text-xs font-extrabold uppercase tracking-[1.3px] text-[var(--app-purple)]">THIS WEEK</p>
+						<p className="pk-eyebrow">THIS WEEK</p>
 						<h2 id="pk-week-summary-heading">Weekly menu</h2>
 					</div>
 				</div>
-				<div className="overflow-visible">
-					<div className="grid grid-cols-1 overflow-hidden rounded-[14px] border border-[var(--app-line)] sm:grid-cols-4">
+				<div className="pk-week-summary__scroll">
+					<div className="pk-week-summary__grid">
 						{weekDays.map(({ day, key, meals }) => (
 							<section
 								className={key === dayKey(today) ? "is-today" : ""}

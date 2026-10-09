@@ -1,6 +1,6 @@
 import type { AppData, MemberId, ScheduledMeal } from "@piring-kita/shared";
 import { type PointerEvent, useEffect, useMemo, useState } from "react";
-
+import "./week.css";
 
 type PlannerData = Pick<
 	AppData,
@@ -107,9 +107,9 @@ export function WeeklyPlanner({
 		})),
 	];
 	const mealCard = (meal: ScheduledMeal) => (
-		<article className="grid gap-3 rounded-[13px] border border-[var(--app-line)] bg-[#f7f6fc] p-3" key={meal.id}>
+		<article className="pk-week-meal" key={meal.id}>
 			<div>
-				<span className="text-[10px] font-bold uppercase tracking-[0.6px] text-[var(--app-purple)]">
+				<span className="pk-week-meal__type">
 					{meal.slot === "dinner" && !meal.memberId
 						? "SHARED DINNER"
 						: (data.members.find((member) => member.id === meal.memberId)
@@ -119,7 +119,7 @@ export function WeeklyPlanner({
 				</span>
 				<strong>{meal.name}</strong>
 			</div>
-			<div className="flex flex-wrap gap-1.5">
+			<div className="pk-week-meal__actions">
 				<button onClick={() => onEditMeal(meal)}>Edit</button>
 				<button
 					onClick={() => {
@@ -160,7 +160,7 @@ export function WeeklyPlanner({
 			? ((
 					document
 						.elementFromPoint(event.clientX, event.clientY)
-						?.closest("[data-date]") as HTMLElement | null
+						?.closest(".pk-week-day") as HTMLElement | null
 				)?.dataset.date ?? "")
 			: "";
 		setDropDate(target === dayDrag.date ? "" : target);
@@ -172,7 +172,7 @@ export function WeeklyPlanner({
 			(
 				document
 					.elementFromPoint(event.clientX, event.clientY)
-					?.closest("[data-date]") as HTMLElement | null
+					?.closest(".pk-week-day") as HTMLElement | null
 			)?.dataset.date ?? "";
 		const source = dayDrag.date;
 		setDayDrag(null);
@@ -185,7 +185,7 @@ export function WeeklyPlanner({
 	const dayCard = (date: string) => (
 		<section
 			data-date={date}
-			className={`min-w-0 cursor-grab rounded-[20px] border border-[var(--app-line)] border-t-4 border-t-[var(--app-purple)] bg-[var(--app-surface)] p-4 shadow-[var(--app-shadow)] ${dayDrag?.date === date && dayDrag.active ? "opacity-45" : ""} ${dropDate === date ? "outline outline-3 outline-[var(--app-purple)] outline-offset-3" : ""}`}
+			className={`pk-week-day${dayDrag?.date === date && dayDrag.active ? " is-dragging" : ""}${dropDate === date ? " is-drop-target" : ""}`}
 			key={date}
 			aria-label={shortDate(date)}
 			onPointerDown={(event) => startDayDrag(event, date)}
@@ -212,13 +212,13 @@ export function WeeklyPlanner({
 						meal.memberId === slot.memberId,
 				);
 				return (
-					<div className="border-t border-[var(--app-line)] py-3" key={`${slot.slot}-${slot.memberId}`}>
-						<div className="mb-2 text-[13px] font-semibold text-[var(--app-muted)]">{slot.label}</div>
+					<div className="pk-week-slot" key={`${slot.slot}-${slot.memberId}`}>
+						<div className="pk-week-slot__label">{slot.label}</div>
 						{matches.length ? (
 							matches.map(mealCard)
 						) : (
 							<button
-								className="min-h-[46px] w-full rounded-[11px] border border-dashed border-[#cfc9ee] bg-[#faf9ff] p-2 text-left text-[13px] text-[var(--app-purple)]"
+								className="pk-week-add"
 								onClick={() => onCreateMeal(date, slot.slot, slot.memberId)}
 							>
 								＋ Add
@@ -231,10 +231,10 @@ export function WeeklyPlanner({
 	);
 
 	return (
-		<main className="mx-auto max-w-[1600px] px-[15px] py-[22px] pb-9 text-[var(--app-ink)] sm:px-6 sm:py-8 sm:pb-[60px]">
-			<header className="mb-6 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-end sm:gap-5">
+		<main className="pk-week">
+			<header className="pk-week__heading">
 				<div>
-					<p className="mb-2 text-[10px] font-bold uppercase tracking-[1.2px] text-[var(--app-purple)]">THE WEEK AHEAD</p>
+					<p className="pk-week__eyebrow">THE WEEK AHEAD</p>
 					<h1>Weekly planning board</h1>
 					<p>Drag one day onto another to swap their full menus.</p>
 				</div>
@@ -245,8 +245,8 @@ export function WeeklyPlanner({
 					})}
 				</span>
 			</header>
-			<div className="block lg:hidden">
-				<nav className="mb-3.5 grid grid-cols-7 gap-1 rounded-[14px] border border-[var(--app-line)] bg-[#e9e7f4] p-1" aria-label="Choose a day">
+			<div className="pk-week__mobile">
+				<nav className="pk-week__day-strip" aria-label="Choose a day">
 					{dates.map((date, index) => {
 						const count = data.scheduledMeals.filter(
 							(meal) => meal.date === date,
@@ -254,7 +254,7 @@ export function WeeklyPlanner({
 						return (
 							<button
 								key={date}
-								className={`grid min-h-10 place-items-center rounded-lg px-1 text-xs ${selectedDate === date ? "bg-[#3a3552] text-[var(--app-ink)]" : "bg-transparent text-[var(--app-muted)]"}`}
+								className={selectedDate === date ? "is-selected" : ""}
 								aria-pressed={selectedDate === date}
 								onClick={() => setSelectedDate(date)}
 							>
@@ -267,10 +267,10 @@ export function WeeklyPlanner({
 						);
 					})}
 				</nav>
-				<section className="rounded-[18px] border border-[var(--app-line)] bg-[var(--app-surface)] p-4">
-					<div className="mb-2 flex items-center justify-between">
+				<section className="pk-pocket">
+					<div className="pk-pocket__heading">
 						<div>
-							<p className="mb-2 text-[10px] font-bold uppercase tracking-[1.2px] text-[var(--app-purple)]">SELECTED DAY</p>
+							<p className="pk-week__eyebrow">SELECTED DAY</p>
 							<h2>
 								{new Date(`${selectedDate}T12:00:00`).toLocaleDateString(
 									undefined,
@@ -285,7 +285,7 @@ export function WeeklyPlanner({
 						</div>
 						<span>{selectedMeals.length} planned</span>
 					</div>
-					<div className="grid gap-2">
+					<div className="pk-pocket__slots">
 						{slots.map((slot) => {
 							const matches = selectedMeals.filter(
 								(meal) =>
@@ -294,14 +294,14 @@ export function WeeklyPlanner({
 							return (
 								<section
 									key={`${slot.slot}-${slot.memberId}`}
-									className="rounded-lg border border-[var(--app-line)] p-2"
+									className="pk-pocket-slot"
 								>
 									<h3>{slot.label}</h3>
 									{matches.length ? (
 										matches.map(mealCard)
 									) : (
 										<button
-											className="min-h-[46px] w-full rounded-[11px] border border-dashed border-[#cfc9ee] bg-[#faf9ff] p-2 text-left text-[13px] text-[var(--app-purple)]"
+											className="pk-week-add"
 											onClick={() =>
 												onCreateMeal(selectedDate, slot.slot, slot.memberId)
 											}
@@ -313,7 +313,7 @@ export function WeeklyPlanner({
 							);
 						})}
 					</div>
-					<div className="rounded-lg bg-[#f5f4fa] p-2 text-xs">
+					<div className="pk-pocket__targets">
 						<strong>Planned target progress</strong>
 						<span>Scheduled meals · not actual intake</span>
 						{[0, 6].includes(new Date(`${selectedDate}T12:00:00`).getDay()) ? (
@@ -342,12 +342,12 @@ export function WeeklyPlanner({
 					</div>
 				</section>
 			</div>
-			<div className="hidden gap-4 lg:grid lg:grid-cols-3 xl:grid-cols-4" aria-label="Weekly schedule">
+			<div className="pk-week__desktop" aria-label="Weekly schedule">
 				{dates.map(dayCard)}
 			</div>
 			{dayDrag?.active && (
 				<div
-					className="fixed z-50 grid w-[210px] gap-1 rounded-2xl border-2 border-[var(--app-purple)] bg-[var(--app-surface)] p-3.5 shadow-[0_20px_50px_rgba(29,22,75,0.28)]"
+					className="pk-week-drag-preview"
 					style={{ left: dayDrag.x + 14, top: dayDrag.y + 14 }}
 					aria-hidden="true"
 				>
@@ -368,21 +368,21 @@ export function WeeklyPlanner({
 				</div>
 			)}
 			{movingMeal && (
-				<div className="fixed inset-0 z-10 grid place-items-center bg-[#211a5788] p-[18px]">
+				<div className="pk-move-backdrop">
 					<section
-						className="relative w-full max-w-[440px] rounded-[22px] bg-[var(--app-surface)] p-6 shadow-[0_24px_70px_rgba(35,28,86,0.28)]"
+						className="pk-move-dialog"
 						role="dialog"
 						aria-modal="true"
 						aria-labelledby="pk-move-title"
 					>
 						<button
-							className="absolute right-3.5 top-3.5 h-9 w-9 rounded-full border-0 bg-[#f2f4ef] text-[23px]"
+							className="pk-move-dialog__close"
 							aria-label="Cancel move"
 							onClick={() => setMovingMeal(null)}
 						>
 							×
 						</button>
-						<p className="mb-2 text-[10px] font-bold uppercase tracking-[1.2px] text-[var(--app-purple)]">SCHEDULE CHANGE</p>
+						<p className="pk-week__eyebrow">SCHEDULE CHANGE</p>
 						<h2 id="pk-move-title">Move this meal</h2>
 						<p>
 							Choose another date for <strong>{movingMeal.name}</strong>. Only
@@ -407,7 +407,7 @@ export function WeeklyPlanner({
 								))}
 						</select>
 						{destinationDate && (
-							<p className="rounded-lg bg-[#f5f7f2] p-2.5 text-xs text-[#4d5d52]">
+							<p className="pk-move-dialog__preview">
 								{destinationMeal ? (
 									<>
 										This will <strong>swap</strong> with {destinationMeal.name}.
@@ -420,7 +420,7 @@ export function WeeklyPlanner({
 								)}
 							</p>
 						)}
-						<div className="mt-5 flex justify-end gap-2">
+						<div className="pk-move-dialog__actions">
 							<button onClick={() => setMovingMeal(null)}>Cancel</button>
 							<button
 								className="pk-week__confirm"
