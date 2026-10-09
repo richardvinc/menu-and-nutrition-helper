@@ -4,6 +4,16 @@ Two-member household meal planning for a trusted local network.
 
 ## Development
 
+AI meal recommendations and ingredient nutrition lookup are optional. Set
+`OPENROUTER_API_KEY` for recommendations and translated ingredient aliases,
+and `USDA_API_KEY` for verified nutrition lookup. The backend reads these
+environment variables; keys are never stored in the app database or sent to
+the browser. For local development, put them in an ignored `.env` file and
+export them in the shell used to start Bun. Docker Compose reads the same
+variables from `.env` automatically. Without the keys, the corresponding
+buttons report that the service is unavailable while the rest of the app
+continues to work.
+
 Install dependencies:
 
 ```powershell

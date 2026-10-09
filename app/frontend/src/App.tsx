@@ -222,8 +222,8 @@ export function App() {
 					memberId={editor.memberId}
 					onCancel={() => setEditor(null)}
 					onSaveMenu={(menu, exists) => run(() => api.saveMenu(menu, exists))}
-					onSave={async (meal) => {
-						await run(() => api.saveMeal(meal, Boolean(editor.meal)));
+					onSave={async (meal, saveMenu, pendingIngredients, companions) => {
+						await run(() => api.saveMealAndMenu(meal, Boolean(editor.meal), Boolean(saveMenu), pendingIngredients ?? [], companions ?? []));
 						setEditor(null);
 					}}
 				/>

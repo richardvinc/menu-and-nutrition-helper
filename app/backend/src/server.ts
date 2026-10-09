@@ -20,6 +20,7 @@ import express, {
 	type Request,
 	type Response,
 } from "express";
+import { ingredientAliases, rateLimit, recommend, reserveOpenRouterRequest, searchUsda, usdaIngredient } from "./ai";
 
 const defaultPath = resolve(import.meta.dir, "../data/piring-kita.sqlite");
 
@@ -1179,6 +1180,172 @@ export function createApp(db = createDatabase()) {
 
 	app.get("/api/health", (_req, res) => res.json({ ok: true }));
 	app.get("/api/data", (_req, res) => res.json(dataFromDb(db)));
+	app.get("/api/ai/status", (_req, res) => res.json({ recommendations: Boolean(process.env.OPENROUTER_API_KEY), ingredientLookup: Boolean(process.env.USDA_API_KEY) }));
+	app.post("/api/ai/recommendations", async (req, res) => {
+		const ip = req.ip || req.socket.remoteAddress || "unknown";
+		if (!rateLimit(`openrouter:${ip}`, 10, 600_000)) return fail(res, "AI request limit reached. Try again in a few minutes.", 429);
+		const catalog = rows<Ingredient>(db, "ingredients");
+		const pending: Ingredient[] = [];
+		if (req.body?.pendingIngredients !== undefined) {
+			if (!Array.isArray(req.body.pendingIngredients) || req.body.pendingIngredients.length > 50) return fail(res, "invalid pending ingredients");
+			try {
+				for (const item of req.body.pendingIngredients) {
+					const fdc = typeof item?.id === "string" ? /^fdc-(\d+)$/.exec(item.id) : null;
+					if (!fdc || !validIngredient(item)) return fail(res, "invalid pending USDA ingredient");
+					const verified = await usdaIngredient(Number(fdc[1]));
+					if (JSON.stringify(verified.nutrition) !== JSON.stringify(item.nutrition) || verified.source !== item.source) return fail(res, "USDA ingredient values changed; look up the ingredient again.", 409);
+					pending.push(verified);
+				}
+			} catch (error) { return fail(res, error, 503); }
+		}
+		const available = [...catalog, ...pending.filter((item) => !catalog.some((existingItem) => existingItem.id === item.id))];
+		const catalogIds = new Set(available.map((item) => item.id));
+		const meal = req.body?.meal;
+		if (!validMeal(meal, catalogIds)) return fail(res, "invalid meal draft");
+		const existingDay = rows<ScheduledMeal>(db, "scheduled_meals").filter((item) => item.date === meal.date && item.id !== meal.id);
+		const companions = req.body?.companions ?? [];
+		if (!Array.isArray(companions) || companions.length > 2 || companions.some((item: any) => !validMeal(item, catalogIds) || item.date !== meal.date || item.slot !== "snack" || !item.memberId)) return fail(res, "invalid companion snack draft");
+		const occupiedSnackMembers = new Set(existingDay.filter((item) => item.slot === "snack").map((item) => item.memberId));
+		for (const snack of companions) {
+			if (occupiedSnackMembers.has(snack.memberId)) return fail(res, "a companion snack cannot replace an existing snack", 409);
+			occupiedSnackMembers.add(snack.memberId);
+		}
+		const day = [...existingDay, ...companions, meal];
+		const memberTargets = rows<WeeklyTarget>(db, "targets").map((target) => {
+			const current = day.reduce((sum, scheduled) => {
+				const total = scheduled.ingredients.reduce((part, row) => {
+					const ingredient = available.find((entry) => entry.id === row.ingredientId);
+					if (!ingredient || (scheduled.slot !== "dinner" && scheduled.memberId && scheduled.memberId !== target.memberId) || (scheduled.slot === "dinner" && row.memberId && row.memberId !== target.memberId)) return part;
+					const amount = row.quantity / ingredient.basisAmount;
+					for (const key of ["calories", "protein", "carbs", "fat", "fiber"] as const) part[key] += ingredient.nutrition[key] * amount * (scheduled.slot === "dinner" && !row.memberId ? 0.5 : 1);
+					return part;
+				}, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+				return { calories: sum.calories + total.calories, protein: sum.protein + total.protein, carbs: sum.carbs + total.carbs, fat: sum.fat + total.fat, fiber: sum.fiber + total.fiber };
+			}, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+			return { target, current };
+		}).filter(({ target }) => target.weekStart <= meal.date).reduce((latest, entry) => {
+			const previous = latest.get(entry.target.memberId);
+			if (!previous || previous.target.weekStart < entry.target.weekStart) latest.set(entry.target.memberId, entry);
+			return latest;
+		}, new Map<MemberId, { target: WeeklyTarget; current: Nutrition }>());
+		const targets = [...memberTargets].filter(([member]) => meal.slot === "dinner" || member === meal.memberId).map(([member, { target, current }]) => {
+			const hasDinner = existingDay.some((item) => item.slot === "dinner");
+			const hasLunch = existingDay.some((item) => item.slot === "lunch" && item.memberId === member);
+			const targetFactor = (meal.slot === "lunch" && !hasDinner) || (meal.slot === "dinner" && !hasLunch) ? 0.5 : 1;
+			return ({
+			member: member === "richard" ? "Member A" : "Member B",
+			memberId: member,
+			referenceOnly: [0, 6].includes(new Date(`${meal.date}T12:00:00Z`).getUTCDay()),
+			dailyCalories: target.weekdayCalories * targetFactor,
+			currentCalories: current.calories,
+			calories: Math.max(0, target.weekdayCalories * targetFactor - current.calories),
+			dailyProtein: target.macroGrams.protein * targetFactor,
+			currentProtein: current.protein,
+			protein: Math.max(0, target.macroGrams.protein * targetFactor - current.protein),
+			dailyCarbs: target.macroGrams.carbs * targetFactor,
+			currentCarbs: current.carbs,
+			carbs: Math.max(0, target.macroGrams.carbs * targetFactor - current.carbs),
+			dailyFat: target.macroGrams.fat * targetFactor,
+			currentFat: current.fat,
+			fat: Math.max(0, target.macroGrams.fat * targetFactor - current.fat),
+			dailyFiber: target.fiberGrams * targetFactor,
+			currentFiber: current.fiber,
+			fiber: Math.max(0, target.fiberGrams * targetFactor - current.fiber),
+			});
+		});
+		const prior = Array.isArray(req.body?.prior) ? req.body.prior.filter((list: unknown) => Array.isArray(list) && list.every((id) => typeof id === "string")).slice(-5) : [];
+		try {
+		const memberLabels = dataFromDb(db).members.map((member, index) => ({ member: `Member ${index === 0 ? "A" : "B"}`, memberId: member.id }));
+		const dailySnackLimits = [...memberTargets].filter(([member]) => meal.slot === "dinner" || member === meal.memberId).map(([member, item]) => ({ member: member === "richard" ? "Member A" : "Member B", calories: item.target.weekdayCalories * 0.25 }));
+		const settledSnackMembers = [...existingDay.filter((item) => item.slot === "snack"), ...companions].map((item) => item.memberId === "richard" ? "Member A" : "Member B");
+		const suggestibleCatalog = available.filter((item) => item.suggestible || meal.ingredients.some((row: MenuIngredient) => row.ingredientId === item.id));
+		const savedMenus = rows<SavedMenu>(db, "saved_menus").filter((menu) => menu.slot === meal.slot).map((menu, index) => ({
+			key: `saved-menu-${index + 1}`,
+			name: menu.name,
+			ingredients: menu.ingredients.flatMap((row) => {
+				const catalogIndex = suggestibleCatalog.findIndex((item) => item.id === row.ingredientId);
+				const item = available.find((entry) => entry.id === row.ingredientId);
+				return catalogIndex < 0 || !item ? [] : [{ catalogKey: `ingredient-${catalogIndex + 1}`, name: item.name, quantity: row.quantity }];
+			}),
+		})).filter((menu) => menu.ingredients.length > 0);
+		const proposals = await recommend({ meal, catalog: available, currentDay: [...existingDay.filter((item) => item.slot === "snack"), ...companions].flatMap((item) => item.ingredients), savedMenus, targets, dailySnackLimits, settledSnackMembers, memberLabels, snackLimitCalories: meal.slot === "snack" && meal.memberId ? (memberTargets.get(meal.memberId)?.target.weekdayCalories ?? 0) * 0.25 : undefined, prior });
+			const recommendations = proposals.map((proposal) => {
+				const ingredients = proposal.ingredients;
+				const proposalCatalog = [...available, ...proposal.newIngredients.filter((item) => !available.some((existingItem) => existingItem.id === item.id))];
+				const nutrition = ingredients.reduce((total, row) => {
+					const ingredient = proposalCatalog.find((item) => item.id === row.ingredientId)!;
+					for (const key of ["calories", "protein", "carbs", "fat", "fiber"] as const) total[key] += ingredient.nutrition[key] * row.quantity / ingredient.basisAmount;
+					return total;
+				}, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+				return { ...proposal, nutrition, ingredientDetails: ingredients.map((row) => ({ ...row, name: proposalCatalog.find((item) => item.id === row.ingredientId)?.name })), priorKey: proposal.ingredients.map((row) => proposalCatalog.find((item) => item.id === row.ingredientId)?.name?.toLocaleLowerCase() ?? "").sort() };
+			});
+			return res.json({ recommendations });
+		} catch (error) { return fail(res, error, error instanceof Error && error.message.toLocaleLowerCase().includes("limit") ? 429 : 503); }
+	});
+	app.post("/api/ai/ingredient-lookup", async (req, res) => {
+		const ip = req.ip || req.socket.remoteAddress || "unknown";
+		if (!process.env.USDA_API_KEY) return fail(res, "USDA nutrition lookup is unavailable: USDA_API_KEY is not configured.", 503);
+		if (!rateLimit(`usda:${ip}`, 30, 60_000)) return fail(res, "USDA lookup limit reached. Try again in a minute.", 429);
+		const name = req.body?.name;
+		if (typeof name !== "string" || !name.trim() || name.length > 120) return fail(res, "ingredient name is required");
+		if (process.env.OPENROUTER_API_KEY && (!rateLimit(`openrouter:${ip}`, 10, 600_000) || !reserveOpenRouterRequest())) return fail(res, "AI request limit reached. Try again later.", 429);
+		const aliasResult = await ingredientAliases(name.trim());
+		const query = aliasResult && "usdaQuery" in aliasResult ? aliasResult.usdaQuery : name.trim();
+		try {
+			const matches = await searchUsda(query);
+			if (!matches.length) return res.json({ query, aliases: aliasResult && "aliases" in aliasResult ? aliasResult.aliases : [], matches: [] });
+			const all = rows<Ingredient>(db, "ingredients");
+			const exact = all.find((item) => item.name.toLocaleLowerCase() === name.trim().toLocaleLowerCase() || item.aliases.some((alias) => alias.toLocaleLowerCase() === name.trim().toLocaleLowerCase()) || matches.some((match) => item.source.includes(`FDC ${match.fdcId}`)));
+			return res.json({ query, aliases: aliasResult && "aliases" in aliasResult ? aliasResult.aliases : [], existing: exact?.id, similar: !exact ? all.filter((item) => item.name.toLocaleLowerCase().includes(name.trim().toLocaleLowerCase())).map((item) => item.name).slice(0, 3) : [], matches });
+		} catch (error) { return fail(res, error, error instanceof Error && error.message.toLocaleLowerCase().includes("limit") ? 429 : 503); }
+	});
+	app.post("/api/meals/save", async (req, res) => {
+		const { meal, menu, exists: update } = req.body ?? {};
+		const companions = req.body?.companions ?? [];
+		const pendingIngredients: Ingredient[] = [];
+		const currentIngredients = rows<Ingredient>(db, "ingredients");
+		if (req.body?.pendingIngredients !== undefined) {
+			if (!Array.isArray(req.body.pendingIngredients) || req.body.pendingIngredients.length > 50) return fail(res, "invalid pending ingredients");
+			try {
+				for (const item of req.body.pendingIngredients) {
+					const fdc = typeof item?.id === "string" ? /^fdc-(\d+)$/.exec(item.id) : null;
+					if (!fdc || !validIngredient(item)) return fail(res, "invalid pending USDA ingredient");
+					if (currentIngredients.some((existingItem) => existingItem.id === item.id)) continue;
+					const verified = await usdaIngredient(Number(fdc[1]));
+					if (JSON.stringify(verified.nutrition) !== JSON.stringify(item.nutrition) || verified.source !== item.source) return fail(res, "USDA ingredient values changed; look up the ingredient again.", 409);
+					pendingIngredients.push(verified);
+				}
+			} catch (error) { return fail(res, error, 503); }
+		}
+		const ids = new Set([...currentIngredients, ...pendingIngredients].map((item) => item.id));
+		if (typeof update !== "boolean" || !validMeal(meal, ids)) return fail(res, "invalid scheduled meal");
+		if (!Array.isArray(companions) || companions.length > 2 || companions.some((item: any) => !validMeal(item, ids) || item.date !== meal.date || item.slot !== "snack" || !item.memberId) || (meal.slot === "snack" && companions.length)) return fail(res, "invalid companion snack draft");
+		const existingDay = rows<ScheduledMeal>(db, "scheduled_meals").filter((item) => item.date === meal.date && item.id !== meal.id);
+		const snackMembers = new Set(existingDay.filter((item) => item.slot === "snack").map((item) => item.memberId));
+		for (const snack of companions) {
+			if (snackMembers.has(snack.memberId)) return fail(res, "a companion snack cannot replace an existing snack", 409);
+			snackMembers.add(snack.memberId);
+			const target = rows<WeeklyTarget>(db, "targets").filter((item) => item.memberId === snack.memberId && item.weekStart <= snack.date).sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
+			const calories = snack.ingredients.reduce((total, row) => {
+				const ingredient = [...currentIngredients, ...pendingIngredients].find((item) => item.id === row.ingredientId)!;
+				return total + ingredient.nutrition.calories * row.quantity / ingredient.basisAmount;
+			}, 0);
+			if (!target || calories > target.weekdayCalories * 0.25) return fail(res, "companion snack exceeds 25% of the daily calorie target", 400);
+		}
+		if (update && !existing("scheduled_meals", meal.id)) return fail(res, "meal not found", 404);
+		if (!update && existing("scheduled_meals", meal.id)) return fail(res, "meal id already exists", 409);
+		if (menu !== undefined && !validMenu(menu, ids)) return fail(res, "invalid saved menu");
+		if (menu && existing("saved_menus", menu.id)) return fail(res, "saved menu id already exists", 409);
+		try {
+			db.transaction(() => {
+				pendingIngredients.forEach((item) => put(db, "ingredients", item.id, item));
+				putMeal(db, meal);
+				companions.forEach((item: ScheduledMeal) => putMeal(db, item));
+				if (menu) put(db, "saved_menus", menu.id, menu);
+			})();
+			return res.json(meal);
+		} catch (error) { return fail(res, error, 409); }
+	});
 	app.post("/api/meals", (req, res) => {
 		const value = req.body;
 		if (

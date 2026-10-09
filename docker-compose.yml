@@ -3,6 +3,9 @@ services:
     build: .
     ports:
       - "3000:3000"
+    environment:
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      USDA_API_KEY: ${USDA_API_KEY:-}
     volumes:
       - piring-kita-data:/data
     restart: unless-stopped

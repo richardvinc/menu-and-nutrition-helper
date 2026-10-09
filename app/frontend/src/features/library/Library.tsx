@@ -6,7 +6,9 @@ import type {
 	SavedMenu,
 } from "@piring-kita/shared";
 import type { FormEvent } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { api } from "../../api";
 import "./library.css";
 
 export type LibraryProps = {
@@ -86,6 +88,16 @@ function ingredientDraft(item?: Ingredient): IngredientDraft {
 		fiber: String(item.nutrition.fiber),
 	};
 }
+const menuKey = (menu: MenuDraft | SavedMenu) => JSON.stringify([
+	menu.name.trim(), menu.slot, menu.memberId ?? "",
+	menu.ingredients.map((row) => [row.ingredientId, Number(row.quantity), row.memberId ?? ""]).sort(),
+]);
+const ingredientKey = (draft: IngredientDraft) => JSON.stringify([
+	draft.name.trim(), draft.aliases.split(",").map((x) => x.trim()).filter(Boolean).map((x) => x.toLocaleLowerCase()).sort(),
+	draft.unit, Number(draft.basisAmount), Number(draft.equivalentGrams) || "",
+	draft.preparation.trim(), draft.source.trim(), draft.suggestible,
+	Number(draft.calories), Number(draft.protein), Number(draft.carbs), Number(draft.fat), Number(draft.fiber),
+]);
 
 export function Library({
 	menus,
@@ -103,10 +115,47 @@ export function Library({
 		useState<IngredientDraft | null>(null);
 	const [error, setError] = useState("");
 	const [saving, setSaving] = useState(false);
+	const [lookupBusy, setLookupBusy] = useState(false);
+	const [lookupResult, setLookupResult] = useState<Awaited<ReturnType<typeof api.lookupIngredient>> | null>(null);
+	const [lookupWarning, setLookupWarning] = useState("");
+	const [lookupAvailable, setLookupAvailable] = useState<boolean | null>(null);
+	const [menuPortalTarget, setMenuPortalTarget] = useState<HTMLDivElement | null>(null);
+	const [ingredientPortalTarget, setIngredientPortalTarget] = useState<HTMLDivElement | null>(null);
+	const lookupRequestId = useRef(0);
+	useEffect(() => { api.aiStatus().then((status) => setLookupAvailable(status.ingredientLookup)).catch(() => setLookupAvailable(false)); }, []);
+	const clearLookup = () => {
+		lookupRequestId.current++;
+		setLookupBusy(false);
+		setLookupResult(null);
+		setLookupWarning("");
+	};
+	const menuDirty = () => {
+		if (!menuDraft) return false;
+		const original = menus.find((item) => item.id === menuDraft.id) ?? blankMenu();
+		return menuKey(menuDraft) !== menuKey(original);
+	};
+	const ingredientDirty = () => {
+		if (!ingredientDraftState) return false;
+		const original = ingredients.find((item) => item.id === ingredientDraftState.id);
+		return ingredientKey(ingredientDraftState) !== ingredientKey(original ? ingredientDraft(original) : blankIngredient());
+	};
+	const openMenuDraft = (draft: MenuDraft) => {
+		if (menuDirty() && !window.confirm("Discard changes to this saved menu?")) return;
+		setIngredientDraftState(null);
+		setMenuDraft(draft);
+		setError("");
+	};
+	const openIngredientDraft = (draft: IngredientDraft) => {
+		if (ingredientDirty() && !window.confirm("Discard changes to this ingredient?")) return;
+		clearLookup();
+		setMenuDraft(null);
+		setIngredientDraftState(draft);
+		setError("");
+	};
 
 	const visibleMenus = useMemo(
 		() =>
-			menus.filter((menu) =>
+			menus.filter((menu) => menuDraft?.id === menu.id ||
 				menu.name
 					.toLocaleLowerCase()
 					.includes(menuSearch.trim().toLocaleLowerCase()),
@@ -116,7 +165,7 @@ export function Library({
 	const visibleIngredients = useMemo(() => {
 		const query = ingredientSearch.trim().toLocaleLowerCase();
 		return ingredients.filter(
-			(item) =>
+				(item) => ingredientDraftState?.id === item.id ||
 				!query ||
 				[item.name, ...item.aliases].some((name) =>
 					name.toLocaleLowerCase().includes(query),
@@ -175,11 +224,12 @@ export function Library({
 		}
 		const ingredient: Ingredient = {
 			id: draft.id,
-			name: draft.name.trim(),
+			name: draft.name,
 			aliases: draft.aliases
 				.split(",")
 				.map((alias) => alias.trim())
-				.filter(Boolean),
+				.filter((alias) => alias && alias.toLocaleLowerCase() !== draft.name.trim().toLocaleLowerCase())
+				.filter((alias, index, list) => list.findIndex((item) => item.toLocaleLowerCase() === alias.toLocaleLowerCase()) === index),
 			unit: draft.unit,
 			basisAmount: numbers[0],
 			...(equivalentGrams === undefined ? {} : { equivalentGrams }),
@@ -210,6 +260,43 @@ export function Library({
 		}
 	}
 
+	async function findIngredientNutrition() {
+		if (!ingredientDraftState?.name.trim()) return;
+		const requestId = ++lookupRequestId.current;
+		setLookupBusy(true);
+		setLookupWarning("");
+		setLookupResult(null);
+		try {
+			const result = await api.lookupIngredient(ingredientDraftState.name.trim());
+			if (lookupRequestId.current !== requestId) return;
+			setLookupResult(result);
+			if (result.existing) {
+				const existing = ingredients.find((item) => item.id === result.existing);
+				if (existing) {
+					openIngredientDraft(ingredientDraft(existing));
+					setIngredientSearch(existing.name);
+					setLookupWarning(`This is already in the catalog as “${existing.name}”.`);
+					return;
+				}
+			}
+			if (!result.aliases.length) setLookupWarning("Nutrition lookup succeeded; AI aliases were unavailable.");
+			if (!result.matches.length) setLookupWarning("No verified USDA match was found. Nutrition was not filled.");
+		} catch (reason) {
+			if (lookupRequestId.current !== requestId) return;
+			setLookupWarning(reason instanceof Error ? reason.message : "USDA nutrition lookup failed.");
+		} finally { if (lookupRequestId.current === requestId) setLookupBusy(false); }
+	}
+	function selectUsdaMatch(match: NonNullable<typeof lookupResult>["matches"][number]) {
+		if (!ingredientDraftState || !lookupResult) return;
+		const aliases = [...lookupResult.aliases, lookupResult.query]
+			.map((alias) => alias.trim())
+			.filter((alias) => alias && alias.toLocaleLowerCase() !== ingredientDraftState.name.trim().toLocaleLowerCase())
+			.filter((alias, index, list) => list.findIndex((item) => item.toLocaleLowerCase() === alias.toLocaleLowerCase()) === index);
+		setIngredientDraftState({ ...ingredientDraftState, aliases: aliases.join(", "), unit: "g", basisAmount: "100", equivalentGrams: "", source: match.source, preparation: match.description, calories: String(match.nutrition.calories), protein: String(match.nutrition.protein), carbs: String(match.nutrition.carbs), fat: String(match.nutrition.fat), fiber: String(match.nutrition.fiber) });
+		setLookupResult(null);
+		setLookupWarning("");
+	}
+
 	return (
 		<main className="library-page">
 			<header className="feature-heading">
@@ -227,6 +314,11 @@ export function Library({
 					role="tab"
 					aria-selected={section === "menus"}
 					onClick={() => {
+						if (section !== "menus") {
+							if (ingredientDirty() && !window.confirm("Discard changes to this ingredient?")) return;
+						setIngredientDraftState(null);
+						clearLookup();
+					}
 						setSection("menus");
 						setError("");
 					}}
@@ -238,6 +330,10 @@ export function Library({
 					role="tab"
 					aria-selected={section === "ingredients"}
 					onClick={() => {
+						if (section !== "ingredients") {
+							if (menuDirty() && !window.confirm("Discard changes to this saved menu?")) return;
+						setMenuDraft(null);
+					}
 						setSection("ingredients");
 						setError("");
 					}}
@@ -265,15 +361,14 @@ export function Library({
 						<button
 							type="button"
 							onClick={() => {
-								setMenuDraft(blankMenu());
-								setError("");
+								openMenuDraft(blankMenu());
 							}}
 						>
 							New saved menu
 						</button>
 					</div>
-					{menuDraft && (
-						<form
+					{menuDraft && (() => {
+						const editor = (<form
 							className="library-editor"
 							onSubmit={saveMenu}
 							aria-label={menuDraft.name ? "Edit saved menu" : "New saved menu"}
@@ -434,8 +529,7 @@ export function Library({
 									type="button"
 									className="secondary"
 									onClick={() => {
-										if (window.confirm("Close this menu without saving?"))
-											setMenuDraft(null);
+										if (!menuDirty() || window.confirm("Discard changes to this saved menu?")) setMenuDraft(null);
 									}}
 								>
 									Cancel
@@ -451,11 +545,12 @@ export function Library({
 									{saving ? "Saving…" : "Save menu"}
 								</button>
 							</div>
-						</form>
-					)}
+						</form>);
+						return menus.some((menu) => menu.id === menuDraft.id) ? menuPortalTarget ? createPortal(editor, menuPortalTarget) : null : editor;
+					})()}
 					<div className="library-card-list">
 						{visibleMenus.map((menu) => (
-							<article className="library-card" key={menu.id}>
+							<article className={`library-card ${menuDraft?.id === menu.id ? "is-editing" : ""}`} key={menu.id}>
 								<div>
 									<h2>
 										<span className="library-card__badge">{menu.slot}</span>
@@ -485,7 +580,7 @@ export function Library({
 										type="button"
 										className="secondary"
 										onClick={() => {
-											setMenuDraft({
+											openMenuDraft({
 												id: menu.id,
 												name: menu.name,
 												slot: menu.slot,
@@ -494,7 +589,6 @@ export function Library({
 													...row,
 												})),
 											});
-											setError("");
 										}}
 									>
 										Edit
@@ -523,6 +617,7 @@ export function Library({
 										Delete
 									</button>
 								</div>
+								{menuDraft?.id === menu.id && <div className="library-card__editor-anchor" ref={setMenuPortalTarget} />}
 							</article>
 						))}
 						{visibleMenus.length === 0 && (
@@ -546,8 +641,7 @@ export function Library({
 						<button
 							type="button"
 							onClick={() => {
-								setIngredientDraftState(blankIngredient());
-								setError("");
+								openIngredientDraft(blankIngredient());
 							}}
 						>
 							New ingredient
@@ -557,8 +651,8 @@ export function Library({
 						Nutrition values use each ingredient’s listed basis. Equivalent
 						grams affect quantity display only.
 					</p>
-					{ingredientDraftState && (
-						<form
+					{ingredientDraftState && (() => {
+						const editor = (<form
 							className="library-editor"
 							onSubmit={saveIngredient}
 							aria-label={
@@ -586,6 +680,12 @@ export function Library({
 										}
 									/>
 								</label>
+								<div>
+									<button type="button" onClick={findIngredientNutrition} disabled={lookupBusy || !ingredientDraftState.name.trim() || lookupAvailable === false}>{lookupBusy ? "Looking up…" : "Find nutrition with AI"}</button>
+									{lookupAvailable === false && <p className="feature-hint">USDA nutrition lookup is unavailable: USDA_API_KEY is not configured.</p>}
+									{lookupWarning && <p className="feature-hint" role="status">{lookupWarning}</p>}
+									{lookupResult && <div className="usda-matches"><p>USDA search: <strong>{lookupResult.query}</strong></p>{lookupResult.similar?.length ? <p>Similar catalog names: {lookupResult.similar.join(", ")}. No automatic merge.</p> : null}{lookupResult.matches.map((match) => <button type="button" className="secondary" key={match.fdcId} onClick={() => selectUsdaMatch(match)}>{match.description} · {match.dataType}</button>)}</div>}
+								</div>
 								<label>
 									Aliases, separated by commas
 									<input
@@ -723,8 +823,7 @@ export function Library({
 									type="button"
 									className="secondary"
 									onClick={() => {
-										if (window.confirm("Close this ingredient without saving?"))
-											setIngredientDraftState(null);
+										if (!ingredientDirty() || window.confirm("Discard changes to this ingredient?")) setIngredientDraftState(null);
 									}}
 								>
 									Cancel
@@ -733,11 +832,12 @@ export function Library({
 									{saving ? "Saving…" : "Save ingredient"}
 								</button>
 							</div>
-						</form>
-					)}
+						</form>);
+						return ingredients.some((item) => item.id === ingredientDraftState.id) ? ingredientPortalTarget ? createPortal(editor, ingredientPortalTarget) : null : editor;
+					})()}
 					<div className="library-card-list">
 						{visibleIngredients.map((item) => (
-							<article className="library-card" key={item.id}>
+							<article className={`library-card ${ingredientDraftState?.id === item.id ? "is-editing" : ""}`} key={item.id}>
 								<div>
 									<h2>{item.name}</h2>
 									<p>
@@ -761,7 +861,7 @@ export function Library({
 										type="button"
 										className="secondary"
 										onClick={() => {
-											setIngredientDraftState(ingredientDraft(item));
+										openIngredientDraft(ingredientDraft(item));
 											setError("");
 										}}
 									>
@@ -791,6 +891,7 @@ export function Library({
 										Delete
 									</button>
 								</div>
+								{ingredientDraftState?.id === item.id && <div className="library-card__editor-anchor" ref={setIngredientPortalTarget} />}
 							</article>
 						))}
 						{visibleIngredients.length === 0 && (

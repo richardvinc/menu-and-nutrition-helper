@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AppData, TargetPreviewRequest } from "@piring-kita/shared";
 import { createApp, createDatabase } from "./server";
+import { rateLimit, recommend, searchUsda } from "./ai";
 
 describe("backend API", () => {
 	let db: Database;
@@ -72,6 +73,187 @@ describe("backend API", () => {
 		const response = await fetch(`${base}/api/missing`);
 		expect(response.status).toBe(404);
 		expect(await response.json()).toEqual({ error: "API route not found" });
+	});
+
+	test("AI routes report missing keys without fabricating nutrition", async () => {
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		const oldUsda = process.env.USDA_API_KEY;
+		delete process.env.OPENROUTER_API_KEY;
+		delete process.env.USDA_API_KEY;
+		try {
+			const recommendation = await fetch(`${base}/api/ai/recommendations`, {
+				method: "POST", headers: { "content-type": "application/json" },
+				body: JSON.stringify({ meal: { id: "draft", date: "2026-10-08", slot: "lunch", memberId: "richard", name: "Meal", notes: "", ingredients: [] } }),
+			});
+			expect(recommendation.status).toBe(503);
+			expect((await recommendation.json()).error).toContain("OPENROUTER_API_KEY");
+			const lookup = await fetch(`${base}/api/ai/ingredient-lookup`, {
+				method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "tahu" }),
+			});
+			expect(lookup.status).toBe(503);
+			expect((await lookup.json()).error).toContain("USDA_API_KEY");
+		} finally {
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY; else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY; else process.env.USDA_API_KEY = oldUsda;
+		}
+	});
+
+	test("AI request limiter accepts the configured count then blocks", () => {
+		const key = `limit-test-${Date.now()}`;
+		for (let i = 0; i < 10; i++) expect(rateLimit(key, 10, 600_000)).toBe(true);
+		expect(rateLimit(key, 10, 600_000)).toBe(false);
+	});
+
+	test("AI validation rejects model ingredient IDs and USDA misses stay empty", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		const oldUsda = process.env.USDA_API_KEY;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		process.env.USDA_API_KEY = "test-only";
+		const catalog = (await (await fetch(`${base}/api/data`)).json() as AppData).ingredients;
+		let usdaCalls = 0;
+		let openRouterBody: any;
+		try {
+			globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+				if (String(input).includes("api.nal.usda.gov")) { usdaCalls++; return new Response(JSON.stringify({ foods: [] }), { status: 200 }); }
+				openRouterBody = JSON.parse(String(init?.body));
+				return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ recommendations: [{ name: "Unsupported", origin: "new", savedMenuKey: "", justification: "test", cookingNote: "", ingredients: [{ catalogKey: "made-up", usdaQuery: "", quantity: 50, member: "shared" }], removals: [], companionSnacks: [] }] }) } }] }), { status: 200 });
+			}) as typeof fetch;
+			await expect(recommend({ meal: { id: "draft", date: "2026-10-08", slot: "lunch", memberId: "richard", name: "Meal", notes: "", ingredients: [] }, catalog, currentDay: [], savedMenus: [], targets: [], prior: [] })).rejects.toThrow("unsupported ingredient");
+			expect(openRouterBody.messages[1].content).not.toContain("ingredientId");
+			expect(openRouterBody.messages[1].content).not.toContain('"id"');
+			expect(await searchUsda("food with no match")).toEqual([]);
+			expect(usdaCalls).toBe(1);
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY; else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY; else process.env.USDA_API_KEY = oldUsda;
+		}
+	});
+
+	test("later meal ideas accept only accurate, explicit ingredient removals", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		const catalog = (await (await fetch(`${base}/api/data`)).json() as AppData).ingredients;
+		const existing = catalog.find((item) => item.id === "rice")!;
+		const replacement = catalog.find((item) => item.id === "tofu")!;
+		const eligible = catalog.filter((item) => item.suggestible || item.id === existing.id);
+		const keyFor = (id: string) => `ingredient-${eligible.findIndex((item) => item.id === id) + 1}`;
+		const first = { name: "Rice quantity adjustment", origin: "new", savedMenuKey: "", justification: "Keeps the draft.", cookingNote: "", ingredients: [{ catalogKey: keyFor(existing.id), usdaQuery: "", quantity: 100, member: "shared" }], removals: [], companionSnacks: [] };
+		const later = { name: "Egg alternative", origin: "new", savedMenuKey: "", justification: "Changes the main ingredient.", cookingNote: "", ingredients: [{ catalogKey: keyFor(replacement.id), usdaQuery: "", quantity: 100, member: "shared" }], removals: [{ catalogKey: keyFor(existing.id), member: "shared" }], companionSnacks: [] };
+		const meal = { id: "removal-draft", date: "2026-10-08", slot: "lunch" as const, memberId: "richard" as const, name: "Draft", notes: "", ingredients: [{ ingredientId: existing.id, quantity: 100 }] };
+		try {
+			globalThis.fetch = (async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ recommendations: [first, later] }) } }] }), { status: 200 })) as typeof fetch;
+			const results = await recommend({ meal, catalog, currentDay: [], savedMenus: [], targets: [], dailySnackLimits: [], settledSnackMembers: [], memberLabels: [{ member: "Member A", memberId: "richard" }, { member: "Member B", memberId: "michelle" }], prior: [] });
+			expect(results[0].removals).toEqual([]);
+			expect(results[1].removals).toEqual([existing.name]);
+			const falseClaim = { ...later, removals: [{ catalogKey: keyFor(replacement.id), member: "shared" }] };
+			globalThis.fetch = (async () => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ recommendations: [first, falseClaim] }) } }] }), { status: 200 })) as typeof fetch;
+			await expect(recommend({ meal, catalog, currentDay: [], savedMenus: [], targets: [], dailySnackLimits: [], settledSnackMembers: [], memberLabels: [{ member: "Member A", memberId: "richard" }, { member: "Member B", memberId: "michelle" }], prior: [] })).rejects.toThrow("removal disclosure");
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY; else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+		}
+	});
+
+	test("AI recommendation response calculates and names pending USDA ingredients", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		const oldUsda = process.env.USDA_API_KEY;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		process.env.USDA_API_KEY = "test-only";
+		const proposal = { name: "Verified tofu bowl", origin: "new", savedMenuKey: "", justification: "Adds affordable protein.", cookingNote: "", ingredients: [{ catalogKey: "", usdaQuery: "Verified tofu", quantity: 100, member: "shared" }], removals: [], companionSnacks: [] };
+		globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			if (String(input).includes("openrouter.ai")) return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ recommendations: [proposal] }) } }] }), { status: 200 });
+			if (String(input).includes("api.nal.usda.gov/fdc/v1/foods/search")) return new Response(JSON.stringify({ foods: [{ fdcId: 555, description: "Verified tofu", dataType: "Foundation", foodNutrients: [
+				{ nutrientNumber: "208", value: 80 }, { nutrientNumber: "203", value: 5 }, { nutrientNumber: "205", value: 10 }, { nutrientNumber: "204", value: 2 }, { nutrientNumber: "291", value: 2 },
+			] }] }), { status: 200 });
+			return oldFetch(input, init);
+		}) as typeof fetch;
+		try {
+			const response = await fetch(`${base}/api/ai/recommendations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ meal: { id: "external-draft", date: "2026-10-08", slot: "lunch", memberId: "richard", name: "Meal", notes: "", ingredients: [] } }) });
+			expect(response.status).toBe(200);
+			const recommendation = (await response.json() as { recommendations: any[] }).recommendations[0];
+			expect(recommendation.nutrition).toEqual({ calories: 80, protein: 5, carbs: 10, fat: 2, fiber: 2 });
+			expect(recommendation.ingredientDetails[0].name).toBe("Verified tofu");
+			expect(recommendation.newIngredients[0].id).toBe("fdc-555");
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY; else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY; else process.env.USDA_API_KEY = oldUsda;
+		}
+	});
+
+	test("AI budgets attribute owned lunches correctly and reserve a half-day target per missing meal", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		let openRouterBody: any;
+		globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			if (String(input).includes("openrouter.ai")) {
+				openRouterBody = JSON.parse(String(init?.body));
+				const available = openRouterBody.messages[1].content;
+				const key = JSON.parse(available).availableIngredients[0].catalogKey;
+				return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ recommendations: [{ name: "Simple meal", origin: "new", savedMenuKey: "", justification: "A simple option.", cookingNote: "", ingredients: [{ catalogKey: key, usdaQuery: "", quantity: 5, member: "shared" }], removals: [], companionSnacks: [] }] }) } }] }), { status: 200 });
+			}
+			return oldFetch(input, init);
+		}) as typeof fetch;
+		const requestRecommendation = async (meal: AppData["scheduledMeals"][number]) => {
+			const response = await fetch(`${base}/api/ai/recommendations`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ meal }) });
+			expect(response.status).toBe(200);
+			return JSON.parse(openRouterBody.messages[1].content).targets as any[];
+		};
+		try {
+			const data = await (await fetch(`${base}/api/data`)).json() as AppData;
+			const richardTarget = data.targets.find((target) => target.memberId === "richard")!;
+			const michelleTarget = data.targets.find((target) => target.memberId === "michelle")!;
+			await addMeal({ id: "richard-lunch-budget", date: "2026-10-08", slot: "lunch", memberId: "richard", name: "Richard lunch", notes: "", ingredients: [{ ingredientId: "rice", quantity: 100 }] });
+			const dinnerTargets = await requestRecommendation({ id: "dinner-budget", date: "2026-10-08", slot: "dinner", name: "Meal", notes: "", ingredients: [] });
+			expect(dinnerTargets.find((target) => target.member === "Member A").dailyCalories).toBeCloseTo(richardTarget.weekdayCalories);
+			expect(dinnerTargets.find((target) => target.member === "Member B").dailyCalories).toBeCloseTo(michelleTarget.weekdayCalories * 0.5);
+			expect(dinnerTargets.find((target) => target.member === "Member B").currentCalories).toBe(0);
+			expect(dinnerTargets.find((target) => target.member === "Member A").currentCalories).toBeGreaterThan(0);
+			const lunchTargets = await requestRecommendation({ id: "lunch-budget", date: "2026-10-09", slot: "lunch", memberId: "richard", name: "Meal", notes: "", ingredients: [] });
+			expect(lunchTargets.find((target) => target.member === "Member A").dailyCalories).toBeCloseTo(richardTarget.weekdayCalories * 0.5);
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY; else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+		}
+	});
+
+	test("meal and optional menu save as one transaction", async () => {
+		const response = await fetch(`${base}/api/meals/save`, {
+			method: "POST", headers: { "content-type": "application/json" },
+			body: JSON.stringify({ exists: false, meal: { id: "atomic-meal", date: "2026-10-08", slot: "lunch", memberId: "richard", name: "Atomic", notes: "", ingredients: [{ ingredientId: "rice", quantity: 100 }] }, menu: { id: "", name: "Bad", slot: "lunch", memberId: "richard", ingredients: [] } }),
+		});
+		expect(response.status).toBe(400);
+		expect((await fetch(`${base}/api/data`).then((r) => r.json() as Promise<AppData>)).scheduledMeals.some((meal) => meal.id === "atomic-meal")).toBe(false);
+	});
+
+	test("USDA ingredient and companion snack persist with the meal after server verification", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldUsda = process.env.USDA_API_KEY;
+		const food = { fdcId: 555, description: "Verified soybean food", dataType: "Foundation", foodNutrients: [
+			{ nutrient: { number: "208" }, amount: 80 }, { nutrient: { number: "203" }, amount: 5 },
+			{ nutrient: { number: "205" }, amount: 10 }, { nutrient: { number: "204" }, amount: 2 }, { nutrient: { number: "291" }, amount: 2 },
+		] };
+		process.env.USDA_API_KEY = "test-only";
+		globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			if (String(input).includes("api.nal.usda.gov/fdc/v1/food/555")) return new Response(JSON.stringify(food), { status: 200 });
+			return oldFetch(input, init);
+		}) as typeof fetch;
+		try {
+			const ingredient = { id: "fdc-555", name: food.description, aliases: [], unit: "g", basisAmount: 100, preparation: "", source: "USDA FoodData Central Foundation, FDC 555 (https://fdc.nal.usda.gov/food/555)", suggestible: true, nutrition: { calories: 80, protein: 5, carbs: 10, fat: 2, fiber: 2 } };
+			const response = await fetch(`${base}/api/meals/save`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ exists: false, pendingIngredients: [ingredient], meal: { id: "verified-meal", date: "2026-10-08", slot: "dinner", name: "Verified dinner", notes: "", ingredients: [{ ingredientId: "fdc-555", quantity: 100 }] }, companions: [{ id: "verified-snack", date: "2026-10-08", slot: "snack", memberId: "richard", name: "Soy snack", notes: "", ingredients: [{ ingredientId: "fdc-555", quantity: 50 }] }] }) });
+			expect(response.status).toBe(200);
+			const data = await (await fetch(`${base}/api/data`)).json() as AppData;
+			expect(data.ingredients.find((item) => item.id === "fdc-555")?.nutrition).toEqual(ingredient.nutrition);
+			expect(data.scheduledMeals.filter((item) => ["verified-meal", "verified-snack"].includes(item.id))).toHaveLength(2);
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY; else process.env.USDA_API_KEY = oldUsda;
+		}
 	});
 
 	test("moves to an empty slot and swaps with an occupied matching slot", async () => {

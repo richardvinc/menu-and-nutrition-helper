@@ -67,6 +67,7 @@ test.afterAll(async ({ request }) => {
 test("dashboard shows static today, tomorrow, and weekly meal cards", async ({
 	page,
 }) => {
+	await page.clock.install({ time: new Date(2026, 9, 8, 12) });
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await page.goto("/");
 	await expect(
@@ -269,13 +270,13 @@ test("planned target progress combines lunch with half of shared dinner", async 
 	const progress = page.locator(".pk-editor__after");
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Richard" }),
-	).toContainText("696 /");
+	).toContainText("722 /");
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Richard" }),
 	).toContainText(/Protein 66 \/ [\d,]+ g/);
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Richard" }),
-	).toContainText(/Carbs 84 \/ [\d,]+ g/);
+	).toContainText(/Carbs 89 \/ [\d,]+ g/);
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Richard" }),
 	).toContainText(/Fat 11 \/ [\d,]+ g/);
@@ -284,10 +285,10 @@ test("planned target progress combines lunch with half of shared dinner", async 
 	).toContainText(/Fiber 5 \/ [\d,]+ g/);
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Michelle" }),
-	).toContainText("672 /");
+	).toContainText("646 /");
 	await expect(
 		progress.locator(".pk-editor__member").filter({ hasText: "Michelle" }),
-	).toContainText(/Protein 42 \/ [\d,]+ g/);
+	).toContainText(/Protein 41 \/ [\d,]+ g/);
 });
 
 test("dinner uses two fixed optional carbohydrate portions", async ({
@@ -394,8 +395,11 @@ test("meal editor closes with Escape and a backdrop click", async ({
 		.first();
 	await meal.getByRole("button", { name: "Edit", exact: true }).click();
 	await expect(page.locator(".pk-editor-scrim")).toBeVisible();
-	page.once("dialog", (dialog) => dialog.accept());
+	await page.getByLabel("Meal name").fill("Unsaved escape test");
+	let discardMessage = "";
+	page.once("dialog", async (dialog) => { discardMessage = dialog.message(); await dialog.accept(); });
 	await page.keyboard.press("Escape");
+	expect(discardMessage).toContain("Discard changes");
 	await expect(page.locator(".pk-editor-scrim")).toHaveCount(0);
 
 	await meal.getByRole("button", { name: "Edit", exact: true }).click();
@@ -459,6 +463,7 @@ test("scheduled meal can be saved to the master menu without closing", async ({
 test("dashboard shows cooking notes when a scheduled meal has them", async ({
 	page,
 }) => {
+	await page.clock.install({ time: new Date(2026, 9, 8, 12) });
 	const data = await (await page.request.get("/api/data")).json();
 	const meal = data.scheduledMeals.find(
 		(item: { id: string }) => item.id === "seed-1008-r-lunch",

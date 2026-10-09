@@ -199,6 +199,10 @@
 	background: #fff;
 	box-shadow: 0 10px 28px rgba(47, 43, 89, 0.06);
 }
+.library-card.is-editing { border-color: var(--app-purple); box-shadow: 0 0 0 3px #e7e2ff, var(--app-shadow); }
+.library-card.is-editing { flex-wrap: wrap; }
+.library-card__editor-anchor { flex: 1 0 100%; width: 100%; }
+.library-card__editor-anchor .library-editor { margin: 12px 0 0; box-shadow: none; }
 .library-card p {
 	margin: 8px 0;
 	color: #625f76;
@@ -218,6 +222,9 @@
 	background: #fff0f1;
 	color: #7d202a;
 }
+.usda-matches { display: grid; gap: 7px; margin-top: 8px; }
+.usda-matches p { margin: 4px 0; color: #625f76; font-size: 0.85rem; }
+.usda-matches button { text-align: left; }
 @media (max-width: 600px) {
 	.library-page,
 	.targets-page {

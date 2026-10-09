@@ -1,6 +1,50 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Library and next-week targets", () => {
+	test("non-editing library cards keep usable content width at 872px", async ({ page }) => {
+		await page.setViewportSize({ width: 872, height: 1300 });
+		await page.goto("/");
+		await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
+		const card = page.locator(".library-card:not(.is-editing)").first();
+		const contentWidth = await card.locator(":scope > div").first().evaluate((element) => element.getBoundingClientRect().width);
+		expect(contentWidth).toBeGreaterThan(250);
+	});
+
+	test("existing library edits expand in place and untouched cancel is immediate", async ({ page }) => {
+		let dialogs = 0;
+		let discardAction: "accept" | "dismiss" = "accept";
+		page.on("dialog", async (dialog) => { dialogs++; if (discardAction === "dismiss") await dialog.dismiss(); else await dialog.accept(); });
+		await page.goto("/");
+		await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
+		const menu = page.locator(".library-card").first();
+		await menu.getByRole("button", { name: "Edit" }).click();
+		await expect(menu.locator("form.library-editor")).toBeVisible();
+		await page.getByRole("searchbox", { name: "Search saved menus" }).fill("no such menu");
+		await expect(menu).toBeVisible();
+		await menu.locator("form").getByRole("button", { name: "Cancel" }).click();
+		await expect(menu.locator("form")).toHaveCount(0);
+		await page.getByRole("searchbox", { name: "Search saved menus" }).fill("");
+		await menu.getByRole("button", { name: "Edit" }).click();
+		await menu.getByLabel("Menu name").fill("Unsaved tab-switch edit");
+		discardAction = "dismiss";
+		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
+		await expect(page.getByRole("tab", { name: "Saved menus" })).toHaveAttribute("aria-selected", "true");
+		await expect(menu.locator("form.library-editor")).toBeVisible();
+		discardAction = "accept";
+		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
+		await expect(page.getByRole("tab", { name: "Ingredient catalog" })).toHaveAttribute("aria-selected", "true");
+		await expect(menu.locator("form")).toHaveCount(0);
+		await page.getByRole("tab", { name: "Saved menus" }).click();
+		await page.getByRole("searchbox", { name: "Search saved menus" }).fill("");
+		await expect(menu.locator("form")).toHaveCount(0);
+		const ingredient = page.locator(".library-card").first();
+		await ingredient.getByRole("button", { name: "Edit" }).click();
+		await expect(ingredient.locator("form.library-editor")).toBeVisible();
+		await ingredient.locator("form").getByRole("button", { name: "Cancel" }).click();
+		await expect(ingredient.locator("form")).toHaveCount(0);
+		expect(dialogs).toBe(2);
+	});
+
 	test("desktop: find an ingredient by alias and save a reusable menu", async ({
 		page,
 	}) => {
