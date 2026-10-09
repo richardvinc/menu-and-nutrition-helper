@@ -14,6 +14,8 @@ type PlannerData = Pick<
 export interface WeeklyPlannerProps {
 	data: PlannerData;
 	weekStart: string;
+	currentWeekStart: string;
+	onWeekChange: (weekStart: string) => void;
 	onEditMeal: (meal: ScheduledMeal) => void;
 	onCreateMeal: (
 		date: string,
@@ -55,6 +57,8 @@ const fmt = (value: number) => Math.round(value).toLocaleString();
 export function WeeklyPlanner({
 	data,
 	weekStart,
+	currentWeekStart,
+	onWeekChange,
 	onEditMeal,
 	onCreateMeal,
 	onMoveMeal,
@@ -125,9 +129,12 @@ export function WeeklyPlanner({
 				</span>
 				{data.members.map((member) => {
 					const totals = plannedNutrition(meals, member.id);
-					const target = data.targets.find(
-						(item) => item.memberId === member.id && item.weekStart === weekStart,
-					);
+					const target = data.targets
+						.filter(
+							(item) =>
+								item.memberId === member.id && item.weekStart <= weekStart,
+						)
+						.sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
 					return (
 						<p key={member.id}>
 							{member.name}
@@ -329,16 +336,46 @@ export function WeeklyPlanner({
 		<main className="pk-week">
 			<header className="pk-week__heading">
 				<div>
-					<p className="pk-week__eyebrow">THE WEEK AHEAD</p>
+					<p className="pk-week__eyebrow">MEAL SCHEDULE</p>
 					<h1>Weekly planning board</h1>
 					<p>Drag one day onto another to swap their full menus.</p>
 				</div>
-				<span>
-					{new Date(`${weekStart}T12:00:00`).toLocaleDateString(undefined, {
-						month: "long",
-						year: "numeric",
-					})}
-				</span>
+				<div className="pk-week__controls">
+					<nav aria-label="Week navigation">
+						<button
+							aria-label="Previous week"
+							onClick={() => onWeekChange(addDays(weekStart, -7))}
+						>
+							← Previous
+						</button>
+						<button
+							aria-label="This week"
+							disabled={weekStart === currentWeekStart}
+							onClick={() => onWeekChange(currentWeekStart)}
+						>
+							This week
+						</button>
+						<button
+							aria-label="Next week"
+							onClick={() => onWeekChange(addDays(weekStart, 7))}
+						>
+							Next →
+						</button>
+					</nav>
+					<time className="pk-week__date-range" dateTime={weekStart}>
+						{new Date(`${weekStart}T12:00:00`).toLocaleDateString(undefined, {
+							month: "short",
+							day: "numeric",
+							year: "numeric",
+						})}
+						{" – "}
+						{new Date(`${dates[6]}T12:00:00`).toLocaleDateString(undefined, {
+							month: "short",
+							day: "numeric",
+							year: "numeric",
+						})}
+					</time>
+				</div>
 			</header>
 			<div className="pk-week__mobile">
 				<nav className="pk-week__day-strip" aria-label="Choose a day">

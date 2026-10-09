@@ -837,3 +837,115 @@ test("week meal deletion reports API errors and keeps the meal", async ({ page }
 		await removeWeekDeleteFixture(page.request, fixture);
 	}
 });
+
+for (const viewport of [
+	{ name: "desktop", width: 1280, height: 900 },
+	{ name: "mobile", width: 390, height: 844 },
+]) {
+	test(`${viewport.name} week navigation crosses year boundaries and resets`, async ({
+		page,
+	}) => {
+		await page.clock.install({ time: new Date(2026, 11, 30, 12) });
+		await page.setViewportSize(viewport);
+		await page.goto("/");
+		await page.getByRole("button", { name: "Week", exact: true }).click();
+		const range = page.locator(".pk-week__date-range");
+		await expect(range).toHaveText("Dec 28, 2026 – Jan 3, 2027");
+		await page.getByRole("button", { name: "Previous week" }).click();
+		await expect(range).toHaveText("Dec 21, 2026 – Dec 27, 2026");
+		await page.getByRole("button", { name: "Next week" }).click();
+		await expect(range).toHaveText("Dec 28, 2026 – Jan 3, 2027");
+		await page.getByRole("button", { name: "Next week" }).click();
+		await expect(range).toHaveText("Jan 4, 2027 – Jan 10, 2027");
+		if (viewport.name === "mobile")
+			await expect(page.getByRole("heading", { name: /Monday, January 4/ })).toBeVisible();
+		await page.getByRole("button", { name: "This week" }).click();
+		await expect(range).toHaveText("Dec 28, 2026 – Jan 3, 2027");
+		await expect(page.getByRole("button", { name: "This week" })).toBeDisabled();
+	});
+}
+
+test("future week schedules through the planner and uses only its applicable target", async ({
+	page,
+}) => {
+	const baseline = await (await page.request.get("/api/data")).json();
+	const historicalTarget = baseline.targets
+		.filter(
+			(target: { memberId: string; weekStart: string }) =>
+				target.memberId === "richard" && target.weekStart <= "2026-12-21",
+		)
+		.sort(
+			(a: { weekStart: string }, b: { weekStart: string }) =>
+				b.weekStart.localeCompare(a.weekStart),
+		)[0];
+	if (!historicalTarget)
+		throw new Error("a historical target is required for week navigation");
+	const futureTarget = {
+		...historicalTarget,
+		weekStart: "2027-01-04",
+		weekdayCalories: historicalTarget.weekdayCalories + 5000,
+	};
+	let scheduledMealId = "";
+	try {
+		await page.route("**/api/data", async (route) => {
+			const response = await route.fetch();
+			const data = await response.json();
+			data.targets.push(futureTarget);
+			await route.fulfill({ response, json: data });
+		});
+		await page.clock.install({ time: new Date(2026, 11, 30, 12) });
+		await page.goto("/");
+		await page.getByRole("button", { name: "Week", exact: true }).click();
+		await page.getByRole("button", { name: "Previous week" }).click();
+		const historyProgress = page.locator(
+			'.pk-week-day[data-date="2026-12-21"] .pk-pocket__targets',
+		);
+		await expect(historyProgress).toContainText(
+			`Calories 0 / ${Math.round(historicalTarget.weekdayCalories).toLocaleString()} kcal`,
+		);
+		await page.getByRole("button", { name: "Next week" }).click();
+		await page.getByRole("button", { name: "Next week" }).click();
+		const futureProgress = page.locator(
+			'.pk-week-day[data-date="2027-01-04"] .pk-pocket__targets',
+		);
+		await expect(futureProgress).toContainText(
+			`Calories 0 / ${Math.round(futureTarget.weekdayCalories).toLocaleString()} kcal`,
+		);
+		await page
+			.locator('.pk-week-day[data-date="2027-01-04"] .pk-week-slot')
+			.filter({ hasText: "Richard lunch" })
+			.getByRole("button", { name: "＋ Add" })
+			.click();
+		await expect(page.getByLabel("Date")).toHaveValue("2027-01-04");
+		await page.getByLabel("Meal name").fill("Next year scheduled lunch");
+		const saveRequest = page.waitForRequest(
+			(request) =>
+				request.url().includes("/api/meals/save") &&
+				request.method() === "POST",
+		);
+		await page.getByRole("button", { name: "Save scheduled meal" }).click();
+		scheduledMealId = (await saveRequest).postDataJSON().meal.id;
+		await expect(
+			page
+				.locator('.pk-week-day[data-date="2027-01-04"]')
+				.getByText("Next year scheduled lunch"),
+		).toBeVisible();
+		await page.getByRole("navigation", { name: "Primary navigation" })
+			.getByRole("button", { name: "Library", exact: true })
+			.click();
+		await page.getByRole("navigation", { name: "Primary navigation" })
+			.getByRole("button", { name: "Week", exact: true })
+			.click();
+		await expect(page.locator(".pk-week__date-range")).toHaveText(
+			"Jan 4, 2027 – Jan 10, 2027",
+		);
+		await expect(
+			page
+				.locator('.pk-week-day[data-date="2027-01-04"]')
+				.getByText("Next year scheduled lunch"),
+		).toBeVisible();
+	} finally {
+		if (scheduledMealId)
+			await page.request.delete(`/api/meals/${scheduledMealId}`);
+	}
+});
