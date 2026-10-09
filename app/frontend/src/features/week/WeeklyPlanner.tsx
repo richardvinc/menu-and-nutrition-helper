@@ -21,6 +21,7 @@ export interface WeeklyPlannerProps {
 		memberId?: MemberId,
 	) => void;
 	onMoveMeal: (mealId: string, destinationDate: string) => void | Promise<void>;
+	onDeleteMeal: (mealId: string) => void | Promise<void>;
 	onSwapDays: (firstDate: string, secondDate: string) => void | Promise<void>;
 }
 
@@ -57,9 +58,11 @@ export function WeeklyPlanner({
 	onEditMeal,
 	onCreateMeal,
 	onMoveMeal,
+	onDeleteMeal,
 	onSwapDays,
 }: WeeklyPlannerProps) {
 	const [selectedDate, setSelectedDate] = useState(weekStart);
+	const [deleting, setDeleting] = useState(false);
 	const [movingMeal, setMovingMeal] = useState<ScheduledMeal | null>(null);
 	const [destinationDate, setDestinationDate] = useState("");
 	const [dayDrag, setDayDrag] = useState<{
@@ -194,6 +197,19 @@ export function WeeklyPlanner({
 			</div>
 			<div className="pk-week-meal__actions">
 				<button onClick={() => onEditMeal(meal)}>Edit</button>
+				<button
+					disabled={deleting}
+					aria-label={`Delete ${meal.name}`}
+					onClick={() => {
+						if (!window.confirm(`Delete scheduled meal “${meal.name}”?`)) return;
+						setDeleting(true);
+						void Promise.resolve(onDeleteMeal(meal.id))
+							.catch(() => undefined)
+							.finally(() => setDeleting(false));
+					}}
+				>
+					Delete
+				</button>
 				<button
 					onClick={() => {
 						setMovingMeal(meal);

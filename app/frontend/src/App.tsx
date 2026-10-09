@@ -117,6 +117,7 @@ export function App() {
 					openEditor(date, slot, memberId)
 				}
 				onMoveMeal={(id, date) => run(() => api.moveMeal(id, date))}
+				onDeleteMeal={(id) => run(() => api.deleteMeal(id))}
 				onSwapDays={(firstDate, secondDate) =>
 					run(() => api.swapDays(firstDate, secondDate))
 				}

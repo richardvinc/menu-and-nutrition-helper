@@ -1,4 +1,35 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
+
+async function createWeekDeleteFixture(request: APIRequestContext) {
+	const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+	const menu = {
+		id: `week-delete-menu-${suffix}`,
+		name: `Week delete saved menu ${suffix}`,
+		slot: "lunch",
+		memberId: "richard",
+		ingredients: [{ ingredientId: "chicken", quantity: 150 }],
+	};
+	const meal = {
+		id: `week-delete-meal-${suffix}`,
+		date: "2026-10-06",
+		slot: "lunch",
+		memberId: "richard",
+		name: `Week delete scheduled meal ${suffix}`,
+		notes: "",
+		ingredients: menu.ingredients,
+	};
+	expect((await request.post("/api/menus", { data: menu })).status()).toBe(201);
+	expect((await request.post("/api/meals", { data: meal })).status()).toBe(201);
+	return { menu, meal };
+}
+
+async function removeWeekDeleteFixture(
+	request: APIRequestContext,
+	fixture: Awaited<ReturnType<typeof createWeekDeleteFixture>>,
+) {
+	await request.delete(`/api/meals/${fixture.meal.id}`);
+	await request.delete(`/api/menus/${fixture.menu.id}`);
+}
 
 const testMeals = [
 	{
@@ -690,4 +721,119 @@ test("390px weekly planner uses a selected-day agenda without horizontal overflo
 		page.locator(".pk-pocket").getByText("Sesame chicken bowl"),
 	).toBeVisible();
 	await expect(page.locator(".pk-pocket .pk-pocket__targets")).toContainText("Fiber");
+});
+
+for (const viewport of [
+	{ name: "desktop", width: 1280, height: 900 },
+	{ name: "mobile", width: 390, height: 844 },
+]) {
+	test(`${viewport.name} week page deletes only the scheduled meal`, async ({
+		page,
+	}) => {
+		const fixture = await createWeekDeleteFixture(page.request);
+		try {
+			await page.clock.install({ time: new Date(2026, 9, 8, 12) });
+			await page.setViewportSize(viewport);
+			await page.goto("/");
+			await page.getByRole("button", { name: "Week", exact: true }).click();
+			if (viewport.name === "mobile")
+				await page.locator(".pk-week__day-strip button").nth(1).click();
+			const meal = page
+				.locator(
+					viewport.name === "mobile"
+						? ".pk-pocket"
+						: '.pk-week-day[data-date="2026-10-06"]',
+				)
+				.locator(".pk-week-meal")
+				.filter({ hasText: fixture.meal.name });
+			await expect(meal).toBeVisible();
+			let confirmation = "";
+			page.once("dialog", async (dialog) => {
+				confirmation = dialog.message();
+				await dialog.accept();
+			});
+			await meal
+				.getByRole("button", { name: `Delete ${fixture.meal.name}` })
+				.click();
+			expect(confirmation).toContain(fixture.meal.name);
+			await expect(meal).toHaveCount(0);
+			await expect(
+				page
+					.locator(
+						viewport.name === "mobile"
+							? ".pk-pocket-slot"
+							: '.pk-week-day[data-date="2026-10-06"] .pk-week-slot',
+					)
+					.filter({ hasText: "Richard lunch" })
+					.getByRole("button", { name: /Add/ }),
+			).toBeVisible();
+			const data = await (await page.request.get("/api/data")).json();
+			expect(
+				data.scheduledMeals.some(
+					(item: { id: string }) => item.id === fixture.meal.id,
+				),
+			).toBe(false);
+			expect(
+				data.savedMenus.some(
+					(item: { id: string }) => item.id === fixture.menu.id,
+				),
+			).toBe(true);
+		} finally {
+			await removeWeekDeleteFixture(page.request, fixture);
+		}
+	});
+}
+
+test("week meal deletion can be canceled", async ({ page }) => {
+	const fixture = await createWeekDeleteFixture(page.request);
+	try {
+		await page.clock.install({ time: new Date(2026, 9, 8, 12) });
+		await page.goto("/");
+		await page.getByRole("button", { name: "Week", exact: true }).click();
+		const meal = page
+			.locator('.pk-week-day[data-date="2026-10-06"] .pk-week-meal')
+			.filter({ hasText: fixture.meal.name });
+		page.once("dialog", (dialog) => dialog.dismiss());
+		await meal
+			.getByRole("button", { name: `Delete ${fixture.meal.name}` })
+			.click();
+		await expect(meal).toBeVisible();
+		const data = await (await page.request.get("/api/data")).json();
+		expect(
+			data.scheduledMeals.some(
+				(item: { id: string }) => item.id === fixture.meal.id,
+			),
+		).toBe(true);
+	} finally {
+		await removeWeekDeleteFixture(page.request, fixture);
+	}
+});
+
+test("week meal deletion reports API errors and keeps the meal", async ({ page }) => {
+	const fixture = await createWeekDeleteFixture(page.request);
+	try {
+		await page.clock.install({ time: new Date(2026, 9, 8, 12) });
+		await page.route(`**/api/meals/${fixture.meal.id}`, (route) =>
+			route.fulfill({
+				status: 500,
+				contentType: "application/json",
+				body: JSON.stringify({ error: "Could not delete scheduled meal" }),
+			}),
+		);
+		await page.goto("/");
+		await page.getByRole("button", { name: "Week", exact: true }).click();
+		const meal = page
+			.locator('.pk-week-day[data-date="2026-10-06"] .pk-week-meal')
+			.filter({ hasText: fixture.meal.name });
+		page.once("dialog", (dialog) => dialog.accept());
+		await meal
+			.getByRole("button", { name: `Delete ${fixture.meal.name}` })
+			.click();
+		await expect(page.getByRole("alert")).toContainText(
+			"Could not delete scheduled meal",
+		);
+		await expect(meal).toBeVisible();
+	} finally {
+		await removeWeekDeleteFixture(page.request, fixture);
+	}
 });
