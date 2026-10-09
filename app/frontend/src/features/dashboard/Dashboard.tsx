@@ -103,11 +103,11 @@ export function Dashboard({ data, today = new Date() }: DashboardProps) {
 
 	return (
 		<main className="pk-dashboard">
-			<header className="pk-dashboard__header">
+			{/* <header className="pk-dashboard__header">
 				<p className="pk-eyebrow">PIRING KITA · PLANNING</p>
 				<h1>Good food, ready when you are.</h1>
 				<p className="pk-muted">Today and tomorrow at a glance.</p>
-			</header>
+			</header> */}
 
 			<div className="pk-dashboard__days">
 				{[0, 1].map((offset) => {
@@ -174,10 +174,10 @@ export function Dashboard({ data, today = new Date() }: DashboardProps) {
 															return (
 																<li key={`${row.ingredientId}-${index}`}>
 																	<span>
-													{ingredient?.name ?? "Unknown ingredient"}
-													{ingredient?.unit !== "g" &&
-														ingredient?.equivalentGrams != null &&
-														` · 1 ${ingredient.unit} (${ingredient.equivalentGrams} g)`}
+																		{ingredient?.name ?? "Unknown ingredient"}
+																		{ingredient?.unit !== "g" &&
+																			ingredient?.equivalentGrams != null &&
+																			` · 1 ${ingredient.unit} (${ingredient.equivalentGrams} g)`}
 																	</span>
 																	<strong>
 																		{row.quantity} {ingredient?.unit ?? ""}

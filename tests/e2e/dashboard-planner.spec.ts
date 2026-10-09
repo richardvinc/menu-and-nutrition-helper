@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 
 async function createWeekDeleteFixture(request: APIRequestContext) {
 	const suffix = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -224,9 +224,6 @@ test("dark theme applies the nighttime surface palette", async ({ page }) => {
 		"background-color",
 		"rgba(33, 31, 48, 0.96)",
 	);
-	await expect(
-		page.getByRole("heading", { name: "Good food, ready when you are." }),
-	).toBeVisible();
 });
 
 test("navbar shows the cooking icon and switches theme on demand", async ({
@@ -502,56 +499,135 @@ test("meal editor closes with Escape and a backdrop click", async ({
 	await expect(page.locator(".pk-editor-scrim")).toHaveCount(0);
 });
 
-test("AI recommendations open in a mobile-friendly modal with a cooking state", async ({ page }) => {
+test("AI recommendations open in a mobile-friendly modal with a cooking state", async ({
+	page,
+}) => {
 	await page.setViewportSize({ width: 390, height: 844 });
-	await page.route("**/api/ai/status", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ recommendations: true, ingredientLookup: true }) }));
+	await page.route("**/api/ai/status", (route) =>
+		route.fulfill({
+			status: 200,
+			contentType: "application/json",
+			body: JSON.stringify({ recommendations: true, ingredientLookup: true }),
+		}),
+	);
 	let releaseRecommendations!: () => void;
 	await page.route("**/api/ai/recommendations", async (route) => {
-		await new Promise<void>((resolve) => { releaseRecommendations = resolve; });
+		await new Promise<void>((resolve) => {
+			releaseRecommendations = resolve;
+		});
 		const recommendations = Array.from({ length: 5 }, (_, index) => ({
 			name: `Balanced tofu idea ${index + 1}`,
 			origin: index < 2 ? "saved" : "new",
 			savedMenuKey: index < 2 ? `saved-${index + 1}` : "",
-			justification: "Affordable protein with a practical portion and vegetables.",
+			justification:
+				"Affordable protein with a practical portion and vegetables.",
 			cookingNote: "Pan-fry gently.",
 			ingredients: [{ ingredientId: "tofu", quantity: 150 }],
-			ingredientDetails: [{ ingredientId: "tofu", quantity: 150, name: "Tahu firm" }],
-			removals: [], newIngredients: [], companionSnacks: [], priorKey: [`idea-${index + 1}`],
+			ingredientDetails: [
+				{ ingredientId: "tofu", quantity: 150, name: "Tahu firm" },
+			],
+			removals: [],
+			newIngredients: [],
+			companionSnacks: [],
+			priorKey: [`idea-${index + 1}`],
 			nutrition: { calories: 216, protein: 26, carbs: 4, fat: 13, fiber: 3 },
-			deltas: [{ member: "Member A", caloriesAfter: 540, calorieTarget: 960, overCaloriesBy: 0, proteinAfter: 48, proteinTarget: 60, carbsAfter: 50, carbsTarget: 108, fatAfter: 20, fatTarget: 32, fiberAfter: 9, fiberTarget: 15, proteinDelta: 26, carbsDelta: 4, fatDelta: 13, fiberDelta: 3 }],
+			deltas: [
+				{
+					member: "Member A",
+					caloriesAfter: 540,
+					calorieTarget: 960,
+					overCaloriesBy: 0,
+					proteinAfter: 48,
+					proteinTarget: 60,
+					carbsAfter: 50,
+					carbsTarget: 108,
+					fatAfter: 20,
+					fatTarget: 32,
+					fiberAfter: 9,
+					fiberTarget: 15,
+					proteinDelta: 26,
+					carbsDelta: 4,
+					fatDelta: 13,
+					fiberDelta: 3,
+				},
+			],
 		}));
-		await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ recommendations }) });
+		await route.fulfill({
+			status: 200,
+			contentType: "application/json",
+			body: JSON.stringify({ recommendations }),
+		});
 	});
 	let savedMenus: unknown[] = [];
 	let releaseSave!: () => void;
 	await page.route("**/api/menus/recommendations", async (route) => {
 		savedMenus = route.request().postDataJSON().menus;
-		await new Promise<void>((resolve) => { releaseSave = resolve; });
-		await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(savedMenus) });
+		await new Promise<void>((resolve) => {
+			releaseSave = resolve;
+		});
+		await route.fulfill({
+			status: 200,
+			contentType: "application/json",
+			body: JSON.stringify(savedMenus),
+		});
 	});
 	await page.goto("/");
 	await page.getByRole("button", { name: "Week", exact: true }).click();
 	await page.locator(".pk-week__day-strip button").nth(3).click();
-	await page.locator(".pk-week-meal").filter({ hasText: "Sesame chicken bowl" }).getByRole("button", { name: "Edit", exact: true }).click();
+	await page
+		.locator(".pk-week-meal")
+		.filter({ hasText: "Sesame chicken bowl" })
+		.getByRole("button", { name: "Edit", exact: true })
+		.click();
 	await page.getByRole("button", { name: "Adjust with AI" }).click();
 	const dialog = page.getByRole("dialog", { name: "Improve this meal" });
 	await expect(dialog).toBeVisible();
-	await expect(dialog.getByRole("status")).toContainText("Building balanced meal ideas");
+	await expect(dialog.getByRole("status")).toContainText(
+		"Building balanced meal ideas",
+	);
 	await expect(dialog.locator('img[src="/ai-cooking.webp"]')).toBeVisible();
 	releaseRecommendations();
 	await expect(dialog.locator(".pk-ai-card")).toHaveCount(5);
-	expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+	expect(
+		await dialog.evaluate(
+			(element) => element.scrollWidth <= element.clientWidth,
+		),
+	).toBe(true);
 	const draftName = await page.getByLabel("Meal name").inputValue();
-	const draftQuantities = await page.locator(".pk-editor-row input").evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value));
-	await dialog.locator(".pk-ai-card").nth(0).getByLabel("Add to master menu").check();
-	await dialog.locator(".pk-ai-card").nth(2).getByLabel("Add to master menu").check();
+	const draftQuantities = await page
+		.locator(".pk-editor-row input")
+		.evaluateAll((inputs) =>
+			inputs.map((input) => (input as HTMLInputElement).value),
+		);
+	await dialog
+		.locator(".pk-ai-card")
+		.nth(0)
+		.getByLabel("Add to master menu")
+		.check();
+	await dialog
+		.locator(".pk-ai-card")
+		.nth(2)
+		.getByLabel("Add to master menu")
+		.check();
 	await dialog.getByRole("button", { name: "Add 2 to master menu" }).click();
-	await expect(dialog.getByRole("button", { name: "Adding menus…" })).toBeDisabled();
-	await expect(dialog.locator(".pk-ai-card").nth(1).getByLabel("Add to master menu")).toBeDisabled();
+	await expect(
+		dialog.getByRole("button", { name: "Adding menus…" }),
+	).toBeDisabled();
+	await expect(
+		dialog.locator(".pk-ai-card").nth(1).getByLabel("Add to master menu"),
+	).toBeDisabled();
 	expect(await page.getByLabel("Meal name").inputValue()).toBe(draftName);
-	expect(await page.locator(".pk-editor-row input").evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value))).toEqual(draftQuantities);
+	expect(
+		await page
+			.locator(".pk-editor-row input")
+			.evaluateAll((inputs) =>
+				inputs.map((input) => (input as HTMLInputElement).value),
+			),
+	).toEqual(draftQuantities);
 	releaseSave();
-	await expect(dialog.getByRole("status")).toContainText("Added 2 menus to the master menu");
+	await expect(dialog.getByRole("status")).toContainText(
+		"Added 2 menus to the master menu",
+	);
 	expect(savedMenus).toHaveLength(2);
 	await dialog.getByRole("button", { name: "Apply this idea" }).first().click();
 	await expect(dialog).toHaveCount(0);
@@ -720,7 +796,9 @@ test("390px weekly planner uses a selected-day agenda without horizontal overflo
 	await expect(
 		page.locator(".pk-pocket").getByText("Sesame chicken bowl"),
 	).toBeVisible();
-	await expect(page.locator(".pk-pocket .pk-pocket__targets")).toContainText("Fiber");
+	await expect(page.locator(".pk-pocket .pk-pocket__targets")).toContainText(
+		"Fiber",
+	);
 });
 
 for (const viewport of [
@@ -809,7 +887,9 @@ test("week meal deletion can be canceled", async ({ page }) => {
 	}
 });
 
-test("week meal deletion reports API errors and keeps the meal", async ({ page }) => {
+test("week meal deletion reports API errors and keeps the meal", async ({
+	page,
+}) => {
 	const fixture = await createWeekDeleteFixture(page.request);
 	try {
 		await page.clock.install({ time: new Date(2026, 9, 8, 12) });
@@ -858,10 +938,14 @@ for (const viewport of [
 		await page.getByRole("button", { name: "Next week" }).click();
 		await expect(range).toHaveText("Jan 4, 2027 – Jan 10, 2027");
 		if (viewport.name === "mobile")
-			await expect(page.getByRole("heading", { name: /Monday, January 4/ })).toBeVisible();
+			await expect(
+				page.getByRole("heading", { name: /Monday, January 4/ }),
+			).toBeVisible();
 		await page.getByRole("button", { name: "This week" }).click();
 		await expect(range).toHaveText("Dec 28, 2026 – Jan 3, 2027");
-		await expect(page.getByRole("button", { name: "This week" })).toBeDisabled();
+		await expect(
+			page.getByRole("button", { name: "This week" }),
+		).toBeDisabled();
 	});
 }
 
@@ -874,9 +958,8 @@ test("future week schedules through the planner and uses only its applicable tar
 			(target: { memberId: string; weekStart: string }) =>
 				target.memberId === "richard" && target.weekStart <= "2026-12-21",
 		)
-		.sort(
-			(a: { weekStart: string }, b: { weekStart: string }) =>
-				b.weekStart.localeCompare(a.weekStart),
+		.sort((a: { weekStart: string }, b: { weekStart: string }) =>
+			b.weekStart.localeCompare(a.weekStart),
 		)[0];
 	if (!historicalTarget)
 		throw new Error("a historical target is required for week navigation");
@@ -930,10 +1013,12 @@ test("future week schedules through the planner and uses only its applicable tar
 				.locator('.pk-week-day[data-date="2027-01-04"]')
 				.getByText("Next year scheduled lunch"),
 		).toBeVisible();
-		await page.getByRole("navigation", { name: "Primary navigation" })
+		await page
+			.getByRole("navigation", { name: "Primary navigation" })
 			.getByRole("button", { name: "Library", exact: true })
 			.click();
-		await page.getByRole("navigation", { name: "Primary navigation" })
+		await page
+			.getByRole("navigation", { name: "Primary navigation" })
 			.getByRole("button", { name: "Week", exact: true })
 			.click();
 		await expect(page.locator(".pk-week__date-range")).toHaveText(
