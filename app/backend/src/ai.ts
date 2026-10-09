@@ -18,8 +18,25 @@ const rateBuckets = new Map<string, number[]>();
 const appRequests: number[] = [];
 
 const aiTraceEnabled = () => process.env.AI_DEBUG_LOG === "true" || (process.env.AI_DEBUG_LOG !== "false" && process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test");
+const secretTraceField = /^(authorization|api_?key|access_?token|secret|password)$/i;
+const traceValue = (value: unknown): unknown => {
+	if (Array.isArray(value)) return value.map(traceValue);
+	if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, secretTraceField.test(key) ? "[redacted]" : traceValue(item)]));
+	if (typeof value === "string" && /^[\[{]/.test(value.trim())) {
+		try { return traceValue(JSON.parse(value)); } catch { return value; }
+	}
+	return value;
+};
+export const formatAiTraceData = (data: unknown) => JSON.stringify(traceValue(data), null, 2);
 const aiTrace = (provider: "OpenRouter" | "USDA", event: string, data: unknown) => {
-	if (aiTraceEnabled()) console.log(`[AI ${new Date().toISOString()}] ${provider} ${event}\n${JSON.stringify(data, null, 2)}`);
+	if (!aiTraceEnabled()) return;
+	const color = process.stdout.isTTY && !process.env.NO_COLOR;
+	const icon = /prompt|request/.test(event) ? "→" : /error/.test(event) ? "!" : "←";
+	const heading = `${icon} ${provider} · ${event.toUpperCase()}`;
+	const timestamp = new Date().toISOString();
+	console.log(`\n${color ? "\x1b[1;36m" : ""}${heading}${color ? "\x1b[0m\x1b[2m" : ""}  ${timestamp}${color ? "\x1b[0m" : ""}`);
+	console.log(formatAiTraceData(data));
+	console.log(color ? "\x1b[2m────────────────────────────────────────────────────────────────────────\x1b[0m" : "------------------------------------------------------------------------");
 };
 
 export function reserveOpenRouterRequest() {
@@ -59,7 +76,7 @@ export async function recommend(input: {
 	const byKey = new Map(available.map((item, index) => [`ingredient-${index + 1}`, item]));
 	const system = "Create up to three practical Indonesian meal suggestions using cheap, easy sources such as tofu, tempeh, eggs, beans and lentils. Use supplied suggestible catalog keys first. Use a USDA query only when the supplied catalog cannot sensibly fit; never supply nutrition values. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Add a companion snack only when portions would otherwise be impractical, and never for a member with a settled snack. Keep each snack below its daily calorie cap. For an existing draft, the first option returns exactly its current ingredient set with adjusted quantities only. Later options may remove a current ingredient only when necessary; for every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal, label each option origin as saved or new; use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. Include up to two saved-menu choices and at least one genuinely new composition when saved menus are available. Return complete ingredient lists for each option. Use English names and explanations. Quantities use each catalog ingredient's unit; USDA query quantities are grams.";
 	const requestBody = {
-		model: "openrouter/free",
+		model: "qwen/qwen3.5-35b-a3b-20260224",
 		temperature: 0.4,
 		provider: { require_parameters: true },
 		messages: [

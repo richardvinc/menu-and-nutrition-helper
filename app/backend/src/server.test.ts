@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AppData, TargetPreviewRequest } from "@piring-kita/shared";
 import { createApp, createDatabase } from "./server";
-import { rateLimit, recommend, searchUsda } from "./ai";
+import { formatAiTraceData, rateLimit, recommend, searchUsda } from "./ai";
 
 describe("backend API", () => {
 	let db: Database;
@@ -19,6 +19,14 @@ describe("backend API", () => {
 		});
 		expect(response.status).toBe(201);
 	};
+
+	test("AI logs expand embedded JSON and redact credentials", () => {
+		const output = formatAiTraceData({ content: '{"meal":"tofu"}', api_key: "private", usage: { completion_tokens: 12 } });
+		expect(output).toContain('"meal": "tofu"');
+		expect(output).toContain('"api_key": "[redacted]"');
+		expect(output).toContain('"completion_tokens": 12');
+		expect(output).not.toContain("private");
+	});
 
 	beforeEach(async () => {
 		db = createDatabase(":memory:");
@@ -120,6 +128,7 @@ describe("backend API", () => {
 				return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ recommendations: [{ name: "Unsupported", origin: "new", savedMenuKey: "", justification: "test", cookingNote: "", ingredients: [{ catalogKey: "made-up", usdaQuery: "", quantity: 50, member: "shared" }], removals: [], companionSnacks: [] }] }) } }] }), { status: 200 });
 			}) as typeof fetch;
 			await expect(recommend({ meal: { id: "draft", date: "2026-10-08", slot: "lunch", memberId: "richard", name: "Meal", notes: "", ingredients: [] }, catalog, currentDay: [], savedMenus: [], targets: [], prior: [] })).rejects.toThrow("unsupported ingredient");
+			expect(openRouterBody.model).toBe("qwen/qwen3.5-35b-a3b-20260224");
 			expect(openRouterBody.messages[1].content).not.toContain("ingredientId");
 			expect(openRouterBody.messages[1].content).not.toContain('"id"');
 			expect(await searchUsda("food with no match")).toEqual([]);
