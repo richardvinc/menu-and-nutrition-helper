@@ -267,7 +267,7 @@ export function Library({
 		setLookupWarning("");
 		setLookupResult(null);
 		try {
-			const result = await api.lookupIngredient(ingredientDraftState.name.trim());
+			const result = await api.lookupIngredient(ingredientDraftState.name.trim(), ingredientDraftState.preparation.trim());
 			if (lookupRequestId.current !== requestId) return;
 			setLookupResult(result);
 			if (result.existing) {
@@ -684,7 +684,7 @@ export function Library({
 									<button type="button" onClick={findIngredientNutrition} disabled={lookupBusy || !ingredientDraftState.name.trim() || lookupAvailable === false}>{lookupBusy ? "Looking up…" : "Find nutrition with AI"}</button>
 									{lookupAvailable === false && <p className="feature-hint">USDA nutrition lookup is unavailable: USDA_API_KEY is not configured.</p>}
 									{lookupWarning && <p className="feature-hint" role="status">{lookupWarning}</p>}
-									{lookupResult && <div className="usda-matches"><p>USDA search: <strong>{lookupResult.query}</strong></p>{lookupResult.similar?.length ? <p>Similar catalog names: {lookupResult.similar.join(", ")}. No automatic merge.</p> : null}{lookupResult.matches.map((match) => <button type="button" className="secondary" key={match.fdcId} onClick={() => selectUsdaMatch(match)}>{match.description} · {match.dataType}</button>)}</div>}
+					{lookupResult && <div className="usda-matches"><p>USDA search: <strong>{lookupResult.query}</strong></p>{lookupResult.similar?.length ? <p>Similar catalog names: {lookupResult.similar.join(", ")}. No automatic merge.</p> : null}{lookupResult.matches.map((match) => <button type="button" className="secondary" key={match.fdcId} onClick={() => selectUsdaMatch(match)}>{match.description} · {match.dataType} · per 100 g: {match.nutrition.calories} kcal, protein {match.nutrition.protein} g, carbs {match.nutrition.carbs} g, fat {match.nutrition.fat} g, fiber {match.nutrition.fiber} g</button>)}</div>}
 								</div>
 								<label>
 									Aliases, separated by commas

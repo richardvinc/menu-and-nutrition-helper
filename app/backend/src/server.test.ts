@@ -157,6 +157,73 @@ describe("backend API", () => {
 		}
 	});
 
+	test("jasmine rice search returns cooked generic rice and never branded records", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldUsda = process.env.USDA_API_KEY;
+		process.env.USDA_API_KEY = "test-only";
+		const queries: string[] = [];
+		const nutrients = (calories: number) => [
+			{ nutrientNumber: "208", value: calories }, { nutrientNumber: "203", value: 2.69 }, { nutrientNumber: "205", value: 28.17 }, { nutrientNumber: "204", value: 0.28 }, { nutrientNumber: "291", value: 0.4 },
+		];
+		globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			const body = JSON.parse(String(init?.body));
+			queries.push(body.query);
+			const foods = body.query === "jasmine rice"
+				? [{ fdcId: 123, description: "Rice, jasmine, dry", dataType: "SR Legacy", foodNutrients: nutrients(356) }, { fdcId: 1995004, description: "Jasmine rice, dry", dataType: "Branded", foodNutrients: nutrients(356) }]
+				: [{ fdcId: 168878, description: "Rice, white, long-grain, regular, cooked", dataType: "SR Legacy", foodNutrients: nutrients(130) }];
+			return new Response(JSON.stringify({ foods }), { status: 200 });
+		}) as typeof fetch;
+		try {
+			const matches = await searchUsda("jasmine rice");
+			expect(queries).toEqual(["jasmine rice", "rice white long grain regular cooked"]);
+			expect(matches.map((match) => match.fdcId)).toEqual([168878]);
+			expect(matches[0]).toMatchObject({ dataType: "SR Legacy", nutrition: { calories: 130, protein: 2.69, carbs: 28.17, fat: 0.28, fiber: 0.4 } });
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY; else process.env.USDA_API_KEY = oldUsda;
+		}
+	});
+
+	test("ingredient lookup passes preparation and returns clean aliases with generic match choices", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		const oldUsda = process.env.USDA_API_KEY;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		process.env.USDA_API_KEY = "test-only";
+		let aliasInput: any;
+		let usdaBody: any;
+		globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			if (String(input).includes("openrouter.ai")) {
+				const body = JSON.parse(String(init?.body));
+				aliasInput = JSON.parse(body.messages[1].content);
+				return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ usdaQuery: "rice white long grain regular cooked", aliases: ["English: Jasmine rice", "Indonesian: nasi, rice", "jasmine rice"] }) } }] }), { status: 200 });
+			}
+			if (String(input).includes("api.nal.usda.gov")) {
+				usdaBody = JSON.parse(String(init?.body));
+				return new Response(JSON.stringify({ foods: [
+					{ fdcId: 168878, description: "Rice, white, long-grain, regular, cooked", dataType: "SR Legacy", foodNutrients: [{ nutrientNumber: "208", value: 130 }, { nutrientNumber: "203", value: 2.69 }, { nutrientNumber: "205", value: 28.17 }, { nutrientNumber: "204", value: 0.28 }, { nutrientNumber: "291", value: 0.4 }] },
+					{ fdcId: 1995004, description: "Jasmine rice, dry", dataType: "Branded", foodNutrients: [{ nutrientNumber: "208", value: 356 }, { nutrientNumber: "203", value: 7 }, { nutrientNumber: "205", value: 80 }, { nutrientNumber: "204", value: 1 }, { nutrientNumber: "291", value: 2 }] },
+				] }), { status: 200 });
+			}
+			return oldFetch(input, init);
+		}) as typeof fetch;
+		try {
+			const response = await fetch(`${base}/api/ai/ingredient-lookup`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "jasmine rice", preparation: "cooked" }) });
+			expect(response.status).toBe(200);
+			expect(aliasInput).toEqual({ name: "jasmine rice", preparation: "cooked" });
+			expect(usdaBody.query).toBe("rice white long grain regular cooked");
+			expect(usdaBody.dataType).toEqual(["Foundation", "SR Legacy", "Survey (FNDDS)"]);
+			const result = await response.json() as any;
+			expect(result.aliases).toEqual(["nasi", "rice"]);
+			expect(result.matches.map((match: any) => match.fdcId)).toEqual([168878]);
+			expect(result.matches[0].source).toContain("https://fdc.nal.usda.gov/food-details/168878/nutrients");
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY; else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY; else process.env.USDA_API_KEY = oldUsda;
+		}
+	});
+
 	test("AI recommendation response calculates and names pending USDA ingredients", async () => {
 		const oldFetch = globalThis.fetch;
 		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
@@ -244,7 +311,7 @@ describe("backend API", () => {
 			return oldFetch(input, init);
 		}) as typeof fetch;
 		try {
-			const ingredient = { id: "fdc-555", name: food.description, aliases: [], unit: "g", basisAmount: 100, preparation: "", source: "USDA FoodData Central Foundation, FDC 555 (https://fdc.nal.usda.gov/food/555)", suggestible: true, nutrition: { calories: 80, protein: 5, carbs: 10, fat: 2, fiber: 2 } };
+			const ingredient = { id: "fdc-555", name: food.description, aliases: [], unit: "g", basisAmount: 100, preparation: "", source: "USDA FoodData Central Foundation, FDC 555 (https://fdc.nal.usda.gov/food-details/555/nutrients)", suggestible: true, nutrition: { calories: 80, protein: 5, carbs: 10, fat: 2, fiber: 2 } };
 			const response = await fetch(`${base}/api/meals/save`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ exists: false, pendingIngredients: [ingredient], meal: { id: "verified-meal", date: "2026-10-08", slot: "dinner", name: "Verified dinner", notes: "", ingredients: [{ ingredientId: "fdc-555", quantity: 100 }] }, companions: [{ id: "verified-snack", date: "2026-10-08", slot: "snack", memberId: "richard", name: "Soy snack", notes: "", ingredients: [{ ingredientId: "fdc-555", quantity: 50 }] }] }) });
 			expect(response.status).toBe(200);
 			const data = await (await fetch(`${base}/api/data`)).json() as AppData;

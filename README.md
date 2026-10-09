@@ -14,6 +14,11 @@ variables from `.env` automatically. Without the keys, the corresponding
 buttons report that the service is unavailable while the rest of the app
 continues to work.
 
+AI provider prompts and responses are printed in the `bun run dev` terminal by
+default, without API keys or authorization headers. Set `AI_DEBUG_LOG=false` to
+disable them. Production and Docker logging is off unless `AI_DEBUG_LOG=true`
+is set explicitly; logged prompts can contain meal and nutrition data.
+
 Install dependencies:
 
 ```powershell

@@ -6,6 +6,7 @@ services:
     environment:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       USDA_API_KEY: ${USDA_API_KEY:-}
+      AI_DEBUG_LOG: ${AI_DEBUG_LOG:-false}
     volumes:
       - piring-kita-data:/data
     restart: unless-stopped

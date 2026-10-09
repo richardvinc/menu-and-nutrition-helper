@@ -17,6 +17,11 @@ const num = (value: unknown): value is number => typeof value === "number" && Nu
 const rateBuckets = new Map<string, number[]>();
 const appRequests: number[] = [];
 
+const aiTraceEnabled = () => process.env.AI_DEBUG_LOG === "true" || (process.env.AI_DEBUG_LOG !== "false" && process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test");
+const aiTrace = (provider: "OpenRouter" | "USDA", event: string, data: unknown) => {
+	if (aiTraceEnabled()) console.log(`[AI ${new Date().toISOString()}] ${provider} ${event}\n${JSON.stringify(data, null, 2)}`);
+};
+
 export function reserveOpenRouterRequest() {
 	const now = Date.now();
 	while (appRequests.length && now - appRequests[0] >= 86_400_000) appRequests.shift();
@@ -53,39 +58,42 @@ export async function recommend(input: {
 	const available = input.catalog.filter((item) => item.suggestible || existingIds.has(item.id));
 	const byKey = new Map(available.map((item, index) => [`ingredient-${index + 1}`, item]));
 	const system = "Create up to three practical Indonesian meal suggestions using cheap, easy sources such as tofu, tempeh, eggs, beans and lentils. Use supplied suggestible catalog keys first. Use a USDA query only when the supplied catalog cannot sensibly fit; never supply nutrition values. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Add a companion snack only when portions would otherwise be impractical, and never for a member with a settled snack. Keep each snack below its daily calorie cap. For an existing draft, the first option returns exactly its current ingredient set with adjusted quantities only. Later options may remove a current ingredient only when necessary; for every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal, label each option origin as saved or new; use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. Include up to two saved-menu choices and at least one genuinely new composition when saved menus are available. Return complete ingredient lists for each option. Use English names and explanations. Quantities use each catalog ingredient's unit; USDA query quantities are grams.";
+	const requestBody = {
+		model: "openrouter/free",
+		temperature: 0.4,
+		provider: { require_parameters: true },
+		messages: [
+			{ role: "system", content: system },
+			{ role: "user", content: JSON.stringify({
+				slot: input.meal.slot,
+				current: input.meal.ingredients.map((row) => ({ ingredient: input.catalog.find((item) => item.id === row.ingredientId)?.name, quantity: row.quantity, member: row.memberId ? input.memberLabels.find((member) => member.memberId === row.memberId)?.member : "shared" })),
+				availableIngredients: available.map((item, index) => ({ catalogKey: `ingredient-${index + 1}`, name: item.name, unit: item.unit, basisAmount: item.basisAmount, suggestible: item.suggestible, nutrition: item.nutrition })),
+				settledMeals: input.currentDay.map((row) => ({ ingredient: input.catalog.find((item) => item.id === row.ingredientId)?.name, quantity: row.quantity })),
+				savedMenuChoices: input.savedMenus,
+				targets: input.targets.map(({ memberId: _memberId, ...target }) => target),
+				priorCombinations: input.prior,
+				settledSnackMembers: input.settledSnackMembers,
+				dailySnackLimits: input.dailySnackLimits,
+				constraints: { maxRecommendations: 3, maxProteinDenseGramsPerPersonPerMeal: 250, maxCaloriesOverTargetPercent: 5, maxCompanionSnacks: input.meal.slot === "dinner" ? 2 : 1, sharedDinner: input.meal.slot === "dinner" },
+			}) },
+		],
+		response_format: { type: "json_schema", json_schema: { name: "meal_recommendations", strict: true, schema: {
+			type: "object", additionalProperties: false, required: ["recommendations"], properties: { recommendations: { type: "array", maxItems: 3, items: {
+					type: "object", additionalProperties: false, required: ["name", "origin", "savedMenuKey", "justification", "cookingNote", "ingredients", "removals", "companionSnacks"], properties: {
+						name: { type: "string" }, origin: { type: "string", enum: ["saved", "new"] }, savedMenuKey: { type: "string" }, justification: { type: "string" }, cookingNote: { type: "string" }, removals: { type: "array", maxItems: 50, items: { type: "object", additionalProperties: false, required: ["catalogKey", "member"], properties: { catalogKey: { type: "string" }, member: { type: "string", enum: ["shared", "Member A", "Member B"] } } } }, ingredients: { type: "array", items: { type: "object", additionalProperties: false, required: ["catalogKey", "usdaQuery", "quantity", "member"], properties: { catalogKey: { type: "string" }, usdaQuery: { type: "string" }, quantity: { type: "number", exclusiveMinimum: 0, maximum: 100000 }, member: { type: "string", enum: ["shared", "Member A", "Member B"] } } } }, companionSnacks: { type: "array", maxItems: 2, items: { type: "object", additionalProperties: false, required: ["member", "name", "justification", "ingredients"], properties: { member: { type: "string", enum: ["Member A", "Member B"] }, name: { type: "string" }, justification: { type: "string" }, ingredients: { type: "array", items: { type: "object", additionalProperties: false, required: ["catalogKey", "quantity"], properties: { catalogKey: { type: "string" }, quantity: { type: "number", exclusiveMinimum: 0, maximum: 100000 } } } } } } }
+				}
+			} } }
+		} } },
+	};
+	aiTrace("OpenRouter", "meal prompt", { model: requestBody.model, messages: requestBody.messages });
 	const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
 		method: "POST",
 		headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", "HTTP-Referer": "https://piring-kita.local", "X-Title": "Piring Kita" },
-		body: JSON.stringify({
-			model: "openrouter/free",
-			temperature: 0.4,
-			provider: { require_parameters: true },
-			messages: [
-				{ role: "system", content: system },
-				{ role: "user", content: JSON.stringify({
-					slot: input.meal.slot,
-					current: input.meal.ingredients.map((row) => ({ ingredient: input.catalog.find((item) => item.id === row.ingredientId)?.name, quantity: row.quantity, member: row.memberId ? input.memberLabels.find((member) => member.memberId === row.memberId)?.member : "shared" })),
-					availableIngredients: available.map((item, index) => ({ catalogKey: `ingredient-${index + 1}`, name: item.name, unit: item.unit, basisAmount: item.basisAmount, suggestible: item.suggestible, nutrition: item.nutrition })),
-					settledMeals: input.currentDay.map((row) => ({ ingredient: input.catalog.find((item) => item.id === row.ingredientId)?.name, quantity: row.quantity })),
-					savedMenuChoices: input.savedMenus,
-					targets: input.targets.map(({ memberId: _memberId, ...target }) => target),
-					priorCombinations: input.prior,
-					settledSnackMembers: input.settledSnackMembers,
-					dailySnackLimits: input.dailySnackLimits,
-					constraints: { maxRecommendations: 3, maxProteinDenseGramsPerPersonPerMeal: 250, maxCaloriesOverTargetPercent: 5, maxCompanionSnacks: input.meal.slot === "dinner" ? 2 : 1, sharedDinner: input.meal.slot === "dinner" },
-				}) },
-			],
-			response_format: { type: "json_schema", json_schema: { name: "meal_recommendations", strict: true, schema: {
-				type: "object", additionalProperties: false, required: ["recommendations"], properties: { recommendations: { type: "array", maxItems: 3, items: {
-						type: "object", additionalProperties: false, required: ["name", "origin", "savedMenuKey", "justification", "cookingNote", "ingredients", "removals", "companionSnacks"], properties: {
-						name: { type: "string" }, origin: { type: "string", enum: ["saved", "new"] }, savedMenuKey: { type: "string" }, justification: { type: "string" }, cookingNote: { type: "string" }, removals: { type: "array", maxItems: 50, items: { type: "object", additionalProperties: false, required: ["catalogKey", "member"], properties: { catalogKey: { type: "string" }, member: { type: "string", enum: ["shared", "Member A", "Member B"] } } } }, ingredients: { type: "array", items: { type: "object", additionalProperties: false, required: ["catalogKey", "usdaQuery", "quantity", "member"], properties: { catalogKey: { type: "string" }, usdaQuery: { type: "string" }, quantity: { type: "number", exclusiveMinimum: 0, maximum: 100000 }, member: { type: "string", enum: ["shared", "Member A", "Member B"] } } } }, companionSnacks: { type: "array", maxItems: 2, items: { type: "object", additionalProperties: false, required: ["member", "name", "justification", "ingredients"], properties: { member: { type: "string", enum: ["Member A", "Member B"] }, name: { type: "string" }, justification: { type: "string" }, ingredients: { type: "array", items: { type: "object", additionalProperties: false, required: ["catalogKey", "quantity"], properties: { catalogKey: { type: "string" }, quantity: { type: "number", exclusiveMinimum: 0, maximum: 100000 } } } } } } }
-					}
-				} } }
-			} } },
-		}),
+		body: JSON.stringify(requestBody),
 	});
-	if (!response.ok) throw new Error("AI recommendations are temporarily unavailable. Please retry.");
 	const payload = await response.json() as any;
+	aiTrace("OpenRouter", "meal response", { status: response.status, model: payload?.model, usage: payload?.usage, content: payload?.choices?.[0]?.message?.content ?? null });
+	if (!response.ok) throw new Error("AI recommendations are temporarily unavailable. Please retry.");
 	let parsed: any;
 	try { parsed = JSON.parse(payload.choices?.[0]?.message?.content ?? ""); } catch { throw new Error("AI returned an unreadable recommendation. Please retry."); }
 	if (!Array.isArray(parsed?.recommendations) || parsed.recommendations.length > 3) throw new Error("AI returned invalid recommendations. Please retry.");
@@ -224,50 +232,96 @@ export async function recommend(input: {
 export async function usdaIngredient(fdcId: number): Promise<Ingredient> {
 	const key = process.env.USDA_API_KEY;
 	if (!key) throw new Error("USDA nutrition lookup is unavailable: USDA_API_KEY is not configured.");
+	aiTrace("USDA", "food request", { fdcId });
 	const response = await fetch(`https://api.nal.usda.gov/fdc/v1/food/${fdcId}?api_key=${encodeURIComponent(key)}`);
-	if (!response.ok) throw new Error("USDA FoodData Central lookup failed. Please retry.");
 	const food = await response.json() as any;
+	if (!response.ok) {
+		aiTrace("USDA", "food response", { status: response.status, fdcId, error: food?.error?.message ?? food?.message ?? null });
+		throw new Error("USDA FoodData Central lookup failed. Please retry.");
+	}
 	const nutrients = new Map((food.foodNutrients ?? []).map((entry: any) => [String(entry.nutrient?.number ?? entry.nutrient?.id ?? entry.nutrientNumber ?? entry.nutrientId), entry.amount ?? entry.value]));
 	const value = (...ids: string[]) => { for (const id of ids) { const found = nutrients.get(id); if (typeof found === "number" && Number.isFinite(found)) return found; } return undefined; };
 	const calories = value("208", "1008"), protein = value("203", "1003"), carbs = value("205", "1005"), fat = value("204", "1004"), fiber = value("291", "1079");
+	aiTrace("USDA", "food response", { status: response.status, fdcId: food.fdcId, description: food.description, dataType: food.dataType, nutrition: { calories, protein, carbs, fat, fiber } });
 	if (food.fdcId !== fdcId || typeof food.description !== "string" || [calories, protein, carbs, fat, fiber].some((x) => x === undefined)) throw new Error("USDA record does not contain complete verified nutrition.");
-	return { id: `fdc-${fdcId}`, name: food.description, aliases: [], unit: "g", basisAmount: 100, preparation: "", source: `USDA FoodData Central ${food.dataType}, FDC ${fdcId} (https://fdc.nal.usda.gov/food/${fdcId})`, suggestible: true, nutrition: { calories: calories!, protein: protein!, carbs: carbs!, fat: fat!, fiber: fiber! } };
+	return { id: `fdc-${fdcId}`, name: food.description, aliases: [], unit: "g", basisAmount: 100, preparation: "", source: `USDA FoodData Central ${food.dataType}, FDC ${fdcId} (https://fdc.nal.usda.gov/food-details/${fdcId}/nutrients)`, suggestible: true, nutrition: { calories: calories!, protein: protein!, carbs: carbs!, fat: fat!, fiber: fiber! } };
 }
 
-export async function searchUsda(query: string) {
+const genericUsdaTypes = ["Foundation", "SR Legacy", "Survey (FNDDS)"];
+const riceFallbackQuery = "rice white long grain regular cooked";
+
+export async function searchUsda(query: string, context: { primaryName?: string; preparation?: string } = {}) {
 	const key = process.env.USDA_API_KEY;
 	if (!key) throw new Error("USDA nutrition lookup is unavailable: USDA_API_KEY is not configured.");
 	const url = new URL("https://api.nal.usda.gov/fdc/v1/foods/search");
 	url.searchParams.set("api_key", key);
-	const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query, dataType: ["Foundation", "SR Legacy", "Survey (FNDDS)", "Branded"], pageSize: 10 }) });
-	if (!response.ok) throw new Error("USDA FoodData Central lookup failed. Please retry.");
+	const requestedPreparation = context.preparation?.trim() ?? "";
+	const searchQuery = requestedPreparation && !query.toLocaleLowerCase().includes(requestedPreparation.toLocaleLowerCase()) ? `${query} ${requestedPreparation}` : query;
+	const requestBody = { query: searchQuery, dataType: genericUsdaTypes, pageSize: 10 };
+	aiTrace("USDA", "search request", requestBody);
+	const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody) });
 	const body = await response.json() as any;
+	if (!response.ok) {
+		aiTrace("USDA", "search response", { status: response.status, error: body?.error?.message ?? body?.message ?? null });
+		throw new Error("USDA FoodData Central lookup failed. Please retry.");
+	}
 	if (Array.isArray(body.foods) && body.foods.length) {
-		const priorities = ["Foundation", "SR Legacy", "Survey (FNDDS)", "Branded"];
-		const foods = body.foods.sort((a: any, b: any) => priorities.indexOf(a.dataType) - priorities.indexOf(b.dataType)).slice(0, 3);
-		return foods.map((food: any) => {
+		const priorities = new Map(genericUsdaTypes.map((type, index) => [type, index]));
+		const contextText = [context.primaryName ?? query, context.preparation ?? "", query].join(" ").toLocaleLowerCase();
+		const explicitPrep = /\b(raw|cooked|dry|uncooked|boiled|steamed)\b/i.test(contextText);
+		const defaultCookedRice = /\bjasmine\s+rice\b/i.test(context.primaryName ?? query) && !explicitPrep;
+		const requestedCooked = /\b(cooked|boiled|steamed)\b/i.test(context.preparation ?? "") || /\b(cooked|boiled|steamed)\b/i.test(query) || defaultCookedRice;
+		const requestedRaw = /\b(raw|dry|uncooked)\b/i.test(context.preparation ?? "") || /\b(raw|dry|uncooked)\b/i.test(query);
+		const tokens = (context.primaryName ?? query).toLocaleLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 1);
+		const score = (food: any) => {
+			const text = String(food.description ?? "").toLocaleLowerCase().replace(/[^a-z0-9]+/g, " ");
+			const textTokens = new Set(text.split(" "));
+			const relevance = tokens.reduce((total, token) => total + (textTokens.has(token) ? 10 : 0), 0);
+			const cooked = /\b(cooked|boiled|steamed)\b/.test(text);
+			const raw = /\b(raw|dry|uncooked)\b/.test(text);
+			const prepScore = requestedCooked ? (cooked ? 100 : raw ? -100 : 0) : requestedRaw ? (raw ? 100 : cooked ? -100 : 0) : 0;
+			return prepScore + relevance;
+		};
+		const foods = body.foods.filter((food: any) => genericUsdaTypes.includes(food.dataType)).sort((a: any, b: any) => score(b) - score(a) || (priorities.get(a.dataType) ?? 99) - (priorities.get(b.dataType) ?? 99)).slice(0, 3);
+		const results = foods.map((food: any) => {
 			const nutrients = new Map((food.foodNutrients ?? []).map((n: any) => [n.nutrientNumber ?? String(n.nutrientId), n.value]));
 			const value = (...ids: string[]) => { for (const id of ids) { const found = nutrients.get(id); if (typeof found === "number" && Number.isFinite(found)) return found; } return undefined; };
 			const calorie = value("208", "1008"), protein = value("203", "1003"), carbs = value("205", "1005"), fat = value("204", "1004"), fiber = value("291", "1079");
 			if ([calorie, protein, carbs, fat, fiber].some((item) => item === undefined)) return null;
 			const nutrition: Nutrition = { calories: calorie!, protein: protein!, carbs: carbs!, fat: fat!, fiber: fiber! };
-			return { fdcId: food.fdcId, description: food.description, dataType: food.dataType, source: `USDA FoodData Central ${food.dataType}, FDC ${food.fdcId} (https://fdc.nal.usda.gov/food/${food.fdcId})`, nutrition };
+			return { fdcId: food.fdcId, description: food.description, dataType: food.dataType, source: `USDA FoodData Central ${food.dataType}, FDC ${food.fdcId} (https://fdc.nal.usda.gov/food-details/${food.fdcId}/nutrients)`, nutrition };
 		}).filter(Boolean);
+		const primaryName = context.primaryName ?? query;
+		const noPrepSpecified = !/\b(raw|cooked|dry|uncooked|boiled|steamed)\b/i.test([primaryName, context.preparation ?? "", query].join(" "));
+		aiTrace("USDA", "search response", { status: response.status, totalHits: body.totalHits, results });
+		if (/\bjasmine\s+rice\b/i.test(primaryName) && noPrepSpecified && !results.some((item: any) => /rice/i.test(item.description) && /cooked/i.test(item.description) && /(white|long[- ]grain)/i.test(item.description))) return searchUsda(riceFallbackQuery, { primaryName, preparation: "cooked" });
+		return results;
 	}
+	aiTrace("USDA", "search response", { status: response.status, totalHits: body.totalHits ?? 0, results: [] });
+	const primaryName = context.primaryName ?? query;
+	const noPrepSpecified = !/\b(raw|cooked|dry|uncooked|boiled|steamed)\b/i.test([primaryName, context.preparation ?? "", query].join(" "));
+	if (/\bjasmine\s+rice\b/i.test(primaryName) && noPrepSpecified) return searchUsda(riceFallbackQuery, { primaryName, preparation: "cooked" });
 	return [];
 }
 
-export async function ingredientAliases(name: string) {
+export async function ingredientAliases(name: string, preparation = "") {
 	const key = process.env.OPENROUTER_API_KEY;
 	if (!key) return { aliases: [], usdaQuery: name };
 	try {
+		const requestBody = { model: "openrouter/free", provider: { require_parameters: true }, messages: [{ role: "system", content: "Translate the food name into concise English and Indonesian aliases. Return a generic USDA-style food description in English as usdaQuery, including preparation. Preserve explicitly supplied preparation and raw-versus-cooked wording. If preparation is absent, prefer cooked for foods normally logged cooked, including rice, pasta, beans, and lentils. Never include brand names or marketing language. Nutrition values must never be generated; USDA FoodData Central is the only nutrition source." }, { role: "user", content: JSON.stringify({ name, preparation }) }], response_format: { type: "json_schema", json_schema: { name: "ingredient_aliases", strict: true, schema: { type: "object", additionalProperties: false, required: ["aliases", "usdaQuery"], properties: { aliases: { type: "array", maxItems: 8, items: { type: "string" } }, usdaQuery: { type: "string" } } } } } };
+		aiTrace("OpenRouter", "alias prompt", { model: requestBody.model, messages: requestBody.messages });
 		const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
 			method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-			body: JSON.stringify({ model: "openrouter/free", provider: { require_parameters: true }, messages: [{ role: "system", content: "Translate the given food name into concise English and Indonesian search aliases. Never provide nutrition values." }, { role: "user", content: name }], response_format: { type: "json_schema", json_schema: { name: "ingredient_aliases", strict: true, schema: { type: "object", additionalProperties: false, required: ["aliases", "usdaQuery"], properties: { aliases: { type: "array", maxItems: 8, items: { type: "string" } }, usdaQuery: { type: "string" } } } } } }),
+			body: JSON.stringify(requestBody),
 		});
-		if (!response.ok) return { aliases: [], usdaQuery: name };
 		const body = await response.json() as any;
+		aiTrace("OpenRouter", "alias response", { status: response.status, model: body?.model, usage: body?.usage, content: body?.choices?.[0]?.message?.content ?? null });
+		if (!response.ok) return { aliases: [], usdaQuery: name };
 		const result = JSON.parse(body.choices?.[0]?.message?.content ?? "{}");
-		return { aliases: Array.isArray(result.aliases) ? result.aliases.filter((x: unknown) => typeof x === "string").slice(0, 8) : [], usdaQuery: typeof result.usdaQuery === "string" ? result.usdaQuery : name };
-	} catch { return { aliases: [], usdaQuery: name }; }
+		const aliases = Array.isArray(result.aliases) ? result.aliases.filter((item: unknown) => typeof item === "string").flatMap((item: string) => item.replace(/^(English|Indonesian)\s*:\s*/i, "").split(/[,;]/)).map((item: string) => item.trim()).filter((item: string) => item && item.toLocaleLowerCase() !== name.trim().toLocaleLowerCase()).filter((item: string, index: number, list: string[]) => list.findIndex((other) => other.toLocaleLowerCase() === item.toLocaleLowerCase()) === index).slice(0, 8) : [];
+		return { aliases, usdaQuery: typeof result.usdaQuery === "string" && result.usdaQuery.trim() ? result.usdaQuery.trim() : name };
+	} catch (error) {
+		aiTrace("OpenRouter", "alias error", { message: error instanceof Error ? error.message : "Unknown error" });
+		return { aliases: [], usdaQuery: name };
+	}
 }

@@ -10,6 +10,18 @@ test.describe("Library and next-week targets", () => {
 		expect(contentWidth).toBeGreaterThan(250);
 	});
 
+	test("USDA ingredient choices show per-100g nutrition before selection", async ({ page }) => {
+		await page.route("**/api/ai/status", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ recommendations: false, ingredientLookup: true }) }));
+		await page.route("**/api/ai/ingredient-lookup", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ query: "rice white long grain regular cooked", aliases: ["nasi"], matches: [{ fdcId: 168878, description: "Rice, white, long-grain, regular, cooked", dataType: "SR Legacy", source: "USDA FoodData Central SR Legacy, FDC 168878 (https://fdc.nal.usda.gov/food-details/168878/nutrients)", nutrition: { calories: 130, protein: 2.69, carbs: 28.17, fat: 0.28, fiber: 0.4 } }] }) }));
+		await page.goto("/");
+		await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
+		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
+		await page.getByRole("button", { name: "New ingredient" }).click();
+		await page.getByLabel("Primary ingredient name").fill("jasmine rice");
+		await page.getByRole("button", { name: "Find nutrition with AI" }).click();
+		await expect(page.getByRole("button", { name: /Rice, white, long-grain, regular, cooked · SR Legacy · per 100 g: 130 kcal, protein 2.69 g, carbs 28.17 g, fat 0.28 g, fiber 0.4 g/ })).toBeVisible();
+	});
+
 	test("existing library edits expand in place and untouched cancel is immediate", async ({ page }) => {
 		let dialogs = 0;
 		let discardAction: "accept" | "dismiss" = "accept";

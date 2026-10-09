@@ -77,10 +77,10 @@ export const api = {
 			companionSnacks: { memberId: import("@piring-kita/shared").MemberId; name: string; justification: string; ingredients: import("@piring-kita/shared").MenuIngredient[]; nutrition: import("@piring-kita/shared").Nutrition }[];
 			deltas: { member: string; caloriesAfter: number; calorieTarget: number; overCaloriesBy: number; proteinAfter: number; proteinTarget: number; carbsAfter: number; carbsTarget: number; fatAfter: number; fatTarget: number; fiberAfter: number; fiberTarget: number; proteinDelta: number; carbsDelta: number; fatDelta: number; fiberDelta: number; sourceWarning?: string }[];
 		}[] }>("/api/ai/recommendations", { method: "POST", body: JSON.stringify({ meal, prior, pendingIngredients, companions }) }),
-	lookupIngredient: (name: string) => request<{
+	lookupIngredient: (name: string, preparation = "") => request<{
 		query: string; aliases: string[]; existing?: string; similar?: string[];
 		matches: { fdcId: number; description: string; dataType: string; source: string; nutrition: import("@piring-kita/shared").Nutrition }[];
-	}>("/api/ai/ingredient-lookup", { method: "POST", body: JSON.stringify({ name }) }),
+	}>("/api/ai/ingredient-lookup", { method: "POST", body: JSON.stringify({ name, preparation }) }),
 	previewTarget: (proposal: TargetPreviewRequest) =>
 		request<TargetPreview>("/api/targets/preview", {
 			method: "POST",

@@ -1288,11 +1288,13 @@ export function createApp(db = createDatabase()) {
 		if (!rateLimit(`usda:${ip}`, 30, 60_000)) return fail(res, "USDA lookup limit reached. Try again in a minute.", 429);
 		const name = req.body?.name;
 		if (typeof name !== "string" || !name.trim() || name.length > 120) return fail(res, "ingredient name is required");
+		const preparation = req.body?.preparation ?? "";
+		if (typeof preparation !== "string" || preparation.length > 120) return fail(res, "invalid ingredient preparation");
 		if (process.env.OPENROUTER_API_KEY && (!rateLimit(`openrouter:${ip}`, 10, 600_000) || !reserveOpenRouterRequest())) return fail(res, "AI request limit reached. Try again later.", 429);
-		const aliasResult = await ingredientAliases(name.trim());
+		const aliasResult = await ingredientAliases(name.trim(), preparation.trim());
 		const query = aliasResult && "usdaQuery" in aliasResult ? aliasResult.usdaQuery : name.trim();
 		try {
-			const matches = await searchUsda(query);
+			const matches = await searchUsda(query, { primaryName: name.trim(), preparation: preparation.trim() });
 			if (!matches.length) return res.json({ query, aliases: aliasResult && "aliases" in aliasResult ? aliasResult.aliases : [], matches: [] });
 			const all = rows<Ingredient>(db, "ingredients");
 			const exact = all.find((item) => item.name.toLocaleLowerCase() === name.trim().toLocaleLowerCase() || item.aliases.some((alias) => alias.toLocaleLowerCase() === name.trim().toLocaleLowerCase()) || matches.some((match) => item.source.includes(`FDC ${match.fdcId}`)));
