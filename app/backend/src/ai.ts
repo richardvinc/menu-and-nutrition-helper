@@ -61,7 +61,11 @@ const traceValue = (value: unknown): unknown => {
 		return Object.fromEntries(
 			Object.entries(value).map(([key, item]) => [
 				key,
-				secretTraceField.test(key) ? "[redacted]" : traceValue(item),
+				secretTraceField.test(key)
+					? "[redacted]"
+					: key === "availableIngredients" && Array.isArray(item)
+						? `[${item.length} ingredients omitted]`
+						: traceValue(item),
 			]),
 		);
 	if (typeof value === "string" && /^[[{]/.test(value.trim())) {
@@ -185,7 +189,7 @@ export async function recommend(input: {
 			? "For dinner ingredients, use member shared when both people eat an ingredient; use Member A or Member B only for a deliberately individual portion."
 			: "This is a single-member meal. Every ingredients entry must use member shared; the meal already identifies its owner.";
 	const system =
-		"Create up to three practical Indonesian meal suggestions using cheap, easy sources such as tofu, tempeh, eggs, beans and lentils. Use supplied suggestible catalog keys first. Use a USDA query only when the supplied catalog cannot sensibly fit; never supply nutrition values. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Add a companion snack only when portions would otherwise be impractical, and never for a member with a settled snack. Keep each snack below its daily calorie cap. For an existing draft, the first option returns exactly its current ingredient set with adjusted quantities only. Later options may remove a current ingredient only when necessary; for every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal, label each option origin as saved or new; use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. Include up to two saved-menu choices and at least one genuinely new composition when saved menus are available. Return complete ingredient lists for each option. Use English names and explanations. Quantities use each catalog ingredient's unit; USDA query quantities are grams. " +
+		"Create exactly five practical Indonesian meal suggestions using cheap, easy sources such as tofu, tempeh, eggs, beans and lentils. Use supplied suggestible catalog keys first. Use a USDA query only when the supplied catalog cannot sensibly fit; never supply nutrition values. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Add a companion snack only when portions would otherwise be impractical, and never for a member with a settled snack. Keep each snack below its daily calorie cap. For an existing draft, the first option returns exactly its current ingredient set with adjusted quantities only. Later options may remove a current ingredient only when necessary; for every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal with at least two saved menus, return exactly two adjusted saved-menu choices followed by exactly three genuinely new compositions. Use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. If fewer than two saved menus are available, use every available saved menu and fill the remaining choices with new compositions. Return complete ingredient lists for each option. Use English names and explanations. Quantities use each catalog ingredient's unit; USDA query quantities are grams. " +
 		memberRule;
 	const requestBody = {
 		model,
@@ -230,7 +234,9 @@ export async function recommend(input: {
 					settledSnackMembers: input.settledSnackMembers,
 					dailySnackLimits: input.dailySnackLimits,
 					constraints: {
-						maxRecommendations: 3,
+						recommendations: 5,
+						adjustedSavedMenus: Math.min(2, input.savedMenus.length),
+						newCompositions: 5 - Math.min(2, input.savedMenus.length),
 						maxProteinDenseGramsPerPersonPerMeal: 250,
 						maxCaloriesOverTargetPercent: 5,
 						maxCompanionSnacks: input.meal.slot === "dinner" ? 2 : 1,
@@ -251,7 +257,8 @@ export async function recommend(input: {
 					properties: {
 						recommendations: {
 							type: "array",
-							maxItems: 3,
+							minItems: 5,
+							maxItems: 5,
 							items: {
 								type: "object",
 								additionalProperties: false,
@@ -395,7 +402,7 @@ export async function recommend(input: {
 	}
 	if (
 		!Array.isArray(parsed?.recommendations) ||
-		parsed.recommendations.length > 3
+		parsed.recommendations.length > 5
 	)
 		throw new Error("AI returned invalid recommendations. Please retry.");
 	if (!input.meal.ingredients.length) {
@@ -1026,19 +1033,38 @@ export async function searchUsda(
 		const requestedRaw =
 			/\b(raw|dry|uncooked)\b/i.test(context.preparation ?? "") ||
 			/\b(raw|dry|uncooked)\b/i.test(query);
-		const tokens = (context.primaryName ?? query)
+		const ignoredTokens = new Set([
+			"raw",
+			"cooked",
+			"dry",
+			"uncooked",
+			"boiled",
+			"steamed",
+			"fresh",
+			"frozen",
+			"cubed",
+			"sliced",
+			"chopped",
+		]);
+		const tokens = query
 			.toLocaleLowerCase()
 			.split(/[^a-z0-9]+/)
-			.filter((word) => word.length > 1);
+			.filter((word) => word.length > 1 && !ignoredTokens.has(word));
+		const relevance = (food: any) => {
+			const textTokens = new Set(
+				String(food.description ?? "")
+					.toLocaleLowerCase()
+					.split(/[^a-z0-9]+/),
+			);
+			return tokens.reduce(
+				(total, token) => total + (textTokens.has(token) ? 10 : 0),
+				0,
+			);
+		};
 		const score = (food: any) => {
 			const text = String(food.description ?? "")
 				.toLocaleLowerCase()
 				.replace(/[^a-z0-9]+/g, " ");
-			const textTokens = new Set(text.split(" "));
-			const relevance = tokens.reduce(
-				(total, token) => total + (textTokens.has(token) ? 10 : 0),
-				0,
-			);
 			const cooked = /\b(cooked|boiled|steamed)\b/.test(text);
 			const raw = /\b(raw|dry|uncooked)\b/.test(text);
 			const prepScore = requestedCooked
@@ -1054,10 +1080,11 @@ export async function searchUsda(
 							? -100
 							: 0
 					: 0;
-			return prepScore + relevance;
+			return prepScore + relevance(food);
 		};
 		const foods = body.foods
 			.filter((food: any) => genericUsdaTypes.includes(food.dataType))
+			.filter((food: any) => !tokens.length || relevance(food) > 0)
 			.sort(
 				(a: any, b: any) =>
 					score(b) - score(a) ||

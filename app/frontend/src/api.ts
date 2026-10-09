@@ -101,6 +101,8 @@ export const api = {
 		request<{
 			recommendations: {
 				name: string;
+				origin: "saved" | "new";
+				savedMenuKey: string;
 				justification: string;
 				cookingNote: string;
 				ingredients: import("@piring-kita/shared").MenuIngredient[];

@@ -413,6 +413,42 @@ test("meal editor closes with Escape and a backdrop click", async ({
 	await expect(page.locator(".pk-editor-scrim")).toHaveCount(0);
 });
 
+test("AI recommendations open in a mobile-friendly modal with a cooking state", async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.route("**/api/ai/status", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ recommendations: true, ingredientLookup: true }) }));
+	let releaseRecommendations!: () => void;
+	await page.route("**/api/ai/recommendations", async (route) => {
+		await new Promise<void>((resolve) => { releaseRecommendations = resolve; });
+		const recommendations = Array.from({ length: 5 }, (_, index) => ({
+			name: `Balanced tofu idea ${index + 1}`,
+			origin: index < 2 ? "saved" : "new",
+			savedMenuKey: index < 2 ? `saved-${index + 1}` : "",
+			justification: "Affordable protein with a practical portion and vegetables.",
+			cookingNote: "Pan-fry gently.",
+			ingredients: [{ ingredientId: "tofu", quantity: 150 }],
+			ingredientDetails: [{ ingredientId: "tofu", quantity: 150, name: "Tahu firm" }],
+			removals: [], newIngredients: [], companionSnacks: [], priorKey: [`idea-${index + 1}`],
+			nutrition: { calories: 216, protein: 26, carbs: 4, fat: 13, fiber: 3 },
+			deltas: [{ member: "Member A", caloriesAfter: 540, calorieTarget: 960, overCaloriesBy: 0, proteinAfter: 48, proteinTarget: 60, carbsAfter: 50, carbsTarget: 108, fatAfter: 20, fatTarget: 32, fiberAfter: 9, fiberTarget: 15, proteinDelta: 26, carbsDelta: 4, fatDelta: 13, fiberDelta: 3 }],
+		}));
+		await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ recommendations }) });
+	});
+	await page.goto("/");
+	await page.getByRole("button", { name: "Week", exact: true }).click();
+	await page.locator(".pk-week__day-strip button").nth(3).click();
+	await page.locator(".pk-week-meal").filter({ hasText: "Sesame chicken bowl" }).getByRole("button", { name: "Edit", exact: true }).click();
+	await page.getByRole("button", { name: "Improve with AI" }).click();
+	const dialog = page.getByRole("dialog", { name: "Improve this meal" });
+	await expect(dialog).toBeVisible();
+	await expect(dialog.getByRole("status")).toContainText("Building balanced meal ideas");
+	await expect(dialog.locator('img[src="/ai-cooking.webp"]')).toBeVisible();
+	releaseRecommendations();
+	await expect(dialog.locator(".pk-ai-card")).toHaveCount(5);
+	expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+	await dialog.getByRole("button", { name: "Apply this idea" }).first().click();
+	await expect(dialog).toHaveCount(0);
+});
+
 test("scheduled meal can be saved to the master menu without closing", async ({
 	page,
 }) => {

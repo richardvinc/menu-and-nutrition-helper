@@ -150,6 +150,18 @@ export function Library({
 	const [ingredientPortalTarget, setIngredientPortalTarget] =
 		useState<HTMLDivElement | null>(null);
 	const lookupRequestId = useRef(0);
+	const pageFocus = useRef({ active: true, since: 0 });
+	useEffect(() => {
+		const focused = () =>
+			(pageFocus.current = { active: true, since: Date.now() });
+		const blurred = () => (pageFocus.current.active = false);
+		window.addEventListener("focus", focused);
+		window.addEventListener("blur", blurred);
+		return () => {
+			window.removeEventListener("focus", focused);
+			window.removeEventListener("blur", blurred);
+		};
+	}, []);
 	useEffect(() => {
 		api
 			.aiStatus()
@@ -178,6 +190,11 @@ export function Library({
 			ingredientKey(original ? ingredientDraft(original) : blankIngredient())
 		);
 	};
+	const confirmIngredientDiscard = () =>
+		!ingredientDirty() ||
+		(pageFocus.current.active &&
+			Date.now() - pageFocus.current.since > 250 &&
+			window.confirm("Discard changes to this ingredient?"));
 	const openMenuDraft = (draft: MenuDraft) => {
 		if (menuDirty() && !window.confirm("Discard changes to this saved menu?"))
 			return;
@@ -186,11 +203,7 @@ export function Library({
 		setError("");
 	};
 	const openIngredientDraft = (draft: IngredientDraft) => {
-		if (
-			ingredientDirty() &&
-			!window.confirm("Discard changes to this ingredient?")
-		)
-			return;
+		if (!confirmIngredientDiscard()) return;
 		clearLookup();
 		setMenuDraft(null);
 		setIngredientDraftState(draft);
@@ -318,6 +331,25 @@ export function Library({
 
 	async function findIngredientNutrition() {
 		if (!ingredientDraftState?.name.trim()) return;
+		const normalizedName = ingredientDraftState.name.trim().toLocaleLowerCase();
+		const catalogMatch = ingredients.find((item) =>
+			[item.name, ...item.aliases].some(
+				(term) => term.trim().toLocaleLowerCase() === normalizedName,
+			),
+		);
+		if (catalogMatch) {
+			clearLookup();
+			setLookupResult({
+				query: ingredientDraftState.name.trim(),
+				aliases: [],
+				existing: catalogMatch.id,
+				matches: [],
+			});
+			setLookupWarning(
+				`This is already in the catalog as “${catalogMatch.name}”.`,
+			);
+			return;
+		}
 		const requestId = ++lookupRequestId.current;
 		setLookupBusy(true);
 		setLookupWarning("");
@@ -334,8 +366,6 @@ export function Library({
 					(item) => item.id === result.existing,
 				);
 				if (existing) {
-					openIngredientDraft(ingredientDraft(existing));
-					setIngredientSearch(existing.name);
 					setLookupWarning(
 						`This is already in the catalog as “${existing.name}”.`,
 					);
@@ -415,11 +445,7 @@ export function Library({
 					aria-selected={section === "menus"}
 					onClick={() => {
 						if (section !== "menus") {
-							if (
-								ingredientDirty() &&
-								!window.confirm("Discard changes to this ingredient?")
-							)
-								return;
+							if (!confirmIngredientDiscard()) return;
 							setIngredientDraftState(null);
 							clearLookup();
 						}
@@ -825,14 +851,12 @@ export function Library({
 												}
 											/>
 										</label>
-										<div>
+										<div className="ingredient-lookup-panel">
 											<button
 												type="button"
 												onClick={findIngredientNutrition}
 												disabled={
-													lookupBusy ||
-													!ingredientDraftState.name.trim() ||
-													lookupAvailable === false
+													lookupBusy || !ingredientDraftState.name.trim()
 												}
 											>
 												{lookupBusy ? "Looking up…" : "Find nutrition with AI"}
@@ -848,7 +872,24 @@ export function Library({
 													{lookupWarning}
 												</p>
 											)}
-											{lookupResult && (
+											{lookupResult?.existing && (() => {
+												const existing = ingredients.find(
+													(item) => item.id === lookupResult.existing,
+												);
+												return existing ? (
+													<button
+														type="button"
+														className="secondary"
+														onClick={() => {
+															openIngredientDraft(ingredientDraft(existing));
+															setIngredientSearch(existing.name);
+														}}
+													>
+														Edit {existing.name}
+													</button>
+												) : null;
+											})()}
+											{lookupResult && !lookupResult.existing && (
 												<div className="usda-matches">
 													<p>
 														USDA search: <strong>{lookupResult.query}</strong>
@@ -1022,10 +1063,7 @@ export function Library({
 											type="button"
 											className="secondary"
 											onClick={() => {
-												if (
-													!ingredientDirty() ||
-													window.confirm("Discard changes to this ingredient?")
-												)
+												if (confirmIngredientDiscard())
 													setIngredientDraftState(null);
 											}}
 										>

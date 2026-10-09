@@ -279,6 +279,7 @@ export function ScheduledMealEditor({
 	);
 	const [recommendationError, setRecommendationError] = useState("");
 	const [recommendationLoading, setRecommendationLoading] = useState(false);
+	const [aiOpen, setAiOpen] = useState(false);
 	const [recommendationAvailable, setRecommendationAvailable] = useState<
 		boolean | null
 	>(null);
@@ -398,11 +399,14 @@ export function ScheduledMealEditor({
 	cancelRef.current = cancel;
 	useEffect(() => {
 		const closeOnEscape = (event: KeyboardEvent) => {
-			if (event.key === "Escape") cancelRef.current();
+			if (event.key === "Escape") {
+				if (aiOpen) setAiOpen(false);
+				else cancelRef.current();
+			}
 		};
 		document.addEventListener("keydown", closeOnEscape);
 		return () => document.removeEventListener("keydown", closeOnEscape);
-	}, []);
+	}, [aiOpen]);
 	const meal: ScheduledMeal = {
 		id: initialMeal?.id ?? "draft",
 		date: mealDate,
@@ -581,6 +585,11 @@ export function ScheduledMealEditor({
 			setRecommendationLoading(false);
 		}
 	};
+	const openRecommendations = () => {
+		setAiOpen(true);
+		if (!recommendationLoading && !recommendations.length)
+			void fetchRecommendations();
+	};
 	const applyRecommendation = (
 		recommendation: (typeof recommendations)[number],
 	) => {
@@ -638,6 +647,7 @@ export function ScheduledMealEditor({
 					.join("\n"),
 			);
 		setSaveRecommendedMenu(false);
+		setAiOpen(false);
 	};
 
 	return (
@@ -965,13 +975,13 @@ export function ScheduledMealEditor({
 							</p>
 							<button
 								type="button"
-								onClick={fetchRecommendations}
-								disabled={
-									recommendationLoading || recommendationAvailable === false
-								}
+								className="pk-ai-launch"
+								onClick={openRecommendations}
+								disabled={recommendationAvailable === false}
 							>
-								{recommendationLoading
-									? "Thinking…"
+								<span aria-hidden="true">✦</span>
+								{recommendations.length
+									? "View AI recommendations"
 									: name.trim()
 										? "Improve with AI"
 										: "Recommend me"}
@@ -982,98 +992,6 @@ export function ScheduledMealEditor({
 									configured.
 								</p>
 							)}
-							{recommendationError && (
-								<p className="feature-error" role="alert">
-									{recommendationError}
-								</p>
-							)}
-							{recommendations.map((item, index) => (
-								<article className="pk-ai-card" key={`${item.name}-${index}`}>
-									<h3>{item.name}</h3>
-									<p>{item.justification}</p>
-									<ul>
-										{item.ingredientDetails.map((row, rowIndex) => (
-											<li
-												key={`${row.ingredientId}-${row.memberId ?? "shared"}-${rowIndex}`}
-											>
-												{row.name}: {row.quantity}{" "}
-												{catalog.get(row.ingredientId)?.unit}
-											</li>
-										))}
-									</ul>
-									<p>
-										{pretty(item.nutrition.calories)} kcal ·{" "}
-										{pretty(item.nutrition.protein)} g protein ·{" "}
-										{pretty(item.nutrition.carbs)} g carbs ·{" "}
-										{pretty(item.nutrition.fat)} g fat ·{" "}
-										{pretty(item.nutrition.fiber)} g fiber
-									</p>
-									{item.deltas.map((delta) => (
-										<p key={delta.member}>
-											{delta.member}: {pretty(delta.caloriesAfter)} /{" "}
-											{pretty(delta.calorieTarget)} kcal
-											{delta.overCaloriesBy > 0
-												? ` · ${pretty(delta.overCaloriesBy)} kcal over target${delta.caloriesAfter <= delta.calorieTarget * 1.05 ? " (within 5%)" : ""}`
-												: ""}
-											; protein {pretty(delta.proteinAfter)} /{" "}
-											{pretty(delta.proteinTarget)} g, carbs{" "}
-											{pretty(delta.carbsAfter)} / {pretty(delta.carbsTarget)}{" "}
-											g, fat {pretty(delta.fatAfter)} /{" "}
-											{pretty(delta.fatTarget)} g, fiber{" "}
-											{pretty(delta.fiberAfter)} / {pretty(delta.fiberTarget)} g
-											{delta.sourceWarning ? ` · ${delta.sourceWarning}` : ""}
-										</p>
-									))}
-									{item.newIngredients.length > 0 && (
-										<p>
-											New USDA ingredients will be added when you save:{" "}
-											{item.newIngredients
-												.map((ingredient) => ingredient.name)
-												.join(", ")}
-										</p>
-									)}
-									{item.companionSnacks.map((snack) => (
-										<p key={snack.memberId}>
-											{
-												data.members.find(
-													(member) => member.id === snack.memberId,
-												)?.name
-											}{" "}
-											companion snack: {snack.name} ·{" "}
-											{pretty(snack.nutrition.calories)} kcal
-										</p>
-									))}
-									{item.removals.length > 0 && (
-										<p>Would remove: {item.removals.join(", ")}</p>
-									)}
-									<label className="pk-ai-check">
-										<input
-											type="checkbox"
-											checked={includeCookingNote}
-											onChange={(event) =>
-												setIncludeCookingNote(event.target.checked)
-											}
-										/>{" "}
-										Add cooking note when applied
-									</label>
-									<label className="pk-ai-check">
-										<input
-											type="checkbox"
-											checked={saveRecommendedMenu}
-											onChange={(event) =>
-												setSaveRecommendedMenu(event.target.checked)
-											}
-										/>{" "}
-										Save to menu collection when I save this meal
-									</label>
-									<button
-										type="button"
-										onClick={() => applyRecommendation(item)}
-									>
-										Apply to draft
-									</button>
-								</article>
-							))}
 							{pendingCompanions.map((snack, snackIndex) => (
 								<div className="pk-ai-card" key={snack.id}>
 									<h3>
@@ -1156,6 +1074,114 @@ export function ScheduledMealEditor({
 					</button>
 				</footer>
 			</form>
+			{aiOpen && (
+				<div
+					className="pk-ai-modal-scrim"
+					onMouseDown={(event) => {
+						if (event.target === event.currentTarget) setAiOpen(false);
+					}}
+				>
+					<section
+						className="pk-ai-modal"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="pk-ai-modal-title"
+					>
+						<header className="pk-ai-modal__header">
+							<div>
+								<p className="pk-editor__eyebrow">AI MEAL IDEAS</p>
+								<h2 id="pk-ai-modal-title">
+									{name.trim() ? "Improve this meal" : "Choose a meal idea"}
+								</h2>
+								<p>Five practical options matched to the remaining calories and macros.</p>
+							</div>
+							<button
+								type="button"
+								className="pk-ai-modal__close"
+								onClick={() => setAiOpen(false)}
+								aria-label="Close AI recommendations"
+								autoFocus
+							>
+								×
+							</button>
+						</header>
+						<div className="pk-ai-modal__body">
+							{recommendationLoading ? (
+								<div className="pk-ai-loading" role="status" aria-live="polite">
+									<img src="/ai-cooking.webp" alt="" />
+									<div>
+										<strong>Building balanced meal ideas…</strong>
+										<p>Checking protein first, then calories, price, variety, and practical portions.</p>
+									</div>
+									<span className="pk-ai-loading__dots" aria-hidden="true"><i /><i /><i /></span>
+								</div>
+							) : recommendationError ? (
+								<div className="pk-ai-empty" role="alert">
+									<strong>We couldn’t prepare recommendations.</strong>
+									<p>{recommendationError}</p>
+									<button type="button" onClick={() => void fetchRecommendations()}>Try again</button>
+								</div>
+							) : (
+								<>
+									<div className="pk-ai-modal__toolbar">
+										<div className="pk-ai-modal__checks">
+											<label className="pk-ai-check">
+												<input type="checkbox" checked={includeCookingNote} onChange={(event) => setIncludeCookingNote(event.target.checked)} />
+												Add cooking note
+											</label>
+											<label className="pk-ai-check">
+												<input type="checkbox" checked={saveRecommendedMenu} onChange={(event) => setSaveRecommendedMenu(event.target.checked)} />
+												Save chosen idea to menu collection
+											</label>
+										</div>
+										<button type="button" className="pk-ai-refresh" onClick={() => void fetchRecommendations()}>↻ Refresh ideas</button>
+									</div>
+									<div className="pk-ai-grid">
+										{recommendations.map((item, index) => (
+											<article className="pk-ai-card" key={`${item.name}-${index}`}>
+												<div className="pk-ai-card__heading">
+													<span>Option {index + 1} · {item.origin === "saved" ? "Adjusted favorite" : "New idea"}</span>
+													<h3>{item.name}</h3>
+												</div>
+												<p className="pk-ai-card__why">{item.justification}</p>
+												<ul className="pk-ai-card__ingredients">
+													{item.ingredientDetails.map((row, rowIndex) => (
+														<li key={`${row.ingredientId}-${row.memberId ?? "shared"}-${rowIndex}`}>
+															<span>{row.name}{row.memberId ? ` · ${data.members.find((member) => member.id === row.memberId)?.name}` : ""}</span>
+															<strong>{row.quantity} {catalog.get(row.ingredientId)?.unit}</strong>
+														</li>
+													))}
+												</ul>
+												<div className="pk-ai-card__nutrition" aria-label="Nutrition summary">
+													<strong>{pretty(item.nutrition.calories)}<small>kcal</small></strong>
+													<span>{pretty(item.nutrition.protein)} g <small>protein</small></span>
+													<span>{pretty(item.nutrition.carbs)} g <small>carbs</small></span>
+													<span>{pretty(item.nutrition.fat)} g <small>fat</small></span>
+													<span>{pretty(item.nutrition.fiber)} g <small>fiber</small></span>
+												</div>
+												<div className="pk-ai-card__targets">
+													{item.deltas.map((delta) => (
+														<div key={delta.member}>
+															<strong>{delta.member}</strong>
+															<span>{pretty(delta.caloriesAfter)} / {pretty(delta.calorieTarget)} kcal</span>
+															<span>Protein {pretty(delta.proteinAfter)} / {pretty(delta.proteinTarget)} g</span>
+															{delta.sourceWarning && <small>{delta.sourceWarning}</small>}
+														</div>
+													))}
+												</div>
+												{item.newIngredients.length > 0 && <p className="pk-ai-card__notice">USDA additions: {item.newIngredients.map((ingredient) => ingredient.name).join(", ")}</p>}
+												{item.companionSnacks.map((snack) => <p className="pk-ai-card__notice" key={snack.memberId}>{data.members.find((member) => member.id === snack.memberId)?.name} snack: {snack.name} · {pretty(snack.nutrition.calories)} kcal</p>)}
+												{item.removals.length > 0 && <p className="pk-ai-card__notice">Replaces: {item.removals.join(", ")}</p>}
+												<button type="button" className="pk-ai-apply" onClick={() => applyRecommendation(item)}>Apply this idea</button>
+											</article>
+										))}
+									</div>
+								</>
+							)}
+						</div>
+					</section>
+				</div>
+			)}
 		</div>
 	);
 }

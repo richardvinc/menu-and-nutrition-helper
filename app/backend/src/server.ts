@@ -1682,6 +1682,31 @@ export function createApp(db = createDatabase()) {
 	});
 	app.post("/api/ai/ingredient-lookup", async (req, res) => {
 		const ip = req.ip || req.socket.remoteAddress || "unknown";
+		const name = req.body?.name;
+		if (typeof name !== "string" || !name.trim() || name.length > 120)
+			return fail(res, "ingredient name is required");
+		const preparation = req.body?.preparation ?? "";
+		if (typeof preparation !== "string" || preparation.length > 120)
+			return fail(res, "invalid ingredient preparation");
+		const all = rows<Ingredient>(db, "ingredients");
+		const findCatalogMatch = (terms: string[], includeAliases = true) => {
+			const normalized = new Set(
+				terms.map((term) => term.trim().toLocaleLowerCase()).filter(Boolean),
+			);
+			return all.find((item) =>
+				[item.name, ...(includeAliases ? item.aliases : [])].some((term) =>
+					normalized.has(term.trim().toLocaleLowerCase()),
+				),
+			);
+		};
+		const directMatch = findCatalogMatch([name]);
+		if (directMatch)
+			return res.json({
+				query: name.trim(),
+				aliases: [],
+				existing: directMatch.id,
+				matches: [],
+			});
 		if (!process.env.USDA_API_KEY)
 			return fail(
 				res,
@@ -1694,12 +1719,6 @@ export function createApp(db = createDatabase()) {
 				"USDA lookup limit reached. Try again in a minute.",
 				429,
 			);
-		const name = req.body?.name;
-		if (typeof name !== "string" || !name.trim() || name.length > 120)
-			return fail(res, "ingredient name is required");
-		const preparation = req.body?.preparation ?? "";
-		if (typeof preparation !== "string" || preparation.length > 120)
-			return fail(res, "invalid ingredient preparation");
 		if (
 			process.env.OPENROUTER_API_KEY &&
 			process.env.OPENROUTER_ALIAS_MODEL &&
@@ -1715,6 +1734,16 @@ export function createApp(db = createDatabase()) {
 			aliasResult && "usdaQuery" in aliasResult
 				? aliasResult.usdaQuery
 				: name.trim();
+		const aliases =
+			aliasResult && "aliases" in aliasResult ? aliasResult.aliases : [];
+		const translatedMatch = findCatalogMatch(aliases, false);
+		if (translatedMatch)
+			return res.json({
+				query,
+				aliases,
+				existing: translatedMatch.id,
+				matches: [],
+			});
 		try {
 			const matches = await searchUsda(query, {
 				primaryName: name.trim(),
@@ -1727,7 +1756,6 @@ export function createApp(db = createDatabase()) {
 						aliasResult && "aliases" in aliasResult ? aliasResult.aliases : [],
 					matches: [],
 				});
-			const all = rows<Ingredient>(db, "ingredients");
 			const exact = all.find(
 				(item) =>
 					item.name.toLocaleLowerCase() === name.trim().toLocaleLowerCase() ||
@@ -1739,8 +1767,7 @@ export function createApp(db = createDatabase()) {
 			);
 			return res.json({
 				query,
-				aliases:
-					aliasResult && "aliases" in aliasResult ? aliasResult.aliases : [],
+				aliases,
 				existing: exact?.id,
 				similar: !exact
 					? all

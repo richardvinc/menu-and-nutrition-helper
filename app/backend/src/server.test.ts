@@ -25,11 +25,16 @@ describe("backend API", () => {
 
 	test("AI logs expand embedded JSON and redact credentials", () => {
 		const output = formatAiTraceData({
-			content: '{"meal":"tofu"}',
+			content:
+				'{"meal":"tofu","availableIngredients":[{"name":"large catalog item"}]}',
 			api_key: "private",
 			usage: { completion_tokens: 12 },
 		});
 		expect(output).toContain('"meal": "tofu"');
+		expect(output).toContain(
+			'"availableIngredients": "[1 ingredients omitted]"',
+		);
+		expect(output).not.toContain("large catalog item");
 		expect(output).toContain('"api_key": "[redacted]"');
 		expect(output).toContain('"completion_tokens": 12');
 		expect(output).not.toContain("private");
@@ -125,7 +130,7 @@ describe("backend API", () => {
 			const lookup = await fetch(`${base}/api/ai/ingredient-lookup`, {
 				method: "POST",
 				headers: { "content-type": "application/json" },
-				body: JSON.stringify({ name: "tahu" }),
+				body: JSON.stringify({ name: "ingredient nowhere" }),
 			});
 			expect(lookup.status).toBe(503);
 			expect((await lookup.json()).error).toContain("USDA_API_KEY");
@@ -216,6 +221,9 @@ describe("backend API", () => {
 				}),
 			).rejects.toThrow("unsupported ingredient");
 			expect(openRouterBody.model).toBe("test-meal-model");
+			const prompt = JSON.parse(openRouterBody.messages[1].content);
+			expect(prompt.constraints).toMatchObject({ recommendations: 5, adjustedSavedMenus: 0, newCompositions: 5 });
+			expect(openRouterBody.response_format.json_schema.schema.properties.recommendations).toMatchObject({ minItems: 5, maxItems: 5 });
 			expect(openRouterBody.messages[1].content).not.toContain("ingredientId");
 			expect(openRouterBody.messages[1].content).not.toContain('"id"');
 			expect(await searchUsda("food with no match")).toEqual([]);
@@ -510,6 +518,38 @@ describe("backend API", () => {
 		}
 	});
 
+	test("USDA search omits unrelated foods that only share a preparation word", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldUsda = process.env.USDA_API_KEY;
+		process.env.USDA_API_KEY = "test-only";
+		const nutrients = [
+			{ nutrientNumber: "208", value: 30 },
+			{ nutrientNumber: "203", value: 1 },
+			{ nutrientNumber: "205", value: 1 },
+			{ nutrientNumber: "204", value: 1 },
+			{ nutrientNumber: "291", value: 1 },
+		];
+		globalThis.fetch = (async () =>
+			new Response(
+				JSON.stringify({
+					foods: [
+						{ fdcId: 123, description: "Watermelon, raw", dataType: "SR Legacy", foodNutrients: nutrients },
+						{ fdcId: 172183, description: "Egg, white, raw, fresh", dataType: "SR Legacy", foodNutrients: nutrients },
+					],
+				}),
+				{ status: 200 },
+			)) as typeof fetch;
+		try {
+			expect(
+				(await searchUsda("watermelon raw")).map((match) => match.fdcId),
+			).toEqual([123]);
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY;
+			else process.env.USDA_API_KEY = oldUsda;
+		}
+	});
+
 	test("ingredient lookup passes preparation and returns clean aliases with generic match choices", async () => {
 		const oldFetch = globalThis.fetch;
 		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
@@ -607,6 +647,97 @@ describe("backend API", () => {
 			expect(result.matches[0].source).toContain(
 				"https://fdc.nal.usda.gov/food-details/168878/nutrients",
 			);
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
+			else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY;
+			else process.env.USDA_API_KEY = oldUsda;
+		}
+	});
+
+	test("ingredient lookup finds a translated catalog name before unrelated USDA matches", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		const oldUsda = process.env.USDA_API_KEY;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		process.env.USDA_API_KEY = "test-only";
+		let usdaCalls = 0;
+		const nutrients = (calories: number) => [
+			{ nutrientNumber: "208", value: calories },
+			{ nutrientNumber: "203", value: 1 },
+			{ nutrientNumber: "205", value: 1 },
+			{ nutrientNumber: "204", value: 1 },
+			{ nutrientNumber: "291", value: 1 },
+		];
+		globalThis.fetch = (async (
+			input: RequestInfo | URL,
+			init?: RequestInit,
+		) => {
+			if (String(input).includes("openrouter.ai"))
+				return new Response(
+					JSON.stringify({
+						choices: [
+							{
+								message: {
+									content: JSON.stringify({
+										usdaQuery: "watermelon raw",
+										aliases: ["watermelon"],
+									}),
+								},
+							},
+						],
+					}),
+					{ status: 200 },
+				);
+			if (!String(input).includes("api.nal.usda.gov"))
+				return oldFetch(input, init);
+			usdaCalls++;
+			return new Response(
+				JSON.stringify({
+					foods: [
+						{
+							fdcId: 123,
+							description: "Watermelon, raw",
+							dataType: "SR Legacy",
+							foodNutrients: nutrients(30),
+						},
+						{
+							fdcId: 172183,
+							description: "Egg, white, raw, fresh",
+							dataType: "SR Legacy",
+							foodNutrients: nutrients(52),
+						},
+					],
+				}),
+				{ status: 200 },
+			);
+		}) as typeof fetch;
+		try {
+			const create = await fetch(`${base}/api/ingredients`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					id: "watermelon",
+					name: "Watermelon",
+					aliases: [],
+					unit: "g",
+					basisAmount: 100,
+					preparation: "Raw",
+					source: "USDA FoodData Central SR Legacy, FDC 123",
+					suggestible: true,
+					nutrition: { calories: 30, protein: 0.6, carbs: 7.6, fat: 0.2, fiber: 0.4 },
+				}),
+			});
+			expect(create.status).toBe(201);
+			const response = await fetch(`${base}/api/ai/ingredient-lookup`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ name: "semangka" }),
+			});
+			expect(response.status).toBe(200);
+			expect(await response.json()).toMatchObject({ existing: "watermelon" });
+			expect(usdaCalls).toBe(0);
 		} finally {
 			globalThis.fetch = oldFetch;
 			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;

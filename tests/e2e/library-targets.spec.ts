@@ -73,6 +73,68 @@ test.describe("Library and next-week targets", () => {
 		).toBeVisible();
 	});
 
+	test("new ingredient checks local names and aliases before AI", async ({ page }) => {
+		let lookupCalls = 0;
+		await page.route("**/api/ai/status", (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				body: JSON.stringify({ recommendations: false, ingredientLookup: true }),
+			}),
+		);
+		await page.route("**/api/ai/ingredient-lookup", (route) => {
+			lookupCalls++;
+			return route.abort();
+		});
+		await page.goto("/");
+		await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
+		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
+		await page.getByRole("button", { name: "New ingredient" }).click();
+		const name = page.getByLabel("Primary ingredient name");
+		const lookup = page.getByRole("button", { name: "Find nutrition with AI" });
+		await name.fill("tahu");
+		const [nameBox, lookupBox] = await Promise.all([
+			name.boundingBox(),
+			lookup.boundingBox(),
+		]);
+		expect(Math.abs(nameBox!.y - lookupBox!.y)).toBeLessThan(10);
+		await lookup.click();
+		await expect(page.getByRole("status")).toContainText(
+			"already in the catalog as “Tahu firm”",
+		);
+		await expect(page.getByRole("button", { name: "Edit Tahu firm" })).toBeVisible();
+		expect(lookupCalls).toBe(0);
+	});
+
+	test("blurred library actions preserve an ingredient draft without prompting", async ({
+		page,
+	}) => {
+		let dialogs = 0;
+		page.on("dialog", async (dialog) => {
+			dialogs++;
+			await dialog.dismiss();
+		});
+		await page.goto("/");
+		await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
+		await page.getByRole("tab", { name: "Ingredient catalog" }).click();
+		const ingredient = page.locator(".library-card").first();
+		await ingredient.getByRole("button", { name: "Edit" }).click();
+		await ingredient.getByLabel("Primary ingredient name").fill("Unsaved ingredient name");
+		await page.evaluate(() => {
+			window.dispatchEvent(new Event("blur"));
+			window.dispatchEvent(new Event("focus"));
+			(document.querySelector('[role="tab"][aria-selected="false"]') as HTMLElement).click();
+		});
+		expect(dialogs).toBe(0);
+		await expect(page.getByRole("tab", { name: "Ingredient catalog" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+		await expect(ingredient.getByLabel("Primary ingredient name")).toHaveValue(
+			"Unsaved ingredient name",
+		);
+	});
+
 	test("existing library edits expand in place and untouched cancel is immediate", async ({
 		page,
 	}) => {
