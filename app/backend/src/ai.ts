@@ -1007,16 +1007,22 @@ export async function usdaIngredientPortions(
 		});
 		throw new Error("USDA FoodData Central lookup failed. Please retry.");
 	}
-	if (food.fdcId !== fdcId)
+	if (!food || typeof food !== "object" || food.fdcId !== fdcId)
 		throw new Error("USDA record does not match the requested food.");
 	const portions = (Array.isArray(food.foodPortions) ? food.foodPortions : [])
 		.map((portion: any) => {
+			if (!portion || typeof portion !== "object") return null;
 			const amount = portion.amount;
 			const gramWeight = portion.gramWeight;
 			if (
-				typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0 ||
-				typeof gramWeight !== "number" || !Number.isFinite(gramWeight) || gramWeight <= 0
-			) return null;
+				typeof amount !== "number" ||
+				!Number.isFinite(amount) ||
+				amount <= 0 ||
+				typeof gramWeight !== "number" ||
+				!Number.isFinite(gramWeight) ||
+				gramWeight <= 0
+			)
+				return null;
 			const measure = portion.measureUnit?.name ?? portion.measureUnit?.abbreviation;
 			const detail = [portion.modifier, portion.portionDescription]
 				.filter((value: unknown) => typeof value === "string" && value.trim())
@@ -1027,10 +1033,23 @@ export async function usdaIngredientPortions(
 				gramWeight,
 			};
 		})
-		.filter((portion: any): portion is { label: string; amount: number; gramWeight: number } => portion !== null);
-	if (!portions.length && food.servingSizeUnit?.toLocaleLowerCase() === "g" &&
-		typeof food.servingSize === "number" && Number.isFinite(food.servingSize) && food.servingSize > 0)
-		portions.push({ label: `1 serving (${food.servingSize} g)`, amount: 1, gramWeight: food.servingSize });
+		.filter(
+			(portion: any): portion is { label: string; amount: number; gramWeight: number } =>
+				portion !== null,
+		);
+	if (
+		!portions.length &&
+		typeof food.servingSizeUnit === "string" &&
+		food.servingSizeUnit.toLocaleLowerCase() === "g" &&
+		typeof food.servingSize === "number" &&
+		Number.isFinite(food.servingSize) &&
+		food.servingSize > 0
+	)
+		portions.push({
+			label: `1 serving (${food.servingSize} g)`,
+			amount: 1,
+			gramWeight: food.servingSize,
+		});
 	aiTrace("USDA", "portion response", { fdcId, portions });
 	return portions;
 }

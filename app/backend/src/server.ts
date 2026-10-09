@@ -1683,7 +1683,8 @@ export function createApp(db = createDatabase()) {
 	});
 	app.get("/api/ai/ingredient-portions/:fdcId", async (req, res) => {
 		const ip = req.ip || req.socket.remoteAddress || "unknown";
-		if (!/^\d+$/.test(req.params.fdcId) || Number(req.params.fdcId) <= 0)
+		const fdcId = Number(req.params.fdcId);
+		if (!/^\d+$/.test(req.params.fdcId) || !Number.isSafeInteger(fdcId) || fdcId <= 0)
 			return fail(res, "invalid USDA food id");
 		if (!process.env.USDA_API_KEY)
 			return fail(
@@ -1694,7 +1695,7 @@ export function createApp(db = createDatabase()) {
 		if (!rateLimit(`usda:${ip}`, 30, 60_000))
 			return fail(res, "USDA lookup limit reached. Try again in a minute.", 429);
 		try {
-			return res.json({ portions: await usdaIngredientPortions(Number(req.params.fdcId)) });
+			return res.json({ portions: await usdaIngredientPortions(fdcId) });
 		} catch (error) {
 			return fail(res, error, 503);
 		}

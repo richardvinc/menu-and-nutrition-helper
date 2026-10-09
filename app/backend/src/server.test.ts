@@ -66,6 +66,13 @@ describe("backend API", () => {
 			expect({ status: response.status, body: await response.json() }).toEqual({ status: 200, body: { portions: [{ label: "2 large apple with skin", amount: 2, gramWeight: 270 }] } });
 			expect(await fetch(`${base}/api/ai/ingredient-portions/556`).then((r) => r.json())).toEqual({ portions: [] });
 			expect((await fetch(`${base}/api/ai/ingredient-portions/nope`)).status).toBe(400);
+		expect(
+			(
+				await fetch(
+					`${base}/api/ai/ingredient-portions/999999999999999999999999`,
+				)
+			).status,
+		).toBe(400);
 			expect((await fetch(`${base}/api/ai/ingredient-portions/557`)).status).toBe(503);
 		} finally {
 			globalThis.fetch = oldFetch;

@@ -459,6 +459,16 @@ export function Library({
 						: nutrition;
 				return {
 					...current,
+					...(!Number.isFinite(draftGramsPerBasis) || draftGramsPerBasis <= 0
+						? {
+								unit: existing.unit,
+								basisAmount: String(existing.basisAmount),
+								equivalentGrams:
+									existing.unit === "g"
+										? ""
+										: String(gramsPerUnit ?? existing.equivalentGrams ?? ""),
+						  }
+						: {}),
 					...(current.unit === existing.unit &&
 					gramsPerUnit != null &&
 					current.unit !== "g"
@@ -573,8 +583,8 @@ export function Library({
 		});
 		setLookupWarning(
 			ingredientDraftState.unit === "g"
-				? `Applied USDA portion ${portion.amount} × ${portion.label} (${portion.gramWeight} g) as the nutrition basis. Save the ingredient to keep it.`
-				: `Applied USDA portion ${portion.amount} × ${portion.label} (${portion.gramWeight} g) as ${gramsPerUnit} g per ${ingredientDraftState.unit}. Save the ingredient to keep it.`,
+			? `Applied USDA portion ${portion.label} (${portion.gramWeight} g) as the nutrition basis. Save the ingredient to keep it.`
+			: `Applied USDA portion ${portion.label} (${portion.gramWeight} g) as ${gramsPerUnit} g per ${ingredientDraftState.unit}. Save the ingredient to keep it.`,
 		);
 	}
 	function selectUsdaMatch(
@@ -1189,18 +1199,53 @@ export function Library({
 																				</a>
 																			</>
 																		)}
-													<button type="button" className="secondary" disabled={portionBusy !== null} onClick={() => void loadUsdaPortions(match.fdcId)}>
-														{portionBusy === match.fdcId ? "Loading serving sizes…" : "Show USDA serving sizes"}
+													<button
+														type="button"
+														className="secondary"
+														disabled={portionBusy !== null}
+														onClick={() => void loadUsdaPortions(match.fdcId)}
+													>
+														{portionBusy === match.fdcId
+															? "Loading serving sizes…"
+															: "Show USDA serving sizes"}
 													</button>
-														{portionResults[match.fdcId]?.filter((portion) => Number.isFinite(portion.amount) && Number.isFinite(portion.gramWeight) && portion.amount > 0 && portion.gramWeight > 0).map((portion, index) => {
-														const gramsPerUnit = portion.gramWeight / portion.amount;
-														return <div key={`${portion.label}-${index}`}>
-															<p>{portion.amount} × {portion.label} · {portion.gramWeight} g total</p>
-															<button type="button" className="usda-replace-link" disabled={saving || applyingMatch !== null || portion.amount <= 0 || portion.gramWeight <= 0} onClick={() => void useUsdaMatch(existing, match, existing.unit === "g" ? undefined : gramsPerUnit)}>
-																{existing.unit === "g" ? "Use this USDA nutrition" : `Use USDA weight for 1 ${existing.unit} (${gramsPerUnit} g)`}
-															</button>
-														</div>;
-													})}
+													{portionResults[match.fdcId]
+														.filter(
+															(portion) =>
+																Number.isFinite(portion.amount) &&
+																Number.isFinite(portion.gramWeight) &&
+																portion.amount > 0 &&
+																portion.gramWeight > 0,
+														)
+														.map((portion, index) => {
+															const gramsPerUnit =
+																portion.gramWeight / portion.amount;
+															return (
+																<div key={`${portion.label}-${index}`}>
+																	<p>
+																		{portion.label} · {portion.gramWeight} g total
+																	</p>
+																	<button
+																		type="button"
+																		className="usda-replace-link"
+																		disabled={saving || applyingMatch !== null}
+																		onClick={() =>
+																			void useUsdaMatch(
+																				existing,
+																				match,
+																				existing.unit === "g"
+																					? undefined
+																					: gramsPerUnit,
+																				)
+																		}
+																	>
+																		{existing.unit === "g"
+																			? "Use this USDA nutrition"
+																			: `Use USDA weight for 1 ${existing.unit} (${gramsPerUnit} g)`}
+																	</button>
+																</div>
+															);
+														})}
 																		<button
 																			type="button"
 																			className="usda-replace-link"
