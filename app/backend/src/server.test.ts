@@ -40,6 +40,40 @@ describe("backend API", () => {
 		expect(output).not.toContain("private");
 	});
 
+	test("USDA ingredient portions expose only verified positive gram weights", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldUsda = process.env.USDA_API_KEY;
+		process.env.USDA_API_KEY = "test-only";
+		globalThis.fetch = (async (input: RequestInfo | URL) => {
+			const url = String(input);
+			if (!url.includes("api.nal.usda.gov")) return oldFetch(input);
+			if (url.includes("/food/555?"))
+				return new Response(JSON.stringify({
+					fdcId: 555,
+					foodPortions: [
+						{ amount: 2, gramWeight: 270, measureUnit: { name: "large" }, modifier: "apple", portionDescription: "with skin" },
+						{ amount: 0, gramWeight: 100, measureUnit: { name: "cup" } },
+						{ amount: 1, gramWeight: Number.NaN, measureUnit: { name: "piece" } },
+						{ gramWeight: 50, measureUnit: { name: "slice" } },
+					],
+				}), { status: 200 });
+			if (url.includes("/food/556?"))
+				return new Response(JSON.stringify({ fdcId: 556, foodPortions: [] }), { status: 200 });
+			return new Response(JSON.stringify({ message: "USDA unavailable" }), { status: 503 });
+		}) as typeof fetch;
+		try {
+			const response = await fetch(`${base}/api/ai/ingredient-portions/555`);
+			expect({ status: response.status, body: await response.json() }).toEqual({ status: 200, body: { portions: [{ label: "2 large apple with skin", amount: 2, gramWeight: 270 }] } });
+			expect(await fetch(`${base}/api/ai/ingredient-portions/556`).then((r) => r.json())).toEqual({ portions: [] });
+			expect((await fetch(`${base}/api/ai/ingredient-portions/nope`)).status).toBe(400);
+			expect((await fetch(`${base}/api/ai/ingredient-portions/557`)).status).toBe(503);
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY;
+			else process.env.USDA_API_KEY = oldUsda;
+		}
+	});
+
 	beforeEach(async () => {
 		db = createDatabase(":memory:");
 		server = createApp(db).listen(0);
