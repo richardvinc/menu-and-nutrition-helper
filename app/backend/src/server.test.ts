@@ -758,6 +758,124 @@ describe("backend API", () => {
 		}
 	});
 
+	test("skips an invalid quantity-only dinner idea and keeps later additions", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		const oldAiDebugLog = process.env.AI_DEBUG_LOG;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		process.env.AI_DEBUG_LOG = "false";
+		const catalog = (
+			(await (await fetch(`${base}/api/data`)).json()) as AppData
+		).ingredients;
+		const currentItems = [
+			{ item: catalog.find((item) => item.id === "rice")!, memberId: undefined },
+			{ item: catalog.find((item) => item.id === "egg")!, memberId: undefined },
+			{ item: catalog.find((item) => item.id === "chicken")!, memberId: undefined },
+			{ item: catalog.find((item) => item.id === "rice")!, memberId: "richard" as const },
+			{ item: catalog.find((item) => item.id === "rice")!, memberId: "michelle" as const },
+		];
+		const available = catalog.filter(
+			(item) => item.suggestible || currentItems.some((row) => row.item.id === item.id),
+		);
+		const keyFor = (id: string) =>
+			`ingredient-${available.findIndex((item) => item.id === id) + 1}`;
+		const currentRows = currentItems.map(({ item, memberId }) => ({
+			catalogKey: keyFor(item.id),
+			usdaQuery: "",
+			quantity: 2,
+			member: memberId === "richard" ? "Member A" : memberId === "michelle" ? "Member B" : "shared",
+		}));
+		const proposal = (name: string, ingredients: unknown[]) => ({
+			name,
+			origin: "new",
+			savedMenuKey: "",
+			justification: "Keeps the meal practical.",
+			cookingNote: "",
+			ingredients,
+			removals: [],
+			companionSnacks: [],
+		});
+		const withTofu = [
+			...currentRows,
+			{ catalogKey: keyFor("tofu"), usdaQuery: "", quantity: 150, member: "shared" },
+		];
+		const meal = {
+			id: "shared-dinner",
+			date: "2026-10-09",
+			slot: "dinner" as const,
+			memberId: "richard" as const,
+			name: "Tteokbokki",
+			notes: "",
+			ingredients: currentItems.map(({ item, memberId }) => ({
+				ingredientId: item.id,
+				quantity: 2,
+				...(memberId ? { memberId } : {}),
+			})),
+		};
+		const getRecommendations = async (
+			firstIngredients: unknown[],
+			includeLater = true,
+		) => {
+			const urls: string[] = [];
+			globalThis.fetch = (async (input: RequestInfo | URL) => {
+				urls.push(String(input));
+				return new Response(
+					JSON.stringify({
+						choices: [{
+							message: {
+								content: JSON.stringify({ recommendations: [
+									proposal("Invalid quantity-only option", firstIngredients),
+									...(includeLater ? [proposal("Tofu variation", withTofu)] : []),
+								] }),
+							},
+						}],
+					}),
+					{ status: 200 },
+				);
+			}) as typeof fetch;
+			const results = await recommend({
+				meal,
+				catalog,
+				currentDay: [],
+				savedMenus: [],
+				targets: [],
+				dailySnackLimits: [],
+				settledSnackMembers: [],
+				memberLabels: [
+					{ member: "Member A", memberId: "richard" },
+					{ member: "Member B", memberId: "michelle" },
+				],
+				prior: [],
+			});
+			return { results, urls };
+		};
+		try {
+			const result = await getRecommendations(withTofu);
+			expect(result.results.map((row) => row.name)).toEqual(["Tofu variation"]);
+			expect(result.results[0].ingredients).toHaveLength(6);
+			const reassigned = currentRows.map((row, index) =>
+				index === 1 ? { ...row, member: "Member A" } : row,
+			);
+			expect((await getRecommendations(reassigned)).results).toHaveLength(1);
+			expect((await getRecommendations(currentRows.slice(1))).results).toHaveLength(1);
+			const usdaFirst = await getRecommendations([
+				...currentRows,
+				{ catalogKey: "", usdaQuery: "tofu", quantity: 150, member: "shared" },
+			]);
+			expect(usdaFirst.urls).toHaveLength(1);
+			expect(usdaFirst.results).toHaveLength(1);
+			await expect(getRecommendations(withTofu, false)).rejects.toThrow(
+				"AI could not produce a recommendation within the nutrition limits.",
+			);
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
+			else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+			if (oldAiDebugLog === undefined) delete process.env.AI_DEBUG_LOG;
+			else process.env.AI_DEBUG_LOG = oldAiDebugLog;
+		}
+	});
+
 	test("normalizes stray model member labels for a single-member meal", async () => {
 		const oldFetch = globalThis.fetch;
 		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
