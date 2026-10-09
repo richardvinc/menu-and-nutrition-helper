@@ -27,6 +27,8 @@ export interface MenuIngredient {
 	ingredientId: string;
 	quantity: number;
 	memberId?: MemberId;
+	/** Immutable copy used by menus and scheduled meals after catalog changes. */
+	ingredient?: Ingredient;
 }
 
 export interface SavedMenu {

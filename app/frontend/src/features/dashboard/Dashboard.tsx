@@ -58,7 +58,7 @@ function mealNutrition(
 	ingredients: Map<string, Ingredient>,
 ): Nutrition {
 	return meal.ingredients.reduce((total, row) => {
-		const ingredient = ingredients.get(row.ingredientId);
+		const ingredient = row.ingredient ?? ingredients.get(row.ingredientId);
 		if (!ingredient) return total;
 		const factor = row.quantity / ingredient.basisAmount;
 		total.calories += ingredient.nutrition.calories * factor;
@@ -168,9 +168,8 @@ export function Dashboard({ data, today = new Date() }: DashboardProps) {
 													)}
 													<ul>
 														{meal.ingredients.map((row, index) => {
-															const ingredient = ingredients.get(
-																row.ingredientId,
-															);
+															const ingredient =
+																row.ingredient ?? ingredients.get(row.ingredientId);
 															return (
 																<li key={`${row.ingredientId}-${index}`}>
 																	<span>

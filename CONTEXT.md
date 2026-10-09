@@ -80,6 +80,10 @@ _Avoid_: Universal serving, quantity multiplier
 The canonical collection of ingredients used for menu planning. Workbook entries indicate commonly used ingredients, while reputable nutrition sources supply the preferred nutrient values for merged duplicates.
 _Avoid_: Nutrition table, food database
 
+**Ingredient snapshot**:
+The saved copy of an ingredient's name, unit, nutrition basis, and nutrition values attached to each saved-menu or scheduled-meal ingredient row. Editing or deleting the catalog ingredient does not change that historical row; choosing a catalog ingredient again replaces its snapshot.
+_Avoid_: Live catalog reference, linked ingredient
+
 **Ingredient alias**:
 An alternative Indonesian, English, brand, or familiar kitchen name that finds the same canonical ingredient in search.
 _Avoid_: Duplicate ingredient

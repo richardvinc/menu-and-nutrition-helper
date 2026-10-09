@@ -90,7 +90,7 @@ for (const choice of ["meal only", "meal + snack"] as const) {
 			await expect(card).toContainText("Fiber: 1 → 4 → 7 / 15 g");
 			const snackCompare = card.locator(".pk-ai-card__snack-comparison");
 			await expect(snackCompare).toContainText("Pisang sedang");
-			await expect(snackCompare.locator(".pk-ai-card__ingredients li").first()).toContainText("0 → 1 piece");
+			await expect(snackCompare.locator(".pk-ai-card__ingredients li").first()).toContainText("0 piece → 1 piece");
 			await expect(snackCompare.locator(".pk-ai-card__nutrition")).toContainText("Calories0 → 105kcal");
 			if (choice === "meal only") {
 				await card.getByRole("button", { name: "Apply meal + snack" }).click();

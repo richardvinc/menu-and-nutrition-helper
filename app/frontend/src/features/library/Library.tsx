@@ -100,6 +100,7 @@ const menuKey = (menu: MenuDraft | SavedMenu) =>
 				row.ingredientId,
 				Number(row.quantity),
 				row.memberId ?? "",
+				row.ingredient ?? null,
 			])
 			.sort(),
 	]);
@@ -842,6 +843,7 @@ export function Library({
 																			? {
 																					...item,
 																					ingredientId: event.target.value,
+																					ingredient: ingredients.find((entry) => entry.id === event.target.value),
 																				}
 																			: item,
 																),
@@ -849,18 +851,28 @@ export function Library({
 														}
 													>
 														<option value="">Choose ingredient</option>
-														{ingredients.map((item) => (
-															<option key={item.id} value={item.id}>
-																{item.name}
+														{row.ingredient && (
+															<option
+																value={row.ingredientId}
+																key={`snapshot-${row.ingredientId}`}
+															>
+																{row.ingredient.name} · saved version
 															</option>
-														))}
+														)}
+														{ingredients
+															.filter((item) => !row.ingredient || item.id !== row.ingredientId)
+															.map((item) => (
+																<option key={item.id} value={item.id}>
+																	{item.name}
+																</option>
+															))}
 													</select>
 												</label>
 												<label>
 													Quantity (
-													{ingredients.find(
-														(item) => item.id === row.ingredientId,
-													)?.unit || "unit"}
+													{(row.ingredient ??
+														ingredients.find((item) => item.id === row.ingredientId))?.unit ||
+														"unit"}
 													)
 													<input
 														aria-label={`Quantity ${index + 1}`}
@@ -978,9 +990,9 @@ export function Library({
 									</h2>
 									<ul>
 										{menu.ingredients.map((row, index) => {
-											const item = ingredients.find(
-												(entry) => entry.id === row.ingredientId,
-											);
+										const item = row.ingredient ?? ingredients.find(
+											(entry) => entry.id === row.ingredientId,
+										);
 											return (
 												<li key={`${row.ingredientId}-${index}`}>
 													{item?.name ?? "Unknown ingredient"} · {row.quantity}{" "}

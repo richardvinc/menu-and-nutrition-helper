@@ -211,11 +211,13 @@ export async function recommend(input: {
 					adjustExisting,
 					current: input.meal.ingredients.map((row) => ({
 						catalogKey: [...byKey.entries()].find(
-							([, item]) => item.id === row.ingredientId,
+							([, item]) =>
+								item.id === row.ingredientId &&
+								JSON.stringify(item) === JSON.stringify(row.ingredient ?? item),
 						)?.[0],
-						ingredient: input.catalog.find(
-							(item) => item.id === row.ingredientId,
-						)?.name,
+						ingredient:
+							row.ingredient?.name ??
+							input.catalog.find((item) => item.id === row.ingredientId)?.name,
 						quantity: row.quantity,
 						member: row.memberId
 							? input.memberLabels.find(
@@ -237,9 +239,9 @@ export async function recommend(input: {
 						],
 					})),
 					settledMeals: input.currentDay.map((row) => ({
-						ingredient: input.catalog.find(
-							(item) => item.id === row.ingredientId,
-						)?.name,
+						ingredient:
+							row.ingredient?.name ??
+							input.catalog.find((item) => item.id === row.ingredientId)?.name,
 						quantity: row.quantity,
 					})),
 					savedMenuChoices: adjustExisting ? [] : input.savedMenus,
@@ -597,6 +599,7 @@ export async function recommend(input: {
 								? Math.max(0.5, Math.round(row.quantity * 2) / 2)
 								: Math.max(1, Math.round(row.quantity));
 					row.ingredientId = item.id;
+					row.ingredient = item;
 					if (input.meal.slot === "dinner" && row.member !== "shared") {
 						const member = input.memberLabels.find(
 							(entry) => entry.member === row.member,
@@ -611,29 +614,40 @@ export async function recommend(input: {
 					delete row.catalogKey;
 					delete row.usdaQuery;
 				}
-				const rowKey = (ingredientId: string, memberId?: MemberId) =>
-					JSON.stringify([ingredientId, memberId ?? "shared"]);
+				const rowKey = (row: MenuIngredient, includeSnapshot = false) =>
+					JSON.stringify([
+						row.ingredientId,
+						row.memberId ?? "shared",
+						...(includeSnapshot
+							? [
+									JSON.stringify(
+										row.ingredient ??
+											input.catalog.find((item) => item.id === row.ingredientId),
+									),
+								]
+							: []),
+					]);
 				if (index === 0 && input.meal.ingredients.length) {
 					const before = JSON.stringify(
 						input.meal.ingredients
-							.map((row) => rowKey(row.ingredientId, row.memberId))
+							.map((row) => rowKey(row, true))
 							.sort(),
 					);
 					const after = JSON.stringify(
 						proposal.ingredients
-							.map((row: MenuIngredient) => rowKey(row.ingredientId, row.memberId))
+							.map((row: MenuIngredient) => rowKey(row, true))
 							.sort(),
 					);
 					if (before !== after) return null;
 				}
 				const retainedCounts = new Map<string, number>();
 				for (const row of proposal.ingredients as MenuIngredient[]) {
-					const key = rowKey(row.ingredientId, row.memberId);
+					const key = rowKey(row);
 					retainedCounts.set(key, (retainedCounts.get(key) ?? 0) + 1);
 				}
 				const removedRows: MenuIngredient[] = [];
 				for (const row of input.meal.ingredients) {
-					const key = rowKey(row.ingredientId, row.memberId);
+					const key = rowKey(row);
 					const count = retainedCounts.get(key) ?? 0;
 					if (count) retainedCounts.set(key, count - 1);
 					else removedRows.push(row);
@@ -642,6 +656,7 @@ export async function recommend(input: {
 					return null;
 				proposal.removals = removedRows.map((row) => {
 					const name =
+						row.ingredient?.name ??
 						input.catalog.find((item) => item.id === row.ingredientId)?.name ??
 						"Ingredient";
 					return row.memberId
@@ -658,11 +673,12 @@ export async function recommend(input: {
 					input.snackLimitCalories !== undefined
 				) {
 					const calories = proposal.ingredients.reduce(
-						(sum: number, row: MenuIngredient) =>
-							sum +
-							((known.get(row.ingredientId)?.nutrition.calories ?? 0) *
-								row.quantity) /
-								(known.get(row.ingredientId)?.basisAmount ?? 1),
+						(sum: number, row: MenuIngredient) => {
+							const item = row.ingredient ?? known.get(row.ingredientId);
+							return sum +
+								((item?.nutrition.calories ?? 0) * row.quantity) /
+								(item?.basisAmount ?? 1);
+						},
 						0,
 					);
 					if (calories > input.snackLimitCalories)
@@ -749,7 +765,7 @@ export async function recommend(input: {
 								: item.unit === "tbsp"
 									? Math.max(0.5, Math.round(row.quantity * 2) / 2)
 									: Math.max(1, Math.round(row.quantity));
-						rows.push({ ingredientId: item.id, quantity });
+						rows.push({ ingredientId: item.id, quantity, ingredient: item });
 						for (const key of [
 							"calories",
 							"protein",
@@ -774,7 +790,7 @@ export async function recommend(input: {
 				const mealNutrition = (rows: MenuIngredient[], memberId: MemberId) =>
 					rows.reduce(
 						(total, row) => {
-							const item = known.get(row.ingredientId);
+							const item = row.ingredient ?? known.get(row.ingredientId);
 							if (
 								!item ||
 								(input.meal.slot !== "dinner" &&
@@ -836,7 +852,7 @@ export async function recommend(input: {
 						return null;
 					const proteinSources = new Map<string, number>();
 					proposal.ingredients.forEach((row: MenuIngredient) => {
-						const item = known.get(row.ingredientId);
+						const item = row.ingredient ?? known.get(row.ingredientId);
 						if (
 							!item ||
 							(input.meal.slot === "dinner" &&

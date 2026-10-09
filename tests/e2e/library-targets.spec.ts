@@ -1,6 +1,74 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Library and next-week targets", () => {
+	test("deleting a used ingredient keeps menus and scheduled meals intact", async ({ page }) => {
+		const data = await (await page.request.get("/api/data")).json();
+		const rice = data.ingredients.find((item: { id: string }) => item.id === "rice");
+		if (!rice) throw new Error("seed rice is required for snapshot deletion");
+		const menu = {
+			id: `snapshot-menu-${Date.now()}`,
+			name: "Snapshot menu check",
+			slot: "dinner",
+			ingredients: [{ ingredientId: rice.id, quantity: 110 }],
+		};
+		const meal = {
+			id: `snapshot-delete-${Date.now()}`,
+			date: "2026-10-09",
+			slot: "dinner",
+			name: "Snapshot deletion check",
+			notes: "",
+			ingredients: [
+				{ ingredientId: rice.id, quantity: 100, memberId: "michelle" },
+				{ ingredientId: rice.id, quantity: 200, memberId: "richard" },
+			],
+		};
+		expect((await page.request.post("/api/menus", { data: menu })).status()).toBe(201);
+		expect((await page.request.post("/api/meals", { data: meal })).status()).toBe(201);
+		try {
+			await page.clock.install({ time: new Date(2026, 9, 9, 12) });
+			await page.goto("/");
+			await page.locator(".app-header").getByRole("button", { name: "Library" }).click();
+			const menuCard = page.locator(".library-card").filter({ hasText: menu.name });
+			await expect(menuCard).toContainText(`${rice.name} · 110 ${rice.unit}`);
+			await page.getByRole("tab", { name: "Ingredient catalog" }).click();
+			await page.getByRole("searchbox", { name: "Search ingredients and aliases" }).fill(rice.name);
+			const card = page.locator(".library-card").filter({ hasText: rice.name });
+			page.once("dialog", (dialog) => dialog.accept());
+			await card.getByRole("button", { name: "Delete" }).click();
+			await expect(card).toHaveCount(0);
+			const afterDelete = await (await page.request.get("/api/data")).json();
+			expect(afterDelete.ingredients.some((item: { id: string }) => item.id === rice.id)).toBe(false);
+			expect(afterDelete.scheduledMeals.find((item: { id: string }) => item.id === meal.id).ingredients[0].ingredient).toMatchObject({
+				id: rice.id,
+				name: rice.name,
+				unit: rice.unit,
+				nutrition: rice.nutrition,
+			});
+			await page.locator(".app-header").getByRole("button", { name: "Today", exact: true }).click();
+			const dashboardMeal = page.locator(".pk-meal-card--dinner").filter({ hasText: meal.name });
+			await expect(dashboardMeal).toContainText(rice.name);
+			await expect(dashboardMeal).toContainText("100 g");
+			await expect(dashboardMeal).toContainText("390 kcal");
+			await page.getByRole("button", { name: "Week", exact: true }).click();
+			const mealCard = page.locator(".pk-week-meal").filter({ hasText: meal.name });
+			await mealCard.getByRole("button", { name: "Edit", exact: true }).click();
+			await expect(page.getByLabel("Michelle carbohydrate", { exact: true })).toHaveValue(rice.id);
+			await expect(page.getByLabel("Michelle carbohydrate quantity")).toHaveValue("100");
+			await page.getByRole("button", { name: "Save scheduled meal" }).click();
+			const afterSave = await (await page.request.get("/api/data")).json();
+			const savedMeal = afterSave.scheduledMeals.find((item: { id: string }) => item.id === meal.id);
+			for (const row of meal.ingredients)
+				expect(savedMeal.ingredients.find((item: { memberId: string }) => item.memberId === row.memberId)).toMatchObject({
+					...row,
+					ingredient: rice,
+				});
+		} finally {
+			await page.request.delete(`/api/meals/${meal.id}`);
+			await page.request.delete(`/api/menus/${menu.id}`);
+			await page.request.post("/api/ingredients", { data: rice });
+		}
+	});
+
 	test("non-editing library cards keep usable content width at 872px", async ({
 		page,
 	}) => {

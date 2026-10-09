@@ -869,8 +869,44 @@ export function createDatabase(
   `);
 	if (seed && !db.query("SELECT 1 FROM members LIMIT 1").get())
 		seedDatabase(db);
+	migrateIngredientSnapshots(db);
 	migrateLegacyWeekendReserves(db);
 	return db;
+}
+
+function snapshotRows(
+	rows: MenuIngredient[],
+	catalog: Ingredient[],
+): MenuIngredient[] {
+	const byId = new Map(catalog.map((item) => [item.id, item]));
+	return rows.map((row) => {
+		const ingredient = row.ingredient ?? byId.get(row.ingredientId);
+		if (!ingredient || ingredient.id !== row.ingredientId)
+			throw new Error(`ingredient snapshot is missing for ${row.ingredientId}`);
+		return { ...row, ingredient: structuredClone(ingredient) };
+	});
+}
+
+function snapshotMeal(value: ScheduledMeal, catalog: Ingredient[]): ScheduledMeal {
+	return { ...value, ingredients: snapshotRows(value.ingredients, catalog) };
+}
+
+function snapshotMenu(value: SavedMenu, catalog: Ingredient[]): SavedMenu {
+	return { ...value, ingredients: snapshotRows(value.ingredients, catalog) };
+}
+
+function migrateIngredientSnapshots(db: Database) {
+	const catalog = rows<Ingredient>(db, "ingredients");
+	db.transaction(() => {
+		for (const menu of rows<SavedMenu>(db, "saved_menus")) {
+			if (menu.ingredients.every((row) => row.ingredient)) continue;
+			put(db, "saved_menus", menu.id, snapshotMenu(menu, catalog));
+		}
+		for (const meal of rows<ScheduledMeal>(db, "scheduled_meals")) {
+			if (meal.ingredients.every((row) => row.ingredient)) continue;
+			putMeal(db, snapshotMeal(meal, catalog));
+		}
+	})();
 }
 
 function migrateLegacyWeekendReserves(db: Database) {
@@ -999,15 +1035,18 @@ function assertMenuIngredients(
 	if (!Array.isArray(value) || value.length > 100)
 		throw new Error("ingredients must be an array with at most 100 items");
 	for (const row of value) {
+		const snapshot = row && typeof row === "object" ? row.ingredient : undefined;
 		if (
 			!row ||
 			typeof row !== "object" ||
 			typeof row.ingredientId !== "string" ||
-			!available.has(row.ingredientId) ||
+			(!available.has(row.ingredientId) && !snapshot) ||
 			!finite(row.quantity) ||
 			row.quantity <= 0 ||
 			row.quantity > 100000 ||
-			(row.memberId !== undefined && !members.has(row.memberId))
+			(row.memberId !== undefined && !members.has(row.memberId)) ||
+			(snapshot !== undefined &&
+				(!validIngredient(snapshot) || snapshot.id !== row.ingredientId))
 		)
 			throw new Error(
 				"each ingredient needs a known ingredientId, positive quantity, and optional valid memberId",
@@ -1326,8 +1365,12 @@ function replaceData(db: Database, data: AppData, normalizeTargets = true) {
 		);
 		data.members.forEach((x) => put(db, "members", x.id, x));
 		data.ingredients.forEach((x) => put(db, "ingredients", x.id, x));
-		data.savedMenus.forEach((x) => put(db, "saved_menus", x.id, x));
-		data.scheduledMeals.forEach((x) => putMeal(db, x));
+		data.savedMenus.forEach((x) =>
+			put(db, "saved_menus", x.id, snapshotMenu(x, data.ingredients)),
+		);
+		data.scheduledMeals.forEach((x) =>
+			putMeal(db, snapshotMeal(x, data.ingredients)),
+		);
 		data.targets.forEach((x) => {
 			const target = normalizeTargets ? normalizeWeekendReserve(x) : x;
 			put(
@@ -1464,31 +1507,49 @@ export function createApp(db = createDatabase()) {
 				return fail(res, error, 503);
 			}
 		}
-		const available = [
+		const meal = req.body?.meal;
+		const baseAvailable = [
 			...catalog,
 			...pending.filter(
 				(item) => !catalog.some((existingItem) => existingItem.id === item.id),
 			),
 		];
-		const catalogIds = new Set(available.map((item) => item.id));
-		const meal = req.body?.meal;
-		if (!validMeal(meal, catalogIds)) return fail(res, "invalid meal draft");
-		const existingDay = rows<ScheduledMeal>(db, "scheduled_meals").filter(
-			(item) => item.date === meal.date && item.id !== meal.id,
-		);
+		const baseIds = new Set(baseAvailable.map((item) => item.id));
+		if (!validMeal(meal, baseIds))
+			return fail(res, "invalid meal draft");
 		const companions = req.body?.companions ?? [];
 		if (
 			!Array.isArray(companions) ||
 			companions.length > 2 ||
 			companions.some(
 				(item: any) =>
-					!validMeal(item, catalogIds) ||
+					!validMeal(item, baseIds) ||
 					item.date !== meal.date ||
 					item.slot !== "snack" ||
 					!item.memberId,
 			)
 		)
 			return fail(res, "invalid companion snack draft");
+		const existingDay = rows<ScheduledMeal>(db, "scheduled_meals").filter(
+			(item) => item.date === meal.date && item.id !== meal.id,
+		);
+		const available = [
+			...baseAvailable,
+			...[
+				...meal.ingredients,
+				...existingDay.flatMap((item) => item.ingredients),
+				...companions.flatMap((item: ScheduledMeal) => item.ingredients),
+			].flatMap((row) =>
+				row.ingredient &&
+					!catalog.some(
+						(item) =>
+							item.id === row.ingredientId &&
+							JSON.stringify(item) === JSON.stringify(row.ingredient),
+					)
+					? [row.ingredient]
+					: [],
+			),
+		];
 		const occupiedSnackMembers = new Set(
 			existingDay
 				.filter((item) => item.slot === "snack")
@@ -1510,9 +1571,9 @@ export function createApp(db = createDatabase()) {
 					(sum, scheduled) => {
 						const total = scheduled.ingredients.reduce(
 							(part, row) => {
-								const ingredient = available.find(
-									(entry) => entry.id === row.ingredientId,
-								);
+								const ingredient =
+									row.ingredient ??
+									available.find((entry) => entry.id === row.ingredientId);
 								if (
 									!ingredient ||
 									(scheduled.slot !== "dinner" &&
@@ -1627,32 +1688,43 @@ export function createApp(db = createDatabase()) {
 				...existingDay.filter((item) => item.slot === "snack"),
 				...companions,
 			].map((item) => (item.memberId === "richard" ? "Member A" : "Member B"));
+			const savedMenuRows = rows<SavedMenu>(db, "saved_menus").filter(
+				(menu) => menu.slot === meal.slot,
+			);
+			for (const menu of savedMenuRows)
+				for (const row of menu.ingredients)
+					if (
+						row.ingredient &&
+						!available.some(
+							(item) =>
+								item.id === row.ingredientId &&
+								JSON.stringify(item) === JSON.stringify(row.ingredient),
+						)
+					)
+						available.push(row.ingredient);
 			const suggestibleCatalog = available.filter(
 				(item) =>
 					item.suggestible ||
-					meal.ingredients.some(
-						(row: MenuIngredient) => row.ingredientId === item.id,
-					),
+					meal.ingredients.some((row) => row.ingredientId === item.id),
 			);
-			const savedMenus = rows<SavedMenu>(db, "saved_menus")
-				.filter((menu) => menu.slot === meal.slot)
+			const savedMenus = savedMenuRows
 				.map((menu, index) => ({
 					key: `saved-menu-${index + 1}`,
 					name: menu.name,
 					ingredients: menu.ingredients.flatMap((row) => {
+						const item =
+							row.ingredient ??
+							available.find((entry) => entry.id === row.ingredientId);
 						const catalogIndex = suggestibleCatalog.findIndex(
-							(item) => item.id === row.ingredientId,
-						);
-						const item = available.find(
-							(entry) => entry.id === row.ingredientId,
+							(entry) => JSON.stringify(entry) === JSON.stringify(item),
 						);
 						return catalogIndex < 0 || !item
 							? []
 							: [
 									{
-										catalogKey: `ingredient-${catalogIndex + 1}`,
-										name: item.name,
-										quantity: row.quantity,
+									catalogKey: `ingredient-${catalogIndex + 1}`,
+									name: item.name,
+									quantity: row.quantity,
 									},
 								];
 					}),
@@ -1691,9 +1763,9 @@ export function createApp(db = createDatabase()) {
 				];
 				const nutrition = ingredients.reduce(
 					(total, row) => {
-						const ingredient = proposalCatalog.find(
-							(item) => item.id === row.ingredientId,
-						)!;
+						const ingredient =
+							row.ingredient ??
+							proposalCatalog.find((item) => item.id === row.ingredientId)!;
 						for (const key of [
 							"calories",
 							"protein",
@@ -1713,15 +1785,16 @@ export function createApp(db = createDatabase()) {
 					nutrition,
 					ingredientDetails: ingredients.map((row) => ({
 						...row,
-						name: proposalCatalog.find((item) => item.id === row.ingredientId)
-							?.name,
+						name:
+							row.ingredient?.name ??
+							proposalCatalog.find((item) => item.id === row.ingredientId)?.name,
 					})),
 					priorKey: proposal.ingredients
 						.map(
 							(row) =>
-								proposalCatalog
-									.find((item) => item.id === row.ingredientId)
-									?.name?.toLocaleLowerCase() ?? "",
+								(row.ingredient?.name ??
+									proposalCatalog.find((item) => item.id === row.ingredientId)?.name
+								)?.toLocaleLowerCase() ?? "",
 						)
 						.sort(),
 				};
@@ -1952,9 +2025,10 @@ export function createApp(db = createDatabase()) {
 				)
 				.sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
 			const calories = snack.ingredients.reduce((total, row) => {
-				const ingredient = [...currentIngredients, ...pendingIngredients].find(
-					(item) => item.id === row.ingredientId,
-				)!;
+				const ingredient = row.ingredient ??
+					[...currentIngredients, ...pendingIngredients].find(
+						(item) => item.id === row.ingredientId,
+					)!;
 				return (
 					total +
 					(ingredient.nutrition.calories * row.quantity) /
@@ -1977,15 +2051,21 @@ export function createApp(db = createDatabase()) {
 		if (menu && existing("saved_menus", menu.id))
 			return fail(res, "saved menu id already exists", 409);
 		try {
+			const availableIngredients = [...currentIngredients, ...pendingIngredients];
+			const storedMeal = snapshotMeal(meal, availableIngredients);
+			const storedCompanions = companions.map((item: ScheduledMeal) =>
+				snapshotMeal(item, availableIngredients),
+			);
+			const storedMenu = menu ? snapshotMenu(menu, availableIngredients) : undefined;
 			db.transaction(() => {
 				pendingIngredients.forEach((item) =>
 					put(db, "ingredients", item.id, item),
 				);
-				putMeal(db, meal);
-				companions.forEach((item: ScheduledMeal) => putMeal(db, item));
-				if (menu) put(db, "saved_menus", menu.id, menu);
+				putMeal(db, storedMeal);
+				storedCompanions.forEach((item) => putMeal(db, item));
+				if (storedMenu) put(db, "saved_menus", storedMenu.id, storedMenu);
 			})();
-			return res.json(meal);
+			return res.json(storedMeal);
 		} catch (error) {
 			return fail(res, error, 409);
 		}
@@ -2002,8 +2082,9 @@ export function createApp(db = createDatabase()) {
 		if (existing("scheduled_meals", value.id))
 			return fail(res, "meal id already exists", 409);
 		try {
-			putMeal(db, value);
-			return res.status(201).json(value);
+			const stored = snapshotMeal(value, rows<Ingredient>(db, "ingredients"));
+			putMeal(db, stored);
+			return res.status(201).json(stored);
 		} catch (e) {
 			return fail(res, e, 409);
 		}
@@ -2020,8 +2101,9 @@ export function createApp(db = createDatabase()) {
 		)
 			return fail(res, "invalid scheduled meal");
 		try {
-			putMeal(db, value);
-			return res.json(value);
+			const stored = snapshotMeal(value, rows<Ingredient>(db, "ingredients"));
+			putMeal(db, stored);
+			return res.json(stored);
 		} catch (e) {
 			return fail(res, e, 409);
 		}
@@ -2106,8 +2188,9 @@ export function createApp(db = createDatabase()) {
 			return fail(res, "invalid saved menu");
 		if (existing("saved_menus", value.id))
 			return fail(res, "menu id already exists", 409);
-		put(db, "saved_menus", value.id, value);
-		return res.status(201).json(value);
+		const stored = snapshotMenu(value, rows<Ingredient>(db, "ingredients"));
+		put(db, "saved_menus", stored.id, stored);
+		return res.status(201).json(stored);
 	});
 	app.post("/api/menus/recommendations", async (req, res) => {
 		const menus: SavedMenu[] = req.body?.menus;
@@ -2150,13 +2233,16 @@ export function createApp(db = createDatabase()) {
 			menuIds.add(menu.id);
 		}
 		try {
+			const storedMenus = menus.map((menu) =>
+				snapshotMenu(menu, [...currentIngredients, ...pendingIngredients]),
+			);
 			db.transaction(() => {
 				if (menus.some((menu) => existing("saved_menus", menu.id)))
 					throw new Error("menu id already exists");
 				pendingIngredients.forEach((item) => put(db, "ingredients", item.id, item));
-				menus.forEach((menu) => put(db, "saved_menus", menu.id, menu));
+				storedMenus.forEach((menu) => put(db, "saved_menus", menu.id, menu));
 			})();
-			return res.json(menus);
+			return res.json(storedMenus);
 		} catch (error) {
 			return fail(res, error, 409);
 		}
@@ -2172,8 +2258,9 @@ export function createApp(db = createDatabase()) {
 			)
 		)
 			return fail(res, "invalid saved menu");
-		put(db, "saved_menus", value.id, value);
-		return res.json(value);
+		const stored = snapshotMenu(value, rows<Ingredient>(db, "ingredients"));
+		put(db, "saved_menus", stored.id, stored);
+		return res.json(stored);
 	});
 	app.delete("/api/menus/:id", (req, res) =>
 		existing("saved_menus", req.params.id)
@@ -2199,18 +2286,6 @@ export function createApp(db = createDatabase()) {
 	app.delete("/api/ingredients/:id", (req, res) => {
 		if (!existing("ingredients", req.params.id))
 			return fail(res, "ingredient not found", 404);
-		const inUse = [
-			...rows<SavedMenu>(db, "saved_menus"),
-			...rows<ScheduledMeal>(db, "scheduled_meals"),
-		].some((item) =>
-			item.ingredients.some((row) => row.ingredientId === req.params.id),
-		);
-		if (inUse)
-			return fail(
-				res,
-				"ingredient is used by a saved menu or scheduled meal",
-				409,
-			);
 		db.query("DELETE FROM ingredients WHERE id = ?").run(req.params.id);
 		return res.status(204).end();
 	});

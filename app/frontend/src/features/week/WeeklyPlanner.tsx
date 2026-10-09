@@ -98,7 +98,7 @@ export function WeeklyPlanner({
 	const plannedNutrition = (meals: ScheduledMeal[], memberId: MemberId) =>
 		meals.reduce((total, meal) => {
 			for (const row of meal.ingredients) {
-				const ingredient = ingredientById.get(row.ingredientId);
+				const ingredient = row.ingredient ?? ingredientById.get(row.ingredientId);
 				if (!ingredient) continue;
 				const factor = row.quantity / ingredient.basisAmount;
 				const share =

@@ -607,8 +607,8 @@ test("AI recommendations open in a mobile-friendly modal with a cooking state", 
 	releaseRecommendations();
 	await expect(dialog.locator(".pk-ai-card")).toHaveCount(5);
 	const firstCardIngredients = dialog.locator(".pk-ai-card").first().locator(".pk-ai-card__ingredients li");
-	await expect(firstCardIngredients.filter({ hasText: "Dada ayam tanpa kulit" })).toContainText("150 → 0 g");
-	await expect(firstCardIngredients.filter({ hasText: "Tahu firm" })).toContainText("0 → 150 g");
+	await expect(firstCardIngredients.filter({ hasText: "Dada ayam tanpa kulit" })).toContainText("150 g → 0 g");
+	await expect(firstCardIngredients.filter({ hasText: "Tahu firm" })).toContainText("0 g → 150 g");
 	await expect(dialog.locator(".pk-ai-card").first()).toContainText("Calories");
 	await expect(dialog.locator(".pk-ai-card").first()).toContainText("491 → 216");
 	await expect(dialog.locator(".pk-ai-card").first()).toContainText("Michelle");

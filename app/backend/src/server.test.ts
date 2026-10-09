@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AppData, TargetPreviewRequest } from "@piring-kita/shared";
+import type { AppData, Ingredient, TargetPreviewRequest } from "@piring-kita/shared";
 import { formatAiTraceData, rateLimit, recommend, searchUsda } from "./ai";
 import { createApp, createDatabase } from "./server";
 
@@ -1931,6 +1931,63 @@ describe("backend API", () => {
 		}
 	});
 
+	test("AI validates malformed companions after accepting a verified pending ingredient", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldUsda = process.env.USDA_API_KEY;
+		process.env.USDA_API_KEY = "test-only";
+		globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			if (String(input).includes("api.nal.usda.gov/fdc/v1/food/555"))
+				return new Response(JSON.stringify({
+					fdcId: 555,
+					description: "Verified soybean food",
+					dataType: "Foundation",
+					foodNutrients: [
+						{ nutrient: { number: "208" }, amount: 80 },
+						{ nutrient: { number: "203" }, amount: 5 },
+						{ nutrient: { number: "205" }, amount: 10 },
+						{ nutrient: { number: "204" }, amount: 2 },
+						{ nutrient: { number: "291" }, amount: 2 },
+					],
+				}), { status: 200 });
+			return oldFetch(input, init);
+		}) as typeof fetch;
+		try {
+			const ingredient = {
+				id: "fdc-555",
+				name: "Verified soybean food",
+				aliases: [],
+				unit: "g",
+				basisAmount: 100,
+				preparation: "",
+				source: "USDA FoodData Central Foundation, FDC 555 (https://fdc.nal.usda.gov/food-details/555/nutrients)",
+				suggestible: true,
+				nutrition: { calories: 80, protein: 5, carbs: 10, fat: 2, fiber: 2 },
+			};
+			const response = await fetch(`${base}/api/ai/recommendations`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({
+					meal: {
+						id: "pending-usda-meal",
+						date: "2026-10-08",
+						slot: "dinner",
+						name: "Pending ingredient dinner",
+						notes: "",
+						ingredients: [{ ingredientId: ingredient.id, quantity: 100 }],
+					},
+					pendingIngredients: [ingredient],
+					companions: [null],
+				}),
+			});
+			expect(response.status).toBe(400);
+			expect(await response.json()).toEqual({ error: "invalid companion snack draft" });
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldUsda === undefined) delete process.env.USDA_API_KEY;
+			else process.env.USDA_API_KEY = oldUsda;
+		}
+	});
+
 	test("moves to an empty slot and swaps with an occupied matching slot", async () => {
 		await addMeal({
 			id: "move-r-lunch",
@@ -2034,11 +2091,101 @@ describe("backend API", () => {
 		expect(data.scheduledMeals).toHaveLength(1);
 	});
 
-	test("only deletes ingredients that are not in use", async () => {
-		const used = await fetch(`${base}/api/ingredients/rice`, {
+	test("deleting a used ingredient preserves saved menus and scheduled meals", async () => {
+		const before = (await (await fetch(`${base}/api/data`)).json()) as AppData;
+		const originalMeal = before.scheduledMeals.find((meal) =>
+			meal.ingredients.some((row) => row.ingredientId === "rice"),
+		)!;
+		const originalMenu = before.savedMenus.find((menu) =>
+			menu.ingredients.some((row) => row.ingredientId === "rice"),
+		)!;
+		const liveRice = { ...before.ingredients.find((item) => item.id === "rice")!, name: "Catalog rice v2", nutrition: { calories: 200, protein: 3, carbs: 40, fat: 1, fiber: 1 } };
+		const catalogUpdate = await fetch(`${base}/api/ingredients/rice`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(liveRice),
+		});
+		expect(catalogUpdate.status).toBe(200);
+		const removed = await fetch(`${base}/api/ingredients/rice`, {
 			method: "DELETE",
 		});
-		expect(used.status).toBe(409);
+		expect(removed.status).toBe(204);
+		const after = (await (await fetch(`${base}/api/data`)).json()) as AppData;
+		expect(after.ingredients.some((item) => item.id === "rice")).toBe(false);
+		const savedMenu = after.savedMenus.find((menu) => menu.id === originalMenu.id)!;
+		const scheduledMeal = after.scheduledMeals.find((meal) => meal.id === originalMeal.id)!;
+		for (const row of [
+			savedMenu.ingredients.find((ingredient) => ingredient.ingredientId === "rice"),
+			scheduledMeal.ingredients.find((ingredient) => ingredient.ingredientId === "rice"),
+		])
+			expect(row).toMatchObject({
+				ingredient: {
+					id: "rice",
+					name: "Nasi putih",
+					unit: "g",
+					basisAmount: 100,
+					nutrition: { calories: 130, protein: 2.69, carbs: 28.17, fat: 0.28, fiber: 0.4 },
+				},
+			});
+		const editedMenu = { ...savedMenu, name: `${savedMenu.name} edited` };
+		const menuUpdate = await fetch(`${base}/api/menus/${editedMenu.id}`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(editedMenu),
+		});
+		expect(menuUpdate.status).toBe(200);
+		const editedMeal = { ...scheduledMeal, notes: "Still uses the original rice record." };
+		const mealUpdate = await fetch(`${base}/api/meals/${editedMeal.id}`, {
+			method: "PUT",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(editedMeal),
+		});
+		expect(mealUpdate.status).toBe(200);
+		const copiedMeal = {
+			...scheduledMeal,
+			id: "meal-with-deleted-ingredient",
+			date: "2026-10-19",
+		};
+		const mealCreate = await fetch(`${base}/api/meals`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(copiedMeal),
+		});
+		expect(mealCreate.status).toBe(201);
+		const persisted = (await (await fetch(`${base}/api/data`)).json()) as AppData;
+		expect(persisted.scheduledMeals.find((meal) => meal.id === copiedMeal.id)?.ingredients)
+			.toEqual(copiedMeal.ingredients);
+		const backup = await (await fetch(`${base}/api/backup.json`)).json() as AppData;
+		expect(backup.ingredients.some((ingredient) => ingredient.id === "rice")).toBe(false);
+		const restore = await fetch(`${base}/api/restore`, {
+			method: "POST",
+			headers: { "content-type": "application/json" },
+			body: JSON.stringify(backup),
+		});
+		expect(restore.status).toBe(200);
+		const restored = (await (await fetch(`${base}/api/data`)).json()) as AppData;
+		expect(restored.ingredients.some((ingredient) => ingredient.id === "rice")).toBe(false);
+		expect(restored.scheduledMeals.find((meal) => meal.id === scheduledMeal.id)?.ingredients)
+			.toEqual(scheduledMeal.ingredients);
+		for (const ingredient of [
+			{ ...scheduledMeal.ingredients[0].ingredient!, id: "wrong-id" },
+			{ ...scheduledMeal.ingredients[0].ingredient!, nutrition: { ...scheduledMeal.ingredients[0].ingredient!.nutrition, calories: -1 } },
+		]) {
+			const invalidSnapshotMeal = {
+				...scheduledMeal,
+				id: `invalid-snapshot-${Math.random()}`,
+				ingredients: scheduledMeal.ingredients.map((row, index) =>
+					index === 0 ? { ...row, ingredient } : row,
+				),
+			};
+			const invalidSnapshot = await fetch(`${base}/api/meals`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify(invalidSnapshotMeal),
+			});
+			expect(invalidSnapshot.status).toBe(400);
+		}
+
 		const create = await fetch(`${base}/api/ingredients`, {
 			method: "POST",
 			headers: { "content-type": "application/json" },
@@ -2055,10 +2202,103 @@ describe("backend API", () => {
 			}),
 		});
 		expect(create.status).toBe(201);
-		const removed = await fetch(`${base}/api/ingredients/unused`, {
+		const removedUnused = await fetch(`${base}/api/ingredients/unused`, {
 			method: "DELETE",
 		});
-		expect(removed.status).toBe(204);
+		expect(removedUnused.status).toBe(204);
+	});
+
+	test("AI keeps the historical ingredient version in the quantity-only option", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		try {
+			const before = (await (await fetch(`${base}/api/data`)).json()) as AppData;
+			const meal = before.scheduledMeals.find((item) => item.ingredients.some((row) => row.ingredientId === "rice"))!;
+			const oldRice = meal.ingredients.find((row) => row.ingredientId === "rice")!.ingredient!;
+			const update = await fetch(`${base}/api/ingredients/rice`, {
+				method: "PUT",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ ...oldRice, name: "Rice catalog v2", unit: "piece", basisAmount: 1, equivalentGrams: 100, nutrition: { calories: 250, protein: 5, carbs: 50, fat: 1, fiber: 1 } }),
+			});
+			expect(update.status).toBe(200);
+			let prompt: any;
+			globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+				if (!String(input).includes("openrouter.ai")) return oldFetch(input, init);
+				prompt = JSON.parse(JSON.parse(String(init?.body)).messages[1].content);
+			const riceIndex = prompt.current.findIndex((row: any) => row.ingredient === oldRice.name);
+				const historicalKey = prompt.current[riceIndex].catalogKey;
+				const currentKey = prompt.availableIngredients.find((row: any) => row.name === "Rice catalog v2").catalogKey;
+				const make = (keyForRice: string, name: string) => ({
+					name, origin: "new", savedMenuKey: "", justification: "Keeps the saved meal.", cookingNote: "", removals: [], companionSnacks: [],
+					ingredients: prompt.current.map((row: any, index: number) => ({ catalogKey: index === riceIndex ? keyForRice : row.catalogKey, usdaQuery: "", quantity: row.quantity, member: row.member })),
+				});
+				return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ recommendations: [make(currentKey, "Wrong current version"), make(historicalKey, "Historical version")] }) } }] }), { status: 200 });
+			}) as typeof fetch;
+			const response = await fetch(`${base}/api/ai/recommendations`, {
+				method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ meal }),
+			});
+			expect(response.status).toBe(200);
+			expect((await response.json() as any).recommendations.map((item: any) => item.name)).toEqual(["Historical version"]);
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
+			else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+		}
+	});
+
+	test("AI can adjust a scheduled meal using its deleted ingredient snapshot", async () => {
+		const oldFetch = globalThis.fetch;
+		const oldOpenRouter = process.env.OPENROUTER_API_KEY;
+		process.env.OPENROUTER_API_KEY = "test-only";
+		try {
+			const before = (await (await fetch(`${base}/api/data`)).json()) as AppData;
+			const meal = before.scheduledMeals.find((item) => item.ingredients.some((row) => row.ingredientId === "rice"))!;
+			const removed = await fetch(`${base}/api/ingredients/rice`, { method: "DELETE" });
+			expect(removed.status).toBe(204);
+			let prompt: any;
+			globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+				if (!String(input).includes("openrouter.ai")) return oldFetch(input, init);
+				prompt = JSON.parse(JSON.parse(String(init?.body)).messages[1].content);
+				return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ recommendations: [{
+					name: meal.name,
+					origin: "new",
+					savedMenuKey: "",
+					justification: "Adjusts the saved portion.",
+					cookingNote: "",
+					ingredients: prompt.current.map((row: any) => ({
+						catalogKey: row.catalogKey,
+						usdaQuery: "",
+						quantity: row.ingredient === "Nasi putih" && row.quantity === 100 ? 80 : row.quantity,
+						member: row.member,
+					})),
+					removals: [],
+					companionSnacks: [],
+				}] }) } }] }), { status: 200 });
+			}) as typeof fetch;
+			const response = await fetch(`${base}/api/ai/recommendations`, {
+				method: "POST",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ meal }),
+			});
+			expect(response.status).toBe(200);
+			const recommendation = (await response.json() as any).recommendations[0];
+			expect(prompt.current.filter((row: any) => row.ingredient === "Nasi putih")).toEqual([
+				expect.objectContaining({ ingredient: "Nasi putih", quantity: 100 }),
+				expect.objectContaining({ ingredient: "Nasi putih", quantity: 60 }),
+			]);
+			expect(recommendation.nutrition.calories).toBeCloseTo(492.2);
+			expect(recommendation.ingredientDetails.find((row: any) => row.ingredientId === "rice" && row.memberId === "richard")).toMatchObject({
+				ingredientId: "rice",
+				quantity: 80,
+				name: "Nasi putih",
+				ingredient: { unit: "g", basisAmount: 100, nutrition: { calories: 130 } },
+			});
+		} finally {
+			globalThis.fetch = oldFetch;
+			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;
+			else process.env.OPENROUTER_API_KEY = oldOpenRouter;
+		}
 	});
 
 	test("previews targets without mutation and applies only the effective week", async () => {
@@ -2292,6 +2532,36 @@ describe("backend API", () => {
 		).toBe("Stored menu");
 		reopened.close();
 		rmSync(directory, { recursive: true, force: true });
+	});
+
+	test("backfills ingredient copies when opening a legacy database", async () => {
+		const directory = mkdtempSync(join(tmpdir(), "piring-kita-ingredient-migrate-"));
+		const path = join(directory, "planner.sqlite");
+		const legacy = createDatabase(path);
+		for (const table of ["saved_menus", "scheduled_meals"] as const) {
+			const stored = legacy.query(`SELECT id, data FROM ${table}`).all() as { id: string; data: string }[];
+			for (const record of stored) {
+				const value = JSON.parse(record.data);
+				value.ingredients.forEach((row: { ingredient?: Ingredient }) => delete row.ingredient);
+				legacy.query(`UPDATE ${table} SET data = ? WHERE id = ?`).run(JSON.stringify(value), record.id);
+			}
+		}
+		legacy.close();
+		const migrated = createDatabase(path, false);
+		const listener = createApp(migrated).listen(0);
+		await new Promise<void>((resolve) => listener.once("listening", resolve));
+		const address = listener.address();
+		if (!address || typeof address === "string") throw new Error("test server did not bind a TCP port");
+		try {
+			const data = (await (await fetch(`http://127.0.0.1:${address.port}/api/data`)).json()) as AppData;
+			const riceRow = data.scheduledMeals.flatMap((meal) => meal.ingredients).find((row) => row.ingredientId === "rice");
+			expect(riceRow?.ingredient).toMatchObject({ id: "rice", name: "Nasi putih", unit: "g", basisAmount: 100, nutrition: { calories: 130, protein: 2.69, carbs: 28.17, fat: 0.28, fiber: 0.4 } });
+			expect(data.savedMenus.every((menu) => menu.ingredients.every((row) => row.ingredient))).toBe(true);
+		} finally {
+			await new Promise<void>((resolve, reject) => listener.close((error) => error ? reject(error) : resolve()));
+			migrated.close();
+			rmSync(directory, { recursive: true, force: true });
+		}
 	});
 
 	test("migrates the old total-weekend allocation into an extra weekend reserve", () => {

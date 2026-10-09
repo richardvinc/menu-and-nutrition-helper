@@ -66,7 +66,7 @@ const focusFirstSuggestion = (event: React.KeyboardEvent<HTMLInputElement>) => {
 		option.focus();
 	}
 };
-type CarbDraft = Record<MemberId, { ingredientId: string; quantity: string }>;
+type CarbDraft = Record<MemberId, { ingredientId: string; quantity: string; ingredient?: Ingredient }>;
 type MealRecommendation =
 	Awaited<ReturnType<typeof api.recommendMeals>>["recommendations"][number];
 type RecommendationSnapshot = {
@@ -91,8 +91,11 @@ function compareIngredients(
 ) {
 	const changes = new Map<
 		string,
-		{ ingredientId: string; memberId?: MemberId; before: number; after: number }
+		{ ingredientId: string; memberId?: MemberId; before: number; after: number; beforeUnit?: string; afterUnit?: string; beforeName?: string; afterName?: string }
 	>();
+	const ingredients = new Map(
+		[...catalog, ...extra].map((item) => [item.id, item]),
+	);
 	const addRows = (
 		rows: (MenuIngredient & { name?: string })[],
 		side: "before" | "after",
@@ -106,21 +109,27 @@ function compareIngredients(
 				after: 0,
 			};
 			change[side] += row.quantity;
+			const item = row.ingredient ?? ingredients.get(row.ingredientId);
+			if (side === "before") {
+				change.beforeUnit = item?.unit ?? change.beforeUnit;
+				change.beforeName = item?.name ?? change.beforeName;
+			} else {
+				change.afterUnit = item?.unit ?? change.afterUnit;
+				change.afterName = item?.name ?? change.afterName;
+			}
 			changes.set(key, change);
 		}
 	};
 	addRows(before, "before");
 	addRows(after, "after");
-	const ingredients = new Map(
-		[...catalog, ...extra].map((item) => [item.id, item]),
-	);
 	return [...changes.values()].map((change) => ({
 		...change,
 		name:
-		after.find((row) => row.ingredientId === change.ingredientId)?.name ??
-		ingredients.get(change.ingredientId)?.name ??
-		change.ingredientId,
-		unit: ingredients.get(change.ingredientId)?.unit ?? "unit",
+			change.afterName ?? change.beforeName ??
+			after.find((row) => row.ingredientId === change.ingredientId)?.name ??
+			ingredients.get(change.ingredientId)?.name ?? change.ingredientId,
+		beforeUnit: change.beforeUnit ?? change.afterUnit ?? "unit",
+		afterUnit: change.afterUnit ?? change.beforeUnit ?? "unit",
 	}));
 }
 
@@ -129,7 +138,7 @@ function totalsFor(
 	catalog: Map<string, Ingredient>,
 ): Nutrition {
 	return meal.ingredients.reduce((total, row) => {
-		const ingredient = catalog.get(row.ingredientId);
+		const ingredient = row.ingredient ?? catalog.get(row.ingredientId);
 		return ingredient
 			? plus(
 					total,
@@ -147,7 +156,7 @@ function memberDayTotals(
 	return meals.reduce((total, meal) => {
 		if (meal.slot === "dinner" && !meal.memberId) {
 			const assigned = meal.ingredients.reduce((sum, row) => {
-				const ingredient = catalog.get(row.ingredientId);
+				const ingredient = row.ingredient ?? catalog.get(row.ingredientId);
 				if (!ingredient || (row.memberId && row.memberId !== memberId))
 					return sum;
 				return plus(
@@ -177,7 +186,7 @@ function IngredientRow({
 	onChange: (value: MenuIngredient) => void;
 	onRemove: () => void;
 }) {
-	const selected = catalog.find((item) => item.id === row.ingredientId);
+	const selected = row.ingredient ?? catalog.find((item) => item.id === row.ingredientId);
 	const [query, setQuery] = useState(selected?.name ?? "");
 	const [focused, setFocused] = useState(false);
 	const results = useMemo(
@@ -227,7 +236,7 @@ function IngredientRow({
 								key={item.id}
 								onMouseDown={(event) => event.preventDefault()}
 								onClick={() => {
-									onChange({ ...row, ingredientId: item.id });
+									onChange({ ...row, ingredientId: item.id, ingredient: item });
 									setQuery(item.name);
 									setFocused(false);
 								}}
@@ -315,6 +324,7 @@ export function ScheduledMealEditor({
 			return {
 				ingredientId: row?.ingredientId ?? "",
 				quantity: row ? String(row.quantity) : "",
+				ingredient: row?.ingredient,
 			};
 		})(),
 		michelle: (() => {
@@ -325,6 +335,7 @@ export function ScheduledMealEditor({
 			return {
 				ingredientId: row?.ingredientId ?? "",
 				quantity: row ? String(row.quantity) : "",
+				ingredient: row?.ingredient,
 			};
 		})(),
 	}));
@@ -417,6 +428,7 @@ export function ScheduledMealEditor({
 									ingredientId: carbs[member.id].ingredientId,
 									quantity: Number(carbs[member.id].quantity),
 									memberId: member.id,
+									ingredient: carbs[member.id].ingredient,
 								},
 							]
 						: [],
@@ -429,16 +441,16 @@ export function ScheduledMealEditor({
 			mealDate,
 			mealSlot,
 			mealSlot === "dinner" ? undefined : mealMember,
-			rows.map((row) => [row.ingredientId, Number(row.quantity)]).sort(),
+			rows.map((row) => [row.ingredientId, Number(row.quantity), row.ingredient]).sort(),
 			carbRows
-				.map((row) => [row.memberId, row.ingredientId, row.quantity])
+				.map((row) => [row.memberId, row.ingredientId, row.quantity, row.ingredient])
 				.sort(),
 			pendingIngredients.map((item) => item.id).sort(),
 			pendingCompanions.map((item) => [
 				item.memberId,
 				item.name,
 				item.ingredients
-					.map((row) => [row.ingredientId, Number(row.quantity)])
+					.map((row) => [row.ingredientId, Number(row.quantity), row.ingredient])
 					.sort(),
 			]),
 		]) !==
@@ -450,11 +462,11 @@ export function ScheduledMealEditor({
 			opening.slot === "dinner" ? undefined : opening.memberId,
 			opening.ingredients
 				.filter((row) => opening.slot !== "dinner" || !row.memberId)
-				.map((row) => [row.ingredientId, Number(row.quantity)])
+				.map((row) => [row.ingredientId, Number(row.quantity), row.ingredient])
 				.sort(),
 			opening.ingredients
 				.filter((row) => row.memberId)
-				.map((row) => [row.memberId, row.ingredientId, row.quantity])
+				.map((row) => [row.memberId, row.ingredientId, row.quantity, row.ingredient])
 				.sort(),
 			[],
 			[],
@@ -540,6 +552,7 @@ export function ScheduledMealEditor({
 					return {
 						ingredientId: row?.ingredientId ?? "",
 						quantity: row ? String(row.quantity) : "",
+						ingredient: row?.ingredient,
 					};
 				})(),
 				michelle: (() => {
@@ -549,6 +562,7 @@ export function ScheduledMealEditor({
 					return {
 						ingredientId: row?.ingredientId ?? "",
 						quantity: row ? String(row.quantity) : "",
+						ingredient: row?.ingredient,
 					};
 				})(),
 			});
@@ -738,7 +752,7 @@ export function ScheduledMealEditor({
 		setRows(
 			recommendation.ingredientDetails
 				.filter((row) => !row.memberId)
-				.map(({ ingredientId, quantity }) => ({ ingredientId, quantity })),
+				.map(({ ingredientId, quantity, ingredient }) => ({ ingredientId, quantity, ingredient })),
 		);
 		if (mealSlot === "dinner")
 			setCarbs({
@@ -749,6 +763,7 @@ export function ScheduledMealEditor({
 					return {
 						ingredientId: row?.ingredientId ?? "",
 						quantity: row ? String(row.quantity) : "",
+						ingredient: row?.ingredient,
 					};
 				})(),
 				michelle: (() => {
@@ -758,6 +773,7 @@ export function ScheduledMealEditor({
 					return {
 						ingredientId: row?.ingredientId ?? "",
 						quantity: row ? String(row.quantity) : "",
+						ingredient: row?.ingredient,
 					};
 				})(),
 			});
@@ -937,11 +953,25 @@ export function ScheduledMealEditor({
 															[member.id]: {
 																...current[member.id],
 																ingredientId: event.target.value,
+																ingredient: carbohydrateIngredients.find(
+																	(item) => item.id === event.target.value,
+																),
 															},
 														}))
 													}
 												>
 													<option value="">No carbohydrate</option>
+													{carbs[member.id].ingredient &&
+														!carbohydrateIngredients.some(
+															(item) => item.id === carbs[member.id].ingredientId,
+														) && (
+															<option
+																value={carbs[member.id].ingredientId}
+																key={`snapshot-${carbs[member.id].ingredientId}`}
+															>
+																{carbs[member.id].ingredient?.name} · saved version
+															</option>
+														)}
 													{carbohydrateIngredients.map((item) => (
 														<option key={item.id} value={item.id}>
 															{item.name}
@@ -1324,7 +1354,7 @@ export function ScheduledMealEditor({
 													).map((row) => (
 														<li key={`${row.ingredientId}-${row.memberId ?? "shared"}`}>
 															<span>{row.name}{row.memberId ? ` · ${data.members.find((member) => member.id === row.memberId)?.name}` : ""}</span>
-															<strong>{String(row.before)} → {String(row.after)} {row.unit}</strong>
+															<strong>{String(row.before)} {row.beforeUnit} → {String(row.after)} {row.afterUnit}</strong>
 														</li>
 													))}
 												</ul>
@@ -1379,7 +1409,7 @@ export function ScheduledMealEditor({
 														[],
 														snack.ingredients.map((row) => ({
 															...row,
-															name: data.ingredients.find((ingredient) => ingredient.id === row.ingredientId)?.name,
+															name: row.ingredient?.name ?? data.ingredients.find((ingredient) => ingredient.id === row.ingredientId)?.name,
 														})),
 														recommendationSnapshot?.catalog ?? data.ingredients,
 														item.newIngredients,
@@ -1388,7 +1418,7 @@ export function ScheduledMealEditor({
 														<div className="pk-ai-card__snack-comparison" key={snack.memberId}>
 															<p className="pk-ai-card__notice">{data.members.find((member) => member.id === snack.memberId)?.name} snack: {snack.name}</p>
 															<ul className="pk-ai-card__ingredients" aria-label="Snack ingredient quantities before and after">
-																{snackIngredients.map((row) => <li key={row.ingredientId}><span>{row.name}</span><strong>{String(row.before)} → {String(row.after)} {row.unit}</strong></li>)}
+																{snackIngredients.map((row) => <li key={row.ingredientId}><span>{row.name}</span><strong>{String(row.before)} {row.beforeUnit} → {String(row.after)} {row.afterUnit}</strong></li>)}
 															</ul>
 															<div className="pk-ai-card__nutrition" aria-label="Snack nutrition added">
 																{nutritionMetrics.map((metric) => <span key={metric.key}><small>{metric.label}</small><strong>0 → {pretty(snack.nutrition[metric.key])}</strong><small>{metric.unit}</small></span>)}
