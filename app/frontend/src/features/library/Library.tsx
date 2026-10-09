@@ -43,6 +43,7 @@ type IngredientDraft = {
 	fat: string;
 	fiber: string;
 };
+type UsdaPortion = { label: string; amount: number; gramWeight: number };
 
 const blankMenu = (): MenuDraft => ({
 	id: Date.now().toString(),
@@ -148,11 +149,14 @@ export function Library({
 	const [lookupWarning, setLookupWarning] = useState("");
 	const [lookupAvailable, setLookupAvailable] = useState<boolean | null>(null);
 	const [applyingMatch, setApplyingMatch] = useState<number | null>(null);
+	const [portionResults, setPortionResults] = useState<Record<number, UsdaPortion[]>>({});
+	const [portionBusy, setPortionBusy] = useState<number | null>(null);
 	const [menuPortalTarget, setMenuPortalTarget] =
 		useState<HTMLDivElement | null>(null);
 	const [ingredientPortalTarget, setIngredientPortalTarget] =
 		useState<HTMLDivElement | null>(null);
 	const lookupRequestId = useRef(0);
+	const portionRequestId = useRef(0);
 	const pageFocus = useRef({ active: true, since: 0 });
 	useEffect(() => {
 		const focused = () =>
@@ -173,7 +177,9 @@ export function Library({
 	}, []);
 	const clearLookup = () => {
 		lookupRequestId.current++;
+		portionRequestId.current++;
 		setLookupBusy(false);
+		setPortionBusy(null);
 		setLookupResult(null);
 		setLookupWarning("");
 	};
@@ -401,14 +407,16 @@ export function Library({
 	async function useUsdaMatch(
 		existing: Ingredient,
 		match: NonNullable<typeof lookupResult>["matches"][number],
+		gramsPerUnit?: number,
 	) {
 		if (saving || applyingMatch !== null) return;
+		const selectedGramsPerUnit =
+			gramsPerUnit ??
+			(existing.unit === "g" ? 1 : existing.equivalentGrams);
 		const gramsPerBasis =
-			existing.unit === "g"
-				? existing.basisAmount
-				: existing.equivalentGrams == null
-					? null
-					: existing.equivalentGrams * existing.basisAmount;
+			selectedGramsPerUnit == null
+				? null
+				: selectedGramsPerUnit * existing.basisAmount;
 		if (gramsPerBasis == null) return;
 		setApplyingMatch(match.fdcId);
 		setError("");
@@ -423,16 +431,22 @@ export function Library({
 		try {
 			await onSaveIngredient({
 				...existing,
+				...(existing.unit !== "g" && gramsPerUnit != null
+					? { equivalentGrams: gramsPerUnit }
+					: {}),
 				preparation: match.description,
 				source: match.source,
 				nutrition,
 			});
 			setIngredientDraftState((current) => {
 				if (current?.id !== existing.id) return current;
-				const draftGramsPerBasis =
-					current.unit === "g"
-						? Number(current.basisAmount)
-						: Number(current.equivalentGrams) * Number(current.basisAmount);
+				const currentGramsPerUnit =
+					current.unit === existing.unit && gramsPerUnit != null
+						? gramsPerUnit
+						: current.unit === "g"
+							? 1
+							: Number(current.equivalentGrams);
+				const draftGramsPerBasis = currentGramsPerUnit * Number(current.basisAmount);
 				const draftNutrition =
 					Number.isFinite(draftGramsPerBasis) && draftGramsPerBasis > 0
 						? {
@@ -445,15 +459,10 @@ export function Library({
 						: nutrition;
 				return {
 					...current,
-					...(draftNutrition === nutrition
-						? {
-								unit: existing.unit,
-								basisAmount: String(existing.basisAmount),
-								equivalentGrams:
-									existing.equivalentGrams == null
-										? ""
-										: String(existing.equivalentGrams),
-							}
+					...(current.unit === existing.unit &&
+					gramsPerUnit != null &&
+					current.unit !== "g"
+						? { equivalentGrams: String(gramsPerUnit) }
 						: {}),
 					preparation: match.description,
 					source: match.source,
@@ -476,6 +485,98 @@ export function Library({
 			setApplyingMatch(null);
 		}
 	}
+	async function loadUsdaPortions(fdcId: number) {
+		if (portionResults[fdcId] || portionBusy !== null) return;
+		const requestId = ++portionRequestId.current;
+		const draftId = activeIngredientDraftId.current;
+		setPortionBusy(fdcId);
+		setLookupWarning("");
+		try {
+			const result = await api.ingredientPortions(fdcId);
+			if (
+				portionRequestId.current !== requestId ||
+				activeIngredientDraftId.current !== draftId
+			)
+				return;
+			setPortionResults((current) => ({ ...current, [fdcId]: result.portions }));
+			if (!result.portions.length)
+				setLookupWarning(
+					"USDA has no serving weights for this food. Enter the weight per unit below if known.",
+				);
+		} catch (reason) {
+			if (
+				portionRequestId.current !== requestId ||
+				activeIngredientDraftId.current !== draftId
+			)
+				return;
+			setLookupWarning(
+				reason instanceof Error
+					? reason.message
+					: "Could not load USDA serving portions.",
+			);
+		} finally {
+			if (portionRequestId.current === requestId) setPortionBusy(null);
+		}
+	}
+	function applyPortionToDraft(
+		match: NonNullable<typeof lookupResult>["matches"][number],
+		portion: UsdaPortion,
+	) {
+		if (
+			!ingredientDraftState ||
+			!Number.isFinite(portion.amount) ||
+			!Number.isFinite(portion.gramWeight) ||
+			portion.amount <= 0 ||
+			portion.gramWeight <= 0
+		)
+			return;
+		const gramsPerUnit = portion.gramWeight / portion.amount;
+		const gramsPerBasis =
+			ingredientDraftState.unit === "g"
+				? portion.gramWeight
+				: gramsPerUnit * Number(ingredientDraftState.basisAmount);
+		const aliases = lookupResult
+			? [...lookupResult.aliases, lookupResult.query]
+					.map((alias) => alias.trim())
+					.filter(
+						(alias) =>
+							alias &&
+							alias.toLocaleLowerCase() !==
+								ingredientDraftState.name.trim().toLocaleLowerCase(),
+					)
+					.filter(
+						(alias, index, list) =>
+							list.findIndex(
+								(item) => item.toLocaleLowerCase() === alias.toLocaleLowerCase(),
+							) === index,
+					)
+			: [];
+		setIngredientDraftState({
+			...ingredientDraftState,
+			aliases: [...new Set([
+				...ingredientDraftState.aliases.split(",").map((alias) => alias.trim()).filter(Boolean),
+				...aliases,
+			])].join(", "),
+			basisAmount:
+				ingredientDraftState.unit === "g"
+					? String(portion.gramWeight)
+					: ingredientDraftState.basisAmount,
+			equivalentGrams:
+				ingredientDraftState.unit === "g" ? "" : String(gramsPerUnit),
+			source: match.source,
+			preparation: match.description,
+			calories: String(match.nutrition.calories * gramsPerBasis / 100),
+			protein: String(match.nutrition.protein * gramsPerBasis / 100),
+			carbs: String(match.nutrition.carbs * gramsPerBasis / 100),
+			fat: String(match.nutrition.fat * gramsPerBasis / 100),
+			fiber: String(match.nutrition.fiber * gramsPerBasis / 100),
+		});
+		setLookupWarning(
+			ingredientDraftState.unit === "g"
+				? `Applied USDA portion ${portion.amount} × ${portion.label} (${portion.gramWeight} g) as the nutrition basis. Save the ingredient to keep it.`
+				: `Applied USDA portion ${portion.amount} × ${portion.label} (${portion.gramWeight} g) as ${gramsPerUnit} g per ${ingredientDraftState.unit}. Save the ingredient to keep it.`,
+		);
+	}
 	function selectUsdaMatch(
 		match: NonNullable<typeof lookupResult>["matches"][number],
 	) {
@@ -494,22 +595,34 @@ export function Library({
 						(item) => item.toLocaleLowerCase() === alias.toLocaleLowerCase(),
 					) === index,
 			);
+		const gramEquivalent =
+			ingredientDraftState.unit === "g"
+				? Number(ingredientDraftState.basisAmount)
+				: Number(ingredientDraftState.equivalentGrams) *
+					Number(ingredientDraftState.basisAmount);
+		const canScaleNutrition = Number.isFinite(gramEquivalent) && gramEquivalent > 0;
+		if (!canScaleNutrition) {
+			setLookupWarning(
+				`Choose a USDA serving weight or enter grams per ${ingredientDraftState.unit} before applying USDA nutrition.`,
+			);
+			return;
+		}
 		setIngredientDraftState({
 			...ingredientDraftState,
 			aliases: aliases.join(", "),
-			unit: "g",
-			basisAmount: "100",
-			equivalentGrams: "",
+			...(canScaleNutrition ? {
+				calories: String((match.nutrition.calories * gramEquivalent) / 100),
+				protein: String((match.nutrition.protein * gramEquivalent) / 100),
+				carbs: String((match.nutrition.carbs * gramEquivalent) / 100),
+				fat: String((match.nutrition.fat * gramEquivalent) / 100),
+				fiber: String((match.nutrition.fiber * gramEquivalent) / 100),
+			} : {}),
 			source: match.source,
 			preparation: match.description,
-			calories: String(match.nutrition.calories),
-			protein: String(match.nutrition.protein),
-			carbs: String(match.nutrition.carbs),
-			fat: String(match.nutrition.fat),
-			fiber: String(match.nutrition.fiber),
 		});
-		setLookupResult(null);
-		setLookupWarning("");
+		setLookupWarning(
+			"USDA nutrition applied for the saved basis.",
+		);
 	}
 
 	return (
@@ -1045,7 +1158,7 @@ export function Library({
 																{(existing.nutrition.fiber * scale).toFixed(2)}{" "}
 																g
 																{gramsPerBasis == null &&
-																	". No gram conversion is saved, so this cannot be compared directly."}
+																	". Load a USDA serving weight to compare or update this unit."}
 															</p>
 															<p>
 																<strong>
@@ -1076,6 +1189,18 @@ export function Library({
 																				</a>
 																			</>
 																		)}
+													<button type="button" className="secondary" disabled={portionBusy !== null} onClick={() => void loadUsdaPortions(match.fdcId)}>
+														{portionBusy === match.fdcId ? "Loading serving sizes…" : "Show USDA serving sizes"}
+													</button>
+														{portionResults[match.fdcId]?.filter((portion) => Number.isFinite(portion.amount) && Number.isFinite(portion.gramWeight) && portion.amount > 0 && portion.gramWeight > 0).map((portion, index) => {
+														const gramsPerUnit = portion.gramWeight / portion.amount;
+														return <div key={`${portion.label}-${index}`}>
+															<p>{portion.amount} × {portion.label} · {portion.gramWeight} g total</p>
+															<button type="button" className="usda-replace-link" disabled={saving || applyingMatch !== null || portion.amount <= 0 || portion.gramWeight <= 0} onClick={() => void useUsdaMatch(existing, match, existing.unit === "g" ? undefined : gramsPerUnit)}>
+																{existing.unit === "g" ? "Use this USDA nutrition" : `Use USDA weight for 1 ${existing.unit} (${gramsPerUnit} g)`}
+															</button>
+														</div>;
+													})}
 																		<button
 																			type="button"
 																			className="usda-replace-link"
@@ -1094,8 +1219,7 @@ export function Library({
 																		</button>
 																		{gramsPerBasis == null && (
 																			<p className="feature-hint">
-																				Add this ingredient’s gram equivalent
-																				before replacing its nutrition.
+															Load a USDA serving size and choose what it represents for your saved unit.
 																			</p>
 																		)}
 																	</div>
@@ -1117,19 +1241,23 @@ export function Library({
 														</p>
 													) : null}
 													{lookupResult.matches.map((match) => (
-														<button
-															type="button"
-															className="secondary"
-															key={match.fdcId}
-															onClick={() => selectUsdaMatch(match)}
-														>
-															{match.description} · {match.dataType} · per 100
-															g: {match.nutrition.calories} kcal, protein{" "}
-															{match.nutrition.protein} g, carbs{" "}
-															{match.nutrition.carbs} g, fat{" "}
-															{match.nutrition.fat} g, fiber{" "}
-															{match.nutrition.fiber} g
-														</button>
+														<div key={match.fdcId}>
+															<button type="button" className="secondary" onClick={() => selectUsdaMatch(match)}>
+																Select USDA match: {match.description} · {match.dataType} · per 100 g: {match.nutrition.calories} kcal, protein {match.nutrition.protein} g, carbs {match.nutrition.carbs} g, fat {match.nutrition.fat} g, fiber {match.nutrition.fiber} g
+															</button>
+															<button type="button" className="secondary" disabled={portionBusy !== null} onClick={() => void loadUsdaPortions(match.fdcId)}>
+																{portionBusy === match.fdcId ? "Loading serving sizes…" : "Show USDA serving sizes"}
+															</button>
+															{portionResults[match.fdcId]?.filter((portion) => Number.isFinite(portion.amount) && Number.isFinite(portion.gramWeight) && portion.amount > 0 && portion.gramWeight > 0).map((portion, index) => {
+																const gramsPerUnit = portion.gramWeight / portion.amount;
+																return <div key={`${portion.label}-${index}`}>
+																<p>{portion.amount} × {portion.label} · {portion.gramWeight} g total</p>
+																	<button type="button" className="usda-replace-link" disabled={portion.amount <= 0 || portion.gramWeight <= 0} onClick={() => applyPortionToDraft(match, portion)}>
+																		{ingredientDraftState.unit === "g" ? `Use as ${portion.gramWeight} g nutrition basis` : `Use USDA weight for 1 ${ingredientDraftState.unit} (${gramsPerUnit} g)`}
+																	</button>
+																</div>;
+															})}
+														</div>
 													))}
 												</div>
 											)}
@@ -1183,7 +1311,7 @@ export function Library({
 										</label>
 										{ingredientDraftState.unit !== "g" && (
 											<label>
-												Equivalent grams per unit (optional)
+														Weight per {ingredientDraftState.unit} in grams (optional)
 												<input
 													type="number"
 													min="0.001"
@@ -1309,7 +1437,7 @@ export function Library({
 								key={item.id}
 							>
 								<div>
-									<h2>{item.name}</h2>
+									<h2>{item.name}{item.unit !== "g" && item.equivalentGrams != null ? ` · 1 ${item.unit} (${item.equivalentGrams} g)` : ""}</h2>
 									<p>
 										{item.aliases.length
 											? `Also known as: ${item.aliases.join(", ")}`

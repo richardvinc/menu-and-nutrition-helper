@@ -166,6 +166,10 @@ export const api = {
 			method: "POST",
 			body: JSON.stringify({ name, preparation, checkExisting }),
 		}),
+	ingredientPortions: (fdcId: number) =>
+		request<{
+			portions: { label: string; amount: number; gramWeight: number }[];
+		}>(`/api/ai/ingredient-portions/${fdcId}`),
 	previewTarget: (proposal: TargetPreviewRequest) =>
 		request<TargetPreview>("/api/targets/preview", {
 			method: "POST",

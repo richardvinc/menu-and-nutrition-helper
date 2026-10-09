@@ -174,7 +174,7 @@ export function Dashboard({ data, today = new Date() }: DashboardProps) {
 															return (
 																<li key={`${row.ingredientId}-${index}`}>
 																	<span>
-																		{ingredient?.name ?? "Unknown ingredient"}
+													{ingredient?.name ?? "Unknown ingredient"}{ingredient?.unit !== "g" && ingredient?.equivalentGrams != null ? ` · 1 ${ingredient.unit} (${ingredient.equivalentGrams} g)` : ""}
 																	</span>
 																	<strong>
 																		{row.quantity} {ingredient?.unit ?? ""}

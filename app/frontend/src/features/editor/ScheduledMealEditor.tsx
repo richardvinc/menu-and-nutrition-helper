@@ -176,7 +176,7 @@ function IngredientRow({
 									setFocused(false);
 								}}
 							>
-								<strong>{item.name}</strong>
+				<strong>{item.name}{item.unit !== "g" && item.equivalentGrams != null ? ` · 1 ${item.unit} (${item.equivalentGrams} g)` : ""}</strong>
 								{item.aliases.length > 0 && (
 									<small>{item.aliases.slice(0, 2).join(" · ")}</small>
 								)}
@@ -186,7 +186,7 @@ function IngredientRow({
 				)}
 				{selected && (
 					<small className="pk-editor-row__basis">
-						Per {selected.basisAmount} {selected.unit}
+						Per {selected.basisAmount} {selected.unit}{selected.unit !== "g" && selected.equivalentGrams != null ? ` · 1 ${selected.unit} = ${selected.equivalentGrams} g` : ""}
 					</small>
 				)}
 			</div>

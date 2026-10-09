@@ -272,7 +272,7 @@ test.describe("Library and next-week targets", () => {
 		).toContainText("210.04 kcal");
 	});
 
-	test("USDA replacement needs a gram equivalent for piece-based ingredients", async ({
+	test("USDA portions map to a piece unit and keep its native nutrition basis", async ({
 		page,
 	}) => {
 		await page.route("**/api/ai/status", (route) =>
@@ -319,6 +319,20 @@ test.describe("Library and next-week targets", () => {
 				}),
 			}),
 		);
+		await page.route("**/api/ai/ingredient-portions/999", (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: "application/json",
+				body: JSON.stringify({
+					portions: [{ label: "medium banana", amount: 2, gramWeight: 270 }],
+				}),
+			}),
+		);
+		const savedIngredients: Record<string, any>[] = [];
+		await page.route("**/api/ingredients/banana", async (route) => {
+			savedIngredients.push(route.request().postDataJSON());
+			await route.continue();
+		});
 		await page.goto("/");
 		await page
 			.locator(".app-header")
@@ -332,14 +346,22 @@ test.describe("Library and next-week targets", () => {
 		await banana.getByRole("button", { name: "Edit" }).click();
 		await page.getByRole("button", { name: "Find nutrition with AI" }).click();
 		await page.getByRole("button", { name: "Check with AI" }).click();
+		await page.getByRole("button", { name: "Show USDA serving sizes" }).click();
+		await page.getByRole("button", { name: "Use USDA weight for 1 piece (135 g)" }).click();
+		await expect(page.getByRole("status")).toContainText("Updated Pisang sedang from USDA");
+		const editor = page.getByRole("form", { name: "Edit ingredient" });
+		await expect(editor.getByLabel("Nutrition basis amount (piece)")).toHaveValue("1");
+		await expect(editor.getByLabel("Calories (kcal)")).toHaveValue("120.15");
+		await editor.getByRole("button", { name: "Save ingredient" }).click();
+		expect(savedIngredients.at(-1)).toMatchObject({
+			unit: "piece",
+			basisAmount: 1,
+			equivalentGrams: 135,
+			nutrition: { calories: 120.15 },
+		});
 		await expect(
-			page.getByRole("button", { name: "   Use this instead" }),
-		).toBeDisabled();
-		await expect(
-			page.getByText(
-				"Add this ingredient’s gram equivalent before replacing its nutrition.",
-			),
-		).toBeVisible();
+			page.locator(".library-card").filter({ hasText: "Pisang sedang" }).first(),
+		).toContainText("1 piece (135 g)");
 	});
 
 	test("blurred library actions preserve an ingredient draft without prompting", async ({
