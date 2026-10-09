@@ -323,6 +323,23 @@ describe("backend API", () => {
 			};
 			const converted = await recommend({ ...input, catalog: [piece] });
 			expect(converted[0].ingredients[0]).toMatchObject({ ingredientId: piece.id, quantity: 2 });
+			const adjusted = await recommend({
+				...input,
+				meal: { ...input.meal, name: "Tofu bowl" },
+				adjustExisting: true,
+				savedMenus: [
+					{ key: "saved-one", name: "Saved one", ingredients: [] },
+					{ key: "saved-two", name: "Saved two", ingredients: [] },
+				],
+				catalog: [piece],
+			});
+			expect(JSON.parse(requests[2].messages[1].content)).toMatchObject({
+				name: "Tofu bowl",
+				adjustExisting: true,
+				savedMenuChoices: [],
+				constraints: { adjustedSavedMenus: 0, newCompositions: 5 },
+			});
+			expect(adjusted[0].origin).toBe("new");
 		} finally {
 			globalThis.fetch = oldFetch;
 			if (oldOpenRouter === undefined) delete process.env.OPENROUTER_API_KEY;

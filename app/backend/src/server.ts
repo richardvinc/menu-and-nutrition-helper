@@ -1659,6 +1659,9 @@ export function createApp(db = createDatabase()) {
 				.filter((menu) => menu.ingredients.length > 0);
 			const proposals = await recommend({
 				meal,
+				adjustExisting:
+					meal.ingredients.length > 0 ||
+					(meal.slot !== "snack" && req.body?.adjustExisting === true),
 				catalog: available,
 				currentDay: [
 					...existingDay.filter((item) => item.slot === "snack"),

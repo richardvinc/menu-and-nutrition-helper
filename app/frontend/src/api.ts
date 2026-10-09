@@ -113,6 +113,7 @@ export const api = {
 		prior: string[][],
 		pendingIngredients: Ingredient[],
 		companions: ScheduledMeal[],
+		adjustExisting = false,
 	) =>
 		request<{
 			recommendations: {
@@ -158,7 +159,13 @@ export const api = {
 			}[];
 		}>("/api/ai/recommendations", {
 			method: "POST",
-			body: JSON.stringify({ meal, prior, pendingIngredients, companions }),
+			body: JSON.stringify({
+				meal,
+				prior,
+				pendingIngredients,
+				companions,
+				adjustExisting,
+			}),
 		}),
 	lookupIngredient: (name: string, preparation = "", checkExisting = false) =>
 		request<{
