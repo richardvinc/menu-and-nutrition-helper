@@ -1256,15 +1256,13 @@ export function Library({
 															? "Loading serving sizes…"
 															: "Show USDA serving sizes"}
 													</button>
-													{portionResults[match.fdcId]
-														.filter(
+													{portionResults[match.fdcId]?.filter(
 															(portion) =>
 																Number.isFinite(portion.amount) &&
 																Number.isFinite(portion.gramWeight) &&
 																portion.amount > 0 &&
 																portion.gramWeight > 0,
-														)
-														.map((portion, index) => {
+													).map((portion, index) => {
 															const gramsPerUnit =
 																portion.gramWeight / portion.amount;
 															return (
