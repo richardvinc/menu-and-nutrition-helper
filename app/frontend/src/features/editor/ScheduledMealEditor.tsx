@@ -438,6 +438,14 @@ export function ScheduledMealEditor({
 		memberId: meal.memberId,
 		name: name.trim(),
 		ingredients: meal.ingredients,
+		settledSnacks: data.scheduledMeals
+			.filter((item) => item.date === mealDate && item.slot === "snack")
+			.map(({ memberId }) => memberId),
+		pendingCompanions: pendingCompanions.map(({ memberId, name, ingredients }) => ({
+			memberId,
+			name,
+			ingredients,
+		})),
 	});
 	const mealTotal = totalsFor(meal, catalog);
 	const dayMeals = data.scheduledMeals.filter(
@@ -666,6 +674,7 @@ export function ScheduledMealEditor({
 	};
 	const applyRecommendation = (
 		recommendation: (typeof recommendations)[number],
+		includeSnacks = false,
 	) => {
 		setName((current) => (current.trim() ? current : recommendation.name));
 		setPendingIngredients((current) => [
@@ -702,18 +711,19 @@ export function ScheduledMealEditor({
 					};
 				})(),
 			});
-		if (recommendation.companionSnacks.length)
-			setPendingCompanions(
-				recommendation.companionSnacks.map((snack, index) => ({
-					id: `pending-snack-${Date.now()}-${index}`,
-					date: mealDate,
-					slot: "snack",
-					memberId: snack.memberId,
-					name: snack.name,
-					notes: "",
-					ingredients: snack.ingredients.map((row) => ({ ...row })),
-				})),
-			);
+		setPendingCompanions(
+			includeSnacks
+				? recommendation.companionSnacks.map((snack, index) => ({
+						id: `pending-snack-${Date.now()}-${index}`,
+						date: mealDate,
+						slot: "snack",
+						memberId: snack.memberId,
+						name: snack.name,
+						notes: "",
+						ingredients: snack.ingredients.map((row) => ({ ...row })),
+					}))
+				: [],
+		);
 		if (includeCookingNote && recommendation.cookingNote.trim())
 			setNotes((current) =>
 				[current.trim(), recommendation.cookingNote.trim()]
@@ -1258,19 +1268,60 @@ export function ScheduledMealEditor({
 													<span>{pretty(item.nutrition.fiber)} g <small>fiber</small></span>
 												</div>
 												<div className="pk-ai-card__targets">
-													{item.deltas.map((delta) => (
-														<div key={delta.member}>
+												{item.deltas.map((delta) => {
+													const snack = item.companionSnacks.find(
+														(candidate) => candidate.memberId === delta.memberId,
+													);
+													const totals = snack
+														? [
+															{
+																label: "Planned totals · meal only",
+																calories: delta.caloriesAfter - snack.nutrition.calories,
+																protein: delta.proteinAfter - snack.nutrition.protein,
+															},
+															{
+																label: "Planned totals · meal + snack",
+																calories: delta.caloriesAfter,
+																protein: delta.proteinAfter,
+															},
+														]
+														: [
+															{
+																label: "Planned totals after meal",
+																calories: delta.caloriesAfter,
+																protein: delta.proteinAfter,
+															},
+														];
+													return (
+														<div key={delta.memberId}>
 															<strong>{delta.member}</strong>
-															<span>{pretty(delta.caloriesAfter)} / {pretty(delta.calorieTarget)} kcal</span>
-															<span>Protein {pretty(delta.proteinAfter)} / {pretty(delta.proteinTarget)} g</span>
+															{totals.map((total) => (
+																<span key={total.label}>
+																	{total.label}: {pretty(total.calories)} / {pretty(delta.calorieTarget)} kcal · Protein {pretty(total.protein)} / {pretty(delta.proteinTarget)} g
+																</span>
+															))}
 															{delta.sourceWarning && <small>{delta.sourceWarning}</small>}
 														</div>
-													))}
+													);
+												})}
 												</div>
 												{item.newIngredients.length > 0 && <p className="pk-ai-card__notice">USDA additions: {item.newIngredients.map((ingredient) => ingredient.name).join(", ")}</p>}
 												{item.companionSnacks.map((snack) => <p className="pk-ai-card__notice" key={snack.memberId}>{data.members.find((member) => member.id === snack.memberId)?.name} snack: {snack.name} · {pretty(snack.nutrition.calories)} kcal</p>)}
 												{item.removals.length > 0 && <p className="pk-ai-card__notice">Replaces: {item.removals.join(", ")}</p>}
-												<button type="button" className="pk-ai-apply" onClick={() => applyRecommendation(item)}>Apply this idea</button>
+												{item.companionSnacks.length ? (
+													<div className="pk-ai-apply-options">
+														<button type="button" className="pk-ai-apply" onClick={() => applyRecommendation(item, false)}>
+															Apply meal only
+														</button>
+														<button type="button" className="pk-ai-apply" onClick={() => applyRecommendation(item, true)}>
+															Apply meal + snack
+														</button>
+													</div>
+												) : (
+													<button type="button" className="pk-ai-apply" onClick={() => applyRecommendation(item)}>
+														Apply this idea
+													</button>
+												)}
 											</article>
 										))}
 									</div>

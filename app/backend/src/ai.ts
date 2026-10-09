@@ -24,6 +24,7 @@ type Proposal = {
 	}[];
 	deltas: {
 		member: string;
+		memberId: MemberId;
 		caloriesAfter: number;
 		calorieTarget: number;
 		overCaloriesBy: number;
@@ -192,7 +193,7 @@ export async function recommend(input: {
 			? "For dinner ingredients, use member shared when both people eat an ingredient; use Member A or Member B only for a deliberately individual portion."
 			: "This is a single-member meal. Every ingredients entry must use member shared; the meal already identifies its owner.";
 	const system =
-		"Create exactly five practical meal suggestions. Prioritize cheap ingredients that are easy to find in Indonesian markets, such as tofu, tempeh, eggs, beans, lentils, rice, and common vegetables; Indonesian food is welcome, and basic Japanese, Korean, or Italian dishes are also fine when their ingredients are locally available. Use supplied suggestible catalog keys when they fit, but a recommendation may use no catalog ingredients if suitable options are absent or a better simple dish needs other ingredients. For those ingredients, provide exact USDA food names in usdaQuery and leave catalogKey empty; never invent nutrition values. Ingredient nutrition arrays are ordered as calories, protein, carbs, fat, fiber. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Add a companion snack only when portions would otherwise be impractical, and never for a member with a settled snack. Keep each snack below its daily calorie cap. For an existing meal, keep its identity and name, and return ingredient changes that improve its fit: adjust quantities and add ingredients when useful. Use origin new and an empty savedMenuKey. If current ingredients exist, the first option keeps exactly that ingredient set with adjusted quantities only; later options may add ingredients or remove a current ingredient only when necessary. For every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal with at least two saved menus, return exactly two adjusted saved-menu choices followed by exactly three genuinely new compositions. Use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. If fewer than two saved menus are available, use every available saved menu and fill the remaining choices with new compositions. Return complete ingredient lists for each option. Use English names and explanations. Keep each justification under 60 words and each cooking note under 25 words. Quantities use each catalog ingredient's unit; USDA query quantities are grams. " +
+		"Create exactly five practical meal suggestions. Prioritize cheap ingredients that are easy to find in Indonesian markets, such as tofu, tempeh, eggs, beans, lentils, rice, and common vegetables; Indonesian food is welcome, and basic Japanese, Korean, or Italian dishes are also fine when their ingredients are locally available. Use supplied suggestible catalog keys when they fit, but a recommendation may use no catalog ingredients if suitable options are absent or a better simple dish needs other ingredients. For those ingredients, provide exact USDA food names in usdaQuery and leave catalogKey empty; never invent nutrition values. Ingredient nutrition arrays are ordered as calories, protein, carbs, fat, fiber. Optimize protein first, then calories, allowing at most 5% calorie overage. Keep fat near target; carbs may remain below target; make fiber best-effort after protein and calories. Above 30g protein use at least two sources when catalog permits; keep any one source near 70% or less when alternatives permit. Targets marked referenceOnly are weekday references; weekends remain self-managed. Evaluate meal-only and meal-plus-snack combinations, and include a practical companion snack when it meaningfully improves the member's remaining protein or calorie fit. Keep every snack within the provided daily calorie cap. Leave companionSnacks empty when they do not help. Never add a snack for a member with a settled snack. For an existing meal, keep its identity and name, and return ingredient changes that improve its fit: adjust quantities and add ingredients when useful. Use origin new and an empty savedMenuKey. If current ingredients exist, the first option keeps exactly that ingredient set with adjusted quantities only; later options may add ingredients or remove a current ingredient only when necessary. For every removed row, include its exact catalogKey and member label in removals, and do not claim rows that remain. For a blank meal with at least two saved menus, return exactly two adjusted saved-menu choices followed by exactly three genuinely new compositions. Use a supplied savedMenuKey only for a genuinely adjusted version of that saved menu. If fewer than two saved menus are available, use every available saved menu and fill the remaining choices with new compositions. Return complete ingredient lists for each option. Use English names and explanations. Keep each justification under 60 words and each cooking note under 25 words. Quantities use each catalog ingredient's unit; USDA query quantities are grams. " +
 		memberRule;
 	const requestBody = {
 		model,
@@ -685,6 +686,7 @@ export async function recommend(input: {
 						"AI returned invalid companion snacks. Please retry.",
 					);
 				const companionSnacks: Proposal["companionSnacks"] = [];
+				const companionMembers = new Set<MemberId>();
 				for (const snack of proposal.companionSnacks) {
 					if (
 						!snack ||
@@ -705,6 +707,7 @@ export async function recommend(input: {
 					);
 					if (
 						!member ||
+						companionMembers.has(member.memberId) ||
 						input.settledSnackMembers.includes(snack.member) ||
 						(input.meal.slot !== "dinner" &&
 							member.memberId !== input.meal.memberId)
@@ -759,7 +762,8 @@ export async function recommend(input: {
 							nutrition[key] +=
 								(item.nutrition[key] * quantity) / item.basisAmount;
 					}
-					if (nutrition.calories <= limit)
+					if (nutrition.calories <= limit) {
+						companionMembers.add(member.memberId);
 						companionSnacks.push({
 							memberId: member.memberId,
 							name: snack.name,
@@ -767,6 +771,7 @@ export async function recommend(input: {
 							ingredients: rows,
 							nutrition,
 						});
+					}
 				}
 				const mealNutrition = (rows: MenuIngredient[], memberId: MemberId) =>
 					rows.reduce(
@@ -861,6 +866,7 @@ export async function recommend(input: {
 					if (sourceWarning && index > 0) return null;
 					return {
 						member: target.member,
+						memberId: target.memberId,
 						caloriesAfter,
 						calorieTarget: target.dailyCalories,
 						overCaloriesBy: Math.max(0, caloriesAfter - target.dailyCalories),

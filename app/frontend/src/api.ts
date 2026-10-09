@@ -139,6 +139,7 @@ export const api = {
 				}[];
 				deltas: {
 					member: string;
+					memberId: import("@piring-kita/shared").MemberId;
 					caloriesAfter: number;
 					calorieTarget: number;
 					overCaloriesBy: number;
