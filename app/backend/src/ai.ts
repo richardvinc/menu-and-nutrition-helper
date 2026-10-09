@@ -987,6 +987,54 @@ export async function usdaIngredient(fdcId: number): Promise<Ingredient> {
 	};
 }
 
+export async function usdaIngredientPortions(
+	fdcId: number,
+): Promise<{ label: string; amount: number; gramWeight: number }[]> {
+	const key = process.env.USDA_API_KEY;
+	if (!key)
+		throw new Error(
+			"USDA nutrition lookup is unavailable: USDA_API_KEY is not configured.",
+		);
+	const response = await fetch(
+		`https://api.nal.usda.gov/fdc/v1/food/${fdcId}?api_key=${encodeURIComponent(key)}`,
+	);
+	const food = (await response.json()) as any;
+	if (!response.ok) {
+		aiTrace("USDA", "portion response", {
+			status: response.status,
+			fdcId,
+			error: food?.error?.message ?? food?.message ?? null,
+		});
+		throw new Error("USDA FoodData Central lookup failed. Please retry.");
+	}
+	if (food.fdcId !== fdcId)
+		throw new Error("USDA record does not match the requested food.");
+	const portions = (Array.isArray(food.foodPortions) ? food.foodPortions : [])
+		.map((portion: any) => {
+			const amount = portion.amount;
+			const gramWeight = portion.gramWeight;
+			if (
+				typeof amount !== "number" || !Number.isFinite(amount) || amount <= 0 ||
+				typeof gramWeight !== "number" || !Number.isFinite(gramWeight) || gramWeight <= 0
+			) return null;
+			const measure = portion.measureUnit?.name ?? portion.measureUnit?.abbreviation;
+			const detail = [portion.modifier, portion.portionDescription]
+				.filter((value: unknown) => typeof value === "string" && value.trim())
+				.join(" ");
+			return {
+				label: [amount, measure, detail].filter(Boolean).join(" "),
+				amount,
+				gramWeight,
+			};
+		})
+		.filter((portion: any): portion is { label: string; amount: number; gramWeight: number } => portion !== null);
+	if (!portions.length && food.servingSizeUnit?.toLocaleLowerCase() === "g" &&
+		typeof food.servingSize === "number" && Number.isFinite(food.servingSize) && food.servingSize > 0)
+		portions.push({ label: `1 serving (${food.servingSize} g)`, amount: 1, gramWeight: food.servingSize });
+	aiTrace("USDA", "portion response", { fdcId, portions });
+	return portions;
+}
+
 const genericUsdaTypes = ["Foundation", "SR Legacy", "Survey (FNDDS)"];
 const riceFallbackQuery = "rice white long grain regular cooked";
 
