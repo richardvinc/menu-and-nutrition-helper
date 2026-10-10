@@ -42,7 +42,7 @@ function targetForWeek(
 	return targets
 		.filter(
 			(target) =>
-				target.memberId === memberId && target.weekStart < effectiveWeek,
+				target.memberId === memberId && target.weekStart <= effectiveWeek,
 		)
 		.sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
 }

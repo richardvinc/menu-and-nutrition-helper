@@ -700,4 +700,87 @@ test.describe("Library and next-week targets", () => {
 			}),
 		).toHaveCount(0);
 	});
+
+	test("next-week advanced settings persist independently for both members", async ({
+		page,
+	}) => {
+		await page.clock.install({ time: new Date(2026, 9, 9, 12) });
+		await page.goto("/");
+		await page
+			.locator(".app-header")
+			.getByRole("button", { name: "Targets" })
+			.click();
+
+		const cases = [
+			{
+				member: "Richard",
+				deficit: "15",
+				protein: "30",
+				carbs: "40",
+				fat: "30",
+				fiber: "35",
+				reserve: "600",
+			},
+			{
+				member: "Michelle",
+				deficit: "10",
+				protein: "35",
+				carbs: "35",
+				fat: "30",
+				fiber: "0",
+				reserve: "0",
+			},
+		];
+		for (const item of cases) {
+			await page.getByLabel("Member").selectOption({ label: item.member });
+			await page.getByLabel("Deficit target (%)").fill(item.deficit);
+			await page.getByLabel("Protein (%)").fill(item.protein);
+			await page.getByLabel("Carbohydrate (%)").fill(item.carbs);
+			await page.getByLabel("Fat (%)").fill(item.fat);
+			await page.getByLabel("Fiber target (g/day)").fill(item.fiber);
+			await page.getByLabel("Weekend reserve (kcal/week)").fill(item.reserve);
+			const apply = page.getByRole("button", {
+				name: "Apply next-week targets",
+			});
+			await expect(apply).toBeEnabled();
+			await apply.click();
+			await expect(page.getByLabel("Deficit target (%)")).toHaveValue(
+				item.deficit,
+			);
+			await expect(page.getByLabel("Protein (%)")).toHaveValue(item.protein);
+			await expect(page.getByLabel("Carbohydrate (%)")).toHaveValue(
+				item.carbs,
+			);
+			await expect(page.getByLabel("Fat (%)")).toHaveValue(item.fat);
+			await expect(page.getByLabel("Fiber target (g/day)")).toHaveValue(
+				item.fiber,
+			);
+			await expect(page.getByLabel("Weekend reserve (kcal/week)")).toHaveValue(
+				item.reserve,
+			);
+		}
+
+		await page.reload();
+		await page
+			.locator(".app-header")
+			.getByRole("button", { name: "Targets" })
+			.click();
+		for (const item of cases) {
+			await page.getByLabel("Member").selectOption({ label: item.member });
+			await expect(page.getByLabel("Deficit target (%)")).toHaveValue(
+				item.deficit,
+			);
+			await expect(page.getByLabel("Protein (%)")).toHaveValue(item.protein);
+			await expect(page.getByLabel("Carbohydrate (%)")).toHaveValue(
+				item.carbs,
+			);
+			await expect(page.getByLabel("Fat (%)")).toHaveValue(item.fat);
+			await expect(page.getByLabel("Fiber target (g/day)")).toHaveValue(
+				item.fiber,
+			);
+			await expect(page.getByLabel("Weekend reserve (kcal/week)")).toHaveValue(
+				item.reserve,
+			);
+		}
+	});
 });
