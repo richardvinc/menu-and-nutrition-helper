@@ -191,15 +191,11 @@ function IngredientRow({
 	const [focused, setFocused] = useState(false);
 	const results = useMemo(
 		() =>
-			query.trim()
-				? catalog
-						.filter((item) =>
-							[item.name, ...item.aliases].some((name) =>
-								name.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
-							),
-						)
-						.slice(0, 5)
-				: [],
+			catalog.filter((item) =>
+				[item.name, ...item.aliases].some((name) =>
+					name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+				),
+			),
 		[catalog, query],
 	);
 	return (
@@ -221,6 +217,7 @@ function IngredientRow({
 					onChange={(event) => {
 						setQuery(event.target.value);
 						setFocused(true);
+						onChange({ ...row, ingredientId: "", ingredient: undefined });
 					}}
 				/>
 				{focused && (
@@ -229,6 +226,7 @@ function IngredientRow({
 						role="listbox"
 						aria-label="Ingredient suggestions"
 					>
+						{results.length === 0 && <small>No ingredients found.</small>}
 						{results.map((item) => (
 							<button
 								type="button"
@@ -304,15 +302,11 @@ function CarbohydrateSearch({
 	const [focused, setFocused] = useState(false);
 	const results = useMemo(
 		() =>
-			draft.query.trim()
-				? items
-						.filter((item) =>
-							[item.name, ...item.aliases].some((name) =>
-								name.toLocaleLowerCase().includes(draft.query.toLocaleLowerCase()),
-							),
-						)
-						.slice(0, 5)
-				: [],
+			items.filter((item) =>
+				[item.name, ...item.aliases].some((name) =>
+					name.toLocaleLowerCase().includes(draft.query.trim().toLocaleLowerCase()),
+				),
+			),
 		[items, draft.query],
 	);
 	const selected = draft.ingredient ?? items.find((item) => item.id === draft.ingredientId);
@@ -337,8 +331,9 @@ function CarbohydrateSearch({
 					onChange({ ...draft, query: event.target.value, ingredientId: "", ingredient: undefined })
 				}
 			/>
-			{focused && results.length > 0 && (
+			{focused && (
 				<div className="pk-editor-row__results" role="listbox" aria-label={`${member} carbohydrate suggestions`}>
+					{results.length === 0 && <small>No carbohydrates found.</small>}
 					{results.map((item) => (
 						<button
 							type="button"
@@ -490,7 +485,7 @@ export function ScheduledMealEditor({
 		[data.savedMenus, mealSlot, name],
 	);
 	const carbohydrateIngredients = catalogItems.filter(
-		(item) => item.unit === "g" && item.nutrition.carbs > 0,
+		(item) => item.nutrition.carbs > 0,
 	);
 	const weekend = [0, 6].includes(new Date(`${mealDate}T12:00:00`).getDay());
 	const carbRows =
@@ -1015,16 +1010,16 @@ export function ScheduledMealEditor({
 									<p>Optional portions for each person.</p>
 									{data.members.map((member) => (
 										<div className="pk-editor__carb-row" key={member.id}>
-							<CarbohydrateSearch
-								member={member.name}
-								draft={carbs[member.id]}
-								items={carbohydrateIngredients}
-								onChange={(value) =>
-									setCarbs((current) => ({ ...current, [member.id]: value }))
-								}
-							/>
+											<CarbohydrateSearch
+												member={member.name}
+												draft={carbs[member.id]}
+												items={carbohydrateIngredients}
+												onChange={(value) =>
+													setCarbs((current) => ({ ...current, [member.id]: value }))
+												}
+											/>
 											<label>
-												Quantity (g)
+												Quantity ({catalog.get(carbs[member.id].ingredientId)?.unit ?? carbs[member.id].ingredient?.unit ?? "unit"})
 												<input
 													aria-label={`${member.name} carbohydrate quantity`}
 													type="number"
