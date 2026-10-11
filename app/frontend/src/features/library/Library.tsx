@@ -1480,12 +1480,17 @@ export function Library({
 														step="any"
 														required
 														value={ingredientDraftState[key]}
-														onChange={(event) =>
-															setIngredientDraftState({
-																...ingredientDraftState,
-																[key]: event.target.value,
-															})
-														}
+														onChange={(event) => {
+															const value = event.target.value;
+															const next = { ...ingredientDraftState, [key]: value };
+															if (key === "protein" || key === "carbs" || key === "fat")
+																next.calories = String(
+																	Number(next.protein) * 4 +
+																	Number(next.carbs) * 4 +
+																	Number(next.fat) * 9,
+																);
+															setIngredientDraftState(next);
+														}}
 													/>
 												</label>
 											))}
