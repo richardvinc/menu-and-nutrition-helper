@@ -236,20 +236,6 @@ export function Library({
 			).sort((a, b) => a.name.localeCompare(b.name)),
 		[menus, menuSearch],
 	);
-	const ingredientName = (row: MenuIngredient) =>
-		row.ingredient?.name ??
-		ingredients.find((item) => item.id === row.ingredientId)?.name ??
-		"";
-	const sortedIngredientRows = (rows: MenuIngredient[]) =>
-		rows
-			.map((row, index) => ({ row, index }))
-			.sort((a, b) => {
-				const aName = ingredientName(a.row);
-				const bName = ingredientName(b.row);
-				if (!aName) return bName ? 1 : 0;
-				if (!bName) return -1;
-				return aName.localeCompare(bName);
-			});
 	const visibleIngredients = useMemo(() => {
 		const query = ingredientSearch.trim().toLocaleLowerCase();
 		return ingredients.filter(
@@ -839,7 +825,7 @@ export function Library({
 									</div>
 									<fieldset>
 										<legend>Ingredients</legend>
-										{sortedIngredientRows(menuDraft.ingredients).map(({ row, index }) => (
+										{menuDraft.ingredients.map((row, index) => (
 											<div
 												className="library-row"
 												key={`${row.ingredientId}-${index}`}
@@ -1001,7 +987,7 @@ export function Library({
 										{menu.name}
 									</h2>
 									<ul>
-										{sortedIngredientRows(menu.ingredients).map(({ row, index }) => {
+										{menu.ingredients.map((row, index) => {
 											const item = row.ingredient ?? ingredients.find(
 												(entry) => entry.id === row.ingredientId,
 											);

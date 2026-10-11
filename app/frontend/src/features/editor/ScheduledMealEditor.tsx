@@ -469,18 +469,6 @@ export function ScheduledMealEditor({
 		() => new Map(catalogItems.map((item) => [item.id, item])),
 		[catalogItems],
 	);
-	const ingredientName = (row: MenuIngredient) =>
-		row.ingredient?.name ?? catalog.get(row.ingredientId)?.name ?? "";
-	const sortedIngredientRows = (items: MenuIngredient[]) =>
-		items
-			.map((row, index) => ({ row, index }))
-			.sort((a, b) => {
-				const aName = ingredientName(a.row);
-				const bName = ingredientName(b.row);
-				if (!aName) return bName ? 1 : 0;
-				if (!bName) return -1;
-				return aName.localeCompare(bName);
-			});
 	const menuResults = useMemo(
 		() =>
 			name.trim()
@@ -1061,7 +1049,7 @@ export function ScheduledMealEditor({
 							<div className="pk-editor__section-heading">
 								<h2>Ingredients</h2>
 							</div>
-							{sortedIngredientRows(rows).map(({ row, index }) => (
+							{rows.map((row, index) => (
 								<div
 									className="pk-editor__row-wrap"
 									key={`${index}-${row.ingredientId}`}
@@ -1232,7 +1220,7 @@ export function ScheduledMealEditor({
 										}{" "}
 										companion snack · {snack.name}
 									</h3>
-									{sortedIngredientRows(snack.ingredients).map(({ row, index }) => (
+									{snack.ingredients.map((row, index) => (
 										<IngredientRow
 											key={`${snackIndex}-${row.ingredientId}-${index}`}
 											row={row}
