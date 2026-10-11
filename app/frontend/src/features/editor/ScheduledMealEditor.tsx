@@ -492,6 +492,7 @@ export function ScheduledMealEditor({
 									.toLocaleLowerCase()
 									.includes(name.trim().toLocaleLowerCase()),
 						)
+						.sort((a, b) => a.name.localeCompare(b.name))
 						.slice(0, 5)
 				: [],
 		[data.savedMenus, mealSlot, name],

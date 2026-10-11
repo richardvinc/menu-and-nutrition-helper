@@ -233,7 +233,7 @@ export function Library({
 					menu.name
 						.toLocaleLowerCase()
 						.includes(menuSearch.trim().toLocaleLowerCase()),
-			),
+			).sort((a, b) => a.name.localeCompare(b.name)),
 		[menus, menuSearch],
 	);
 	const ingredientName = (row: MenuIngredient) =>
