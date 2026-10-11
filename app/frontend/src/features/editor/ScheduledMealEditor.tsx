@@ -195,7 +195,7 @@ function IngredientRow({
 				[item.name, ...item.aliases].some((name) =>
 					name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
 				),
-			),
+			).sort((a, b) => a.name.localeCompare(b.name)),
 		[catalog, query],
 	);
 	return (
@@ -306,7 +306,7 @@ function CarbohydrateSearch({
 				[item.name, ...item.aliases].some((name) =>
 					name.toLocaleLowerCase().includes(draft.query.trim().toLocaleLowerCase()),
 				),
-			),
+			).sort((a, b) => a.name.localeCompare(b.name)),
 		[items, draft.query],
 	);
 	const selected = draft.ingredient ?? items.find((item) => item.id === draft.ingredientId);
@@ -469,6 +469,18 @@ export function ScheduledMealEditor({
 		() => new Map(catalogItems.map((item) => [item.id, item])),
 		[catalogItems],
 	);
+	const ingredientName = (row: MenuIngredient) =>
+		row.ingredient?.name ?? catalog.get(row.ingredientId)?.name ?? "";
+	const sortedIngredientRows = (items: MenuIngredient[]) =>
+		items
+			.map((row, index) => ({ row, index }))
+			.sort((a, b) => {
+				const aName = ingredientName(a.row);
+				const bName = ingredientName(b.row);
+				if (!aName) return bName ? 1 : 0;
+				if (!bName) return -1;
+				return aName.localeCompare(bName);
+			});
 	const menuResults = useMemo(
 		() =>
 			name.trim()
@@ -484,9 +496,9 @@ export function ScheduledMealEditor({
 				: [],
 		[data.savedMenus, mealSlot, name],
 	);
-	const carbohydrateIngredients = catalogItems.filter(
-		(item) => item.nutrition.carbs > 0,
-	);
+	const carbohydrateIngredients = catalogItems
+		.filter((item) => item.nutrition.carbs > 0)
+		.sort((a, b) => a.name.localeCompare(b.name));
 	const weekend = [0, 6].includes(new Date(`${mealDate}T12:00:00`).getDay());
 	const carbRows =
 		mealSlot === "dinner"
@@ -1048,7 +1060,7 @@ export function ScheduledMealEditor({
 							<div className="pk-editor__section-heading">
 								<h2>Ingredients</h2>
 							</div>
-							{rows.map((row, index) => (
+							{sortedIngredientRows(rows).map(({ row, index }) => (
 								<div
 									className="pk-editor__row-wrap"
 									key={`${index}-${row.ingredientId}`}
@@ -1219,7 +1231,7 @@ export function ScheduledMealEditor({
 										}{" "}
 										companion snack · {snack.name}
 									</h3>
-									{snack.ingredients.map((row, index) => (
+									{sortedIngredientRows(snack.ingredients).map(({ row, index }) => (
 										<IngredientRow
 											key={`${snackIndex}-${row.ingredientId}-${index}`}
 											row={row}

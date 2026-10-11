@@ -236,6 +236,20 @@ export function Library({
 			),
 		[menus, menuSearch],
 	);
+	const ingredientName = (row: MenuIngredient) =>
+		row.ingredient?.name ??
+		ingredients.find((item) => item.id === row.ingredientId)?.name ??
+		"";
+	const sortedIngredientRows = (rows: MenuIngredient[]) =>
+		rows
+			.map((row, index) => ({ row, index }))
+			.sort((a, b) => {
+				const aName = ingredientName(a.row);
+				const bName = ingredientName(b.row);
+				if (!aName) return bName ? 1 : 0;
+				if (!bName) return -1;
+				return aName.localeCompare(bName);
+			});
 	const visibleIngredients = useMemo(() => {
 		const query = ingredientSearch.trim().toLocaleLowerCase();
 		return ingredients.filter(
@@ -245,7 +259,7 @@ export function Library({
 				[item.name, ...item.aliases].some((name) =>
 					name.toLocaleLowerCase().includes(query),
 				),
-		);
+		).sort((a, b) => a.name.localeCompare(b.name));
 	}, [ingredients, ingredientSearch]);
 
 	async function saveMenu(event: FormEvent) {
@@ -825,7 +839,7 @@ export function Library({
 									</div>
 									<fieldset>
 										<legend>Ingredients</legend>
-										{menuDraft.ingredients.map((row, index) => (
+										{sortedIngredientRows(menuDraft.ingredients).map(({ row, index }) => (
 											<div
 												className="library-row"
 												key={`${row.ingredientId}-${index}`}
@@ -853,19 +867,15 @@ export function Library({
 														}
 													>
 														<option value="">Choose ingredient</option>
-														{row.ingredient && (
-															<option
-																value={row.ingredientId}
-																key={`snapshot-${row.ingredientId}`}
-															>
-																{row.ingredient.name} · saved version
-															</option>
-														)}
-														{ingredients
-															.filter((item) => !row.ingredient || item.id !== row.ingredientId)
+														{[
+															...(row.ingredient ? [row.ingredient] : []),
+															...ingredients.filter((item) => !row.ingredient || item.id !== row.ingredientId),
+														]
+															.sort((a, b) => a.name.localeCompare(b.name))
 															.map((item) => (
 																<option key={item.id} value={item.id}>
 																	{item.name}
+																	{item.id === row.ingredient?.id ? " · saved version" : ""}
 																</option>
 															))}
 													</select>
@@ -991,10 +1001,10 @@ export function Library({
 										{menu.name}
 									</h2>
 									<ul>
-										{menu.ingredients.map((row, index) => {
-										const item = row.ingredient ?? ingredients.find(
-											(entry) => entry.id === row.ingredientId,
-										);
+										{sortedIngredientRows(menu.ingredients).map(({ row, index }) => {
+											const item = row.ingredient ?? ingredients.find(
+												(entry) => entry.id === row.ingredientId,
+											);
 											return (
 												<li key={`${row.ingredientId}-${index}`}>
 													{item?.name ?? "Unknown ingredient"} · {row.quantity}{" "}

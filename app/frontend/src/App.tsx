@@ -54,6 +54,10 @@ export function App() {
 					: "Could not load the meal plan.",
 			),
 		);
+	}, []);
+
+	useEffect(() => {
+		if (page !== "today" || editor) return;
 		let timer: ReturnType<typeof setInterval> | undefined;
 		let active = true;
 		let refreshing = false;
@@ -84,7 +88,7 @@ export function App() {
 			active = false;
 			if (timer) clearInterval(timer);
 		};
-	}, []);
+	}, [page, editor]);
 
 	const run = async (action: () => Promise<unknown>) => {
 		setError("");
