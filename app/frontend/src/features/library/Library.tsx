@@ -1386,15 +1386,20 @@ export function Library({
 												value={ingredientDraftState.unit}
 												onChange={(event) => {
 													const unit = event.target.value;
+													const normalizedUnit = unit.trim();
 													setIngredientDraftState((current) =>
 														current
 															? {
 																...current,
 																unit,
+																equivalentGrams:
+																	current.unit.trim() === normalizedUnit
+																		? current.equivalentGrams
+																		: "",
 																basisAmount:
-																	current.unit === "g" && unit !== "g"
+																	current.unit.trim() === "g" && normalizedUnit !== "g"
 																		? "1"
-																		: current.unit !== "g" && unit === "g"
+																		: current.unit.trim() !== "g" && normalizedUnit === "g"
 																			? "100"
 																			: current.basisAmount,
 															}
