@@ -66,7 +66,7 @@ const focusFirstSuggestion = (event: React.KeyboardEvent<HTMLInputElement>) => {
 		option.focus();
 	}
 };
-type CarbDraft = Record<MemberId, { ingredientId: string; quantity: string; ingredient?: Ingredient }>;
+type CarbDraft = Record<MemberId, { ingredientId: string; quantity: string; query: string; ingredient?: Ingredient }>;
 type MealRecommendation =
 	Awaited<ReturnType<typeof api.recommendMeals>>["recommendations"][number];
 type RecommendationSnapshot = {
@@ -290,6 +290,78 @@ function IngredientRow({
 	);
 }
 
+function CarbohydrateSearch({
+	member,
+	draft,
+	items,
+	onChange,
+}: {
+	member: string;
+	draft: CarbDraft[MemberId];
+	items: Ingredient[];
+	onChange: (value: CarbDraft[MemberId]) => void;
+}) {
+	const [focused, setFocused] = useState(false);
+	const results = useMemo(
+		() =>
+			draft.query.trim()
+				? items
+						.filter((item) =>
+							[item.name, ...item.aliases].some((name) =>
+								name.toLocaleLowerCase().includes(draft.query.toLocaleLowerCase()),
+							),
+						)
+						.slice(0, 5)
+				: [],
+		[items, draft.query],
+	);
+	const selected = draft.ingredient ?? items.find((item) => item.id === draft.ingredientId);
+	return (
+		<div
+			className="pk-editor-row__ingredient pk-editor__carb-search"
+			onFocus={() => setFocused(true)}
+			onBlur={(event) => {
+				if (!event.currentTarget.contains(event.relatedTarget as Node))
+					setFocused(false);
+			}}
+		>
+			<label htmlFor={`carb-${member}`}>{member}</label>
+			<input
+				id={`carb-${member}`}
+				aria-label={`${member} carbohydrate`}
+				aria-autocomplete="list"
+				value={draft.query || selected?.name || ""}
+				placeholder="Search carbohydrates…"
+				onKeyDown={focusFirstSuggestion}
+				onChange={(event) =>
+					onChange({ ...draft, query: event.target.value, ingredientId: "", ingredient: undefined })
+				}
+			/>
+			{focused && results.length > 0 && (
+				<div className="pk-editor-row__results" role="listbox" aria-label={`${member} carbohydrate suggestions`}>
+					{results.map((item) => (
+						<button
+							type="button"
+							role="option"
+							key={item.id}
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={() => {
+								onChange({ ...draft, ingredientId: item.id, ingredient: item, query: item.name });
+								setFocused(false);
+							}}
+						>
+							<strong>{item.name}</strong>
+						</button>
+					))}
+				</div>
+			)}
+			{selected && !items.some((item) => item.id === draft.ingredientId) && (
+				<small>{selected.name} · saved version</small>
+			)}
+		</div>
+	);
+}
+
 export function ScheduledMealEditor({
 	data,
 	initialMeal,
@@ -324,6 +396,7 @@ export function ScheduledMealEditor({
 			return {
 				ingredientId: row?.ingredientId ?? "",
 				quantity: row ? String(row.quantity) : "",
+				query: row?.ingredient?.name ?? "",
 				ingredient: row?.ingredient,
 			};
 		})(),
@@ -335,6 +408,7 @@ export function ScheduledMealEditor({
 			return {
 				ingredientId: row?.ingredientId ?? "",
 				quantity: row ? String(row.quantity) : "",
+				query: row?.ingredient?.name ?? "",
 				ingredient: row?.ingredient,
 			};
 		})(),
@@ -415,7 +489,7 @@ export function ScheduledMealEditor({
 				: [],
 		[data.savedMenus, mealSlot, name],
 	);
-	const carbohydrateIngredients = data.ingredients.filter(
+	const carbohydrateIngredients = catalogItems.filter(
 		(item) => item.unit === "g" && item.nutrition.carbs > 0,
 	);
 	const weekend = [0, 6].includes(new Date(`${mealDate}T12:00:00`).getDay());
@@ -503,12 +577,7 @@ export function ScheduledMealEditor({
 	const dayMeals = data.scheduledMeals.filter(
 		(item) => item.date === mealDate && item.id !== initialMeal?.id,
 	);
-	const progressMeals = [
-		...dayMeals.filter(
-			(item) => item.slot === "lunch" || item.slot === "dinner",
-		),
-		...(meal.slot === "lunch" || meal.slot === "dinner" ? [meal] : []),
-	];
+	const progressMeals = [...dayMeals, meal];
 	const memberTotals = data.members.map((member) => {
 		const proposed = memberDayTotals(progressMeals, member.id, catalog);
 		const target = weekend
@@ -552,6 +621,7 @@ export function ScheduledMealEditor({
 					return {
 						ingredientId: row?.ingredientId ?? "",
 						quantity: row ? String(row.quantity) : "",
+						query: row?.ingredient?.name ?? "",
 						ingredient: row?.ingredient,
 					};
 				})(),
@@ -562,6 +632,7 @@ export function ScheduledMealEditor({
 					return {
 						ingredientId: row?.ingredientId ?? "",
 						quantity: row ? String(row.quantity) : "",
+						query: row?.ingredient?.name ?? "",
 						ingredient: row?.ingredient,
 					};
 				})(),
@@ -942,43 +1013,14 @@ export function ScheduledMealEditor({
 									<p>Optional portions for each person.</p>
 									{data.members.map((member) => (
 										<div className="pk-editor__carb-row" key={member.id}>
-											<label>
-												{member.name}
-												<select
-													aria-label={`${member.name} carbohydrate`}
-													value={carbs[member.id].ingredientId}
-													onChange={(event) =>
-														setCarbs((current) => ({
-															...current,
-															[member.id]: {
-																...current[member.id],
-																ingredientId: event.target.value,
-																ingredient: carbohydrateIngredients.find(
-																	(item) => item.id === event.target.value,
-																),
-															},
-														}))
-													}
-												>
-													<option value="">No carbohydrate</option>
-													{carbs[member.id].ingredient &&
-														!carbohydrateIngredients.some(
-															(item) => item.id === carbs[member.id].ingredientId,
-														) && (
-															<option
-																value={carbs[member.id].ingredientId}
-																key={`snapshot-${carbs[member.id].ingredientId}`}
-															>
-																{carbs[member.id].ingredient?.name} · saved version
-															</option>
-														)}
-													{carbohydrateIngredients.map((item) => (
-														<option key={item.id} value={item.id}>
-															{item.name}
-														</option>
-													))}
-												</select>
-											</label>
+							<CarbohydrateSearch
+								member={member.name}
+								draft={carbs[member.id]}
+								items={carbohydrateIngredients}
+								onChange={(value) =>
+									setCarbs((current) => ({ ...current, [member.id]: value }))
+								}
+							/>
 											<label>
 												Quantity (g)
 												<input
@@ -1064,9 +1106,9 @@ export function ScheduledMealEditor({
 							<p className="pk-editor__eyebrow">
 								{weekend ? "WEEKEND PLAN" : "PLANNED TARGET PROGRESS"}
 							</p>
-							<h2>Lunch + dinner</h2>
+							<h2>Daily plan</h2>
 							<p className="pk-editor__caption">
-								Each member’s lunch and half of shared dinner are included.
+								All scheduled meals and snacks are included; shared dinner is split in half.
 								Planned nutrition is not actual intake.
 								{weekend ? " Weekend targets are self-managed." : ""}
 							</p>
@@ -1076,7 +1118,10 @@ export function ScheduledMealEditor({
 										mealSlot === "dinner" || entry.member.id === mealMember,
 								)
 								.map(({ member, proposed, target, remaining }) => (
-									<div className="pk-editor__member" key={member.id}>
+									<div
+										className={`pk-editor__member${target && proposed.calories > target.weekdayCalories ? " pk-editor__member--over" : ""}`}
+										key={member.id}
+									>
 										<div>
 											<strong>{member.name}</strong>
 											<span>

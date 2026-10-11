@@ -194,6 +194,17 @@
 	color: var(--muted);
 	font-size: 10px;
 }
+.pk-editor__carb-search {
+	position: relative;
+}
+.pk-editor__member--over > div:first-child span,
+.pk-editor__member--over small {
+	color: #b91c1c;
+	font-weight: 750;
+}
+.pk-editor__member--over .pk-editor__bar span {
+	background: #dc2626;
+}
 .pk-editor__section-heading button {
 	min-height: 36px;
 	padding: 0 9px;
