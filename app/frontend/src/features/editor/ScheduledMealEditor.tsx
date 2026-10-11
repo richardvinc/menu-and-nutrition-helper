@@ -577,7 +577,7 @@ export function ScheduledMealEditor({
 	const dayMeals = data.scheduledMeals.filter(
 		(item) => item.date === mealDate && item.id !== initialMeal?.id,
 	);
-	const progressMeals = [...dayMeals, meal];
+	const progressMeals = [...dayMeals, meal, ...pendingCompanions];
 	const memberTotals = data.members.map((member) => {
 		const proposed = memberDayTotals(progressMeals, member.id, catalog);
 		const target = weekend
@@ -834,6 +834,7 @@ export function ScheduledMealEditor({
 					return {
 						ingredientId: row?.ingredientId ?? "",
 						quantity: row ? String(row.quantity) : "",
+						query: row?.ingredient?.name ?? "",
 						ingredient: row?.ingredient,
 					};
 				})(),
@@ -844,6 +845,7 @@ export function ScheduledMealEditor({
 					return {
 						ingredientId: row?.ingredientId ?? "",
 						quantity: row ? String(row.quantity) : "",
+						query: row?.ingredient?.name ?? "",
 						ingredient: row?.ingredient,
 					};
 				})(),

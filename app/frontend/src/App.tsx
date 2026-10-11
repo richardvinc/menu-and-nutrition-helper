@@ -44,6 +44,7 @@ export function App() {
 	const [theme, setTheme] = useState<AppTheme>("dark");
 	const reload = async () => {
 		setData(await api.data());
+		setError("");
 	};
 	useEffect(() => {
 		reload().catch((reason) =>
@@ -55,9 +56,24 @@ export function App() {
 		);
 		let timer: ReturnType<typeof setInterval> | undefined;
 		let active = true;
+		let refreshing = false;
 		const startRefresh = (interval: number) => {
 			if (active)
-				timer = setInterval(() => reload().catch(() => undefined), interval);
+				timer = setInterval(() => {
+					if (refreshing) return;
+					refreshing = true;
+					reload()
+						.catch((reason) =>
+							setError(
+								reason instanceof Error
+									? reason.message
+									: "Could not refresh the meal plan.",
+							),
+						)
+						.finally(() => {
+							refreshing = false;
+						});
+				}, interval);
 		};
 		api.config()
 			.then(({ dashboardRefreshIntervalMs }) =>
