@@ -541,15 +541,16 @@ export async function recommend(input: {
 							);
 						const existingMatch = input.catalog.find(
 							(candidate) =>
-								candidate.id === `fdc-${match.fdcId}` ||
-								new RegExp(`\\bFDC ${match.fdcId}\\b`).test(candidate.source) ||
-								candidate.name.toLocaleLowerCase() ===
-									match.description.toLocaleLowerCase() ||
-								candidate.aliases.some(
-									(alias) =>
-										alias.toLocaleLowerCase() ===
-										match.description.toLocaleLowerCase(),
-								),
+								(candidate.unit === "g" || candidate.equivalentGrams) &&
+								(candidate.id === `fdc-${match.fdcId}` ||
+									new RegExp(`\\bFDC ${match.fdcId}\\b`).test(candidate.source) ||
+									candidate.name.toLocaleLowerCase() ===
+										match.description.toLocaleLowerCase() ||
+									candidate.aliases.some(
+										(alias) =>
+											alias.toLocaleLowerCase() ===
+											match.description.toLocaleLowerCase(),
+									)),
 						);
 						item = existingMatch ?? {
 							id: `fdc-${match.fdcId}`,

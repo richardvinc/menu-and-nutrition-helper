@@ -1095,7 +1095,9 @@ function validIngredient(x: any): x is Ingredient {
 		x.name.length <= 120 &&
 		Array.isArray(x.aliases) &&
 		x.aliases.every((a: unknown) => typeof a === "string") &&
-		["g", "piece", "tbsp", "package"].includes(x.unit) &&
+		typeof x.unit === "string" &&
+		!!x.unit.trim() &&
+		x.unit.trim().length <= 32 &&
 		finite(x.basisAmount) &&
 		x.basisAmount > 0 &&
 		(x.equivalentGrams === undefined ||

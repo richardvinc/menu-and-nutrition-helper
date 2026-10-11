@@ -287,6 +287,8 @@ export function Library({
 				: undefined;
 		if (
 			!draft.name.trim() ||
+			!draft.unit.trim() ||
+			draft.unit.trim().length > 32 ||
 			numbers.some((value) => !Number.isFinite(value) || value < 0) ||
 			numbers[0] === 0 ||
 			(equivalentGrams !== undefined &&
@@ -314,7 +316,7 @@ export function Library({
 							(item) => item.toLocaleLowerCase() === alias.toLocaleLowerCase(),
 						) === index,
 				),
-			unit: draft.unit,
+			unit: draft.unit.trim(),
 			basisAmount: numbers[0],
 			...(equivalentGrams === undefined ? {} : { equivalentGrams }),
 			preparation: draft.preparation.trim(),
@@ -1378,22 +1380,34 @@ export function Library({
 										</label>
 										<label>
 											Unit
-											<select
+											<input
+												list="ingredient-units"
+												maxLength={32}
 												value={ingredientDraftState.unit}
 												onChange={(event) => {
-													const unit = event.target.value as Ingredient["unit"];
-													setIngredientDraftState({
-														...ingredientDraftState,
-														unit,
-														basisAmount: unit === "g" ? "100" : "1",
-													});
+													const unit = event.target.value;
+													setIngredientDraftState((current) =>
+														current
+															? {
+																...current,
+																unit,
+																basisAmount:
+																	current.unit === "g" && unit !== "g"
+																		? "1"
+																		: current.unit !== "g" && unit === "g"
+																			? "100"
+																			: current.basisAmount,
+															}
+															: current,
+													);
 												}}
-											>
-												<option value="g">g</option>
-												<option value="piece">piece</option>
-												<option value="tbsp">tbsp</option>
-												<option value="package">package</option>
-											</select>
+											/>
+											<datalist id="ingredient-units">
+												<option value="g" />
+												<option value="piece" />
+												<option value="tbsp" />
+												<option value="package" />
+											</datalist>
 										</label>
 										<label>
 											Nutrition basis amount ({ingredientDraftState.unit})

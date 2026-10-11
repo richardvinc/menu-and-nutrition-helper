@@ -1,6 +1,6 @@
 export type MemberId = "richard" | "michelle";
 export type MealSlot = "lunch" | "dinner" | "snack";
-export type Unit = "g" | "piece" | "tbsp" | "package";
+export type Unit = string;
 
 export interface Nutrition {
 	calories: number;
