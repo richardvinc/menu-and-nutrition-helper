@@ -26,6 +26,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+	config: () => request<{ dashboardRefreshIntervalMs: number }>("/api/config"),
 	data: () => request<AppData>("/api/data"),
 	restoreDatabase: (file: File) =>
 		fetch("/api/database.sqlite", {

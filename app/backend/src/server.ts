@@ -1459,6 +1459,15 @@ export function createApp(db = createDatabase()) {
 		} | null;
 
 	app.get("/api/health", (_req, res) => res.json({ ok: true }));
+	app.get("/api/config", (_req, res) => {
+		const configuredInterval = Number(process.env.DASHBOARD_REFRESH_INTERVAL_MS);
+		res.json({
+			dashboardRefreshIntervalMs:
+				Number.isFinite(configuredInterval) && configuredInterval > 0
+					? configuredInterval
+					: 60_000,
+		});
+	});
 	app.get("/api/data", (_req, res) => res.json(dataFromDb(db)));
 	app.get("/api/ai/status", (_req, res) =>
 		res.json({

@@ -53,6 +53,21 @@ export function App() {
 					: "Could not load the meal plan.",
 			),
 		);
+		let timer: ReturnType<typeof setInterval> | undefined;
+		let active = true;
+		const startRefresh = (interval: number) => {
+			if (active)
+				timer = setInterval(() => reload().catch(() => undefined), interval);
+		};
+		api.config()
+			.then(({ dashboardRefreshIntervalMs }) =>
+				startRefresh(dashboardRefreshIntervalMs),
+			)
+			.catch(() => startRefresh(60_000));
+		return () => {
+			active = false;
+			if (timer) clearInterval(timer);
+		};
 	}, []);
 
 	const run = async (action: () => Promise<unknown>) => {
