@@ -1008,37 +1008,41 @@ export function ScheduledMealEditor({
 								>
 									<h2 id="pk-carbs-title">Carbohydrates</h2>
 									<p>Optional portions for each person.</p>
-									{data.members.map((member) => (
-										<div className="pk-editor__carb-row" key={member.id}>
-											<CarbohydrateSearch
-												member={member.name}
-												draft={carbs[member.id]}
-												items={carbohydrateIngredients}
-												onChange={(value) =>
-													setCarbs((current) => ({ ...current, [member.id]: value }))
-												}
-											/>
-											<label>
-												Quantity ({catalog.get(carbs[member.id].ingredientId)?.unit ?? carbs[member.id].ingredient?.unit ?? "unit"})
-												<input
-													aria-label={`${member.name} carbohydrate quantity`}
-													type="number"
-													min="0"
-													step="any"
-													value={carbs[member.id].quantity}
-													onChange={(event) =>
-														setCarbs((current) => ({
-															...current,
-															[member.id]: {
-																...current[member.id],
-																quantity: event.target.value,
-															},
-														}))
+									{data.members.map((member) => {
+										const carb = carbs[member.id];
+										const ingredient = catalog.get(carb.ingredientId) ?? carb.ingredient;
+										return (
+											<div className="pk-editor__carb-row" key={member.id}>
+												<CarbohydrateSearch
+													member={member.name}
+													draft={carb}
+													items={carbohydrateIngredients}
+													onChange={(value) =>
+														setCarbs((current) => ({ ...current, [member.id]: value }))
 													}
 												/>
-											</label>
-										</div>
-									))}
+												<label>
+													Quantity ({ingredient?.unit ?? "unit"})
+													<input
+														aria-label={`${member.name} carbohydrate quantity`}
+														type="number"
+														min="0"
+														step="any"
+														value={carb.quantity}
+														onChange={(event) =>
+															setCarbs((current) => ({
+																...current,
+																[member.id]: {
+																	...current[member.id],
+																	quantity: event.target.value,
+																},
+															}))
+														}
+													/>
+												</label>
+											</div>
+										);
+									})}
 								</section>
 							)}
 							<div className="pk-editor__section-heading">
