@@ -10,6 +10,7 @@ import type {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../api";
 import "./editor.css";
+import { NumberInput } from "../../components/NumberInput";
 
 type EditorData = Pick<
 	AppData,
@@ -66,7 +67,6 @@ const focusFirstSuggestion = (event: React.KeyboardEvent<HTMLInputElement>) => {
 		option.focus();
 	}
 };
-type CarbDraft = Record<MemberId, { ingredientId: string; quantity: string; query: string; ingredient?: Ingredient }>;
 type MealRecommendation =
 	Awaited<ReturnType<typeof api.recommendMeals>>["recommendations"][number];
 type RecommendationSnapshot = {
@@ -261,7 +261,7 @@ function IngredientRow({
 			</div>
 			<div className="pk-editor-row__quantity">
 				<label>Quantity</label>
-				<input
+				<NumberInput
 					aria-label="Ingredient quantity"
 					type="number"
 					min="0"
@@ -282,77 +282,8 @@ function IngredientRow({
 						onRemove();
 				}}
 			>
-				Remove
+				×
 			</button>
-		</div>
-	);
-}
-
-function CarbohydrateSearch({
-	member,
-	draft,
-	items,
-	onChange,
-}: {
-	member: string;
-	draft: CarbDraft[MemberId];
-	items: Ingredient[];
-	onChange: (value: CarbDraft[MemberId]) => void;
-}) {
-	const [focused, setFocused] = useState(false);
-	const results = useMemo(
-		() =>
-			items.filter((item) =>
-				[item.name, ...item.aliases].some((name) =>
-					name.toLocaleLowerCase().includes(draft.query.trim().toLocaleLowerCase()),
-				),
-			).sort((a, b) => a.name.localeCompare(b.name)),
-		[items, draft.query],
-	);
-	const selected = draft.ingredient ?? items.find((item) => item.id === draft.ingredientId);
-	return (
-		<div
-			className="pk-editor-row__ingredient pk-editor__carb-search"
-			onFocus={() => setFocused(true)}
-			onBlur={(event) => {
-				if (!event.currentTarget.contains(event.relatedTarget as Node))
-					setFocused(false);
-			}}
-		>
-			<label htmlFor={`carb-${member}`}>{member}</label>
-			<input
-				id={`carb-${member}`}
-				aria-label={`${member} carbohydrate`}
-				aria-autocomplete="list"
-				value={draft.query || selected?.name || ""}
-				placeholder="Search carbohydrates…"
-				onKeyDown={focusFirstSuggestion}
-				onChange={(event) =>
-					onChange({ ...draft, query: event.target.value, ingredientId: "", ingredient: undefined })
-				}
-			/>
-			{focused && (
-				<div className="pk-editor-row__results" role="listbox" aria-label={`${member} carbohydrate suggestions`}>
-					{results.length === 0 && <small>No carbohydrates found.</small>}
-					{results.map((item) => (
-						<button
-							type="button"
-							role="option"
-							key={item.id}
-							onMouseDown={(event) => event.preventDefault()}
-							onClick={() => {
-								onChange({ ...draft, ingredientId: item.id, ingredient: item, query: item.name });
-								setFocused(false);
-							}}
-						>
-							<strong>{item.name}</strong>
-						</button>
-					))}
-				</div>
-			)}
-			{selected && !items.some((item) => item.id === draft.ingredientId) && (
-				<small>{selected.name} · saved version</small>
-			)}
 		</div>
 	);
 }
@@ -378,36 +309,8 @@ export function ScheduledMealEditor({
 		initialMeal?.memberId ?? memberId,
 	);
 	const [rows, setRows] = useState<MenuIngredient[]>(
-		initialMeal?.slot === "dinner"
-			? initialMeal.ingredients.filter((row) => !row.memberId)
-			: (initialMeal?.ingredients ?? []),
+		initialMeal?.ingredients ?? [],
 	);
-	const [carbs, setCarbs] = useState<CarbDraft>(() => ({
-		richard: (() => {
-			const row =
-				initialMeal?.slot === "dinner"
-					? initialMeal.ingredients.find((item) => item.memberId === "richard")
-					: undefined;
-			return {
-				ingredientId: row?.ingredientId ?? "",
-				quantity: row ? String(row.quantity) : "",
-				query: row?.ingredient?.name ?? "",
-				ingredient: row?.ingredient,
-			};
-		})(),
-		michelle: (() => {
-			const row =
-				initialMeal?.slot === "dinner"
-					? initialMeal.ingredients.find((item) => item.memberId === "michelle")
-					: undefined;
-			return {
-				ingredientId: row?.ingredientId ?? "",
-				quantity: row ? String(row.quantity) : "",
-				query: row?.ingredient?.name ?? "",
-				ingredient: row?.ingredient,
-			};
-		})(),
-	}));
 	const [saving, setSaving] = useState(false);
 	const [savingMenu, setSavingMenu] = useState(false);
 	const [menuStatus, setMenuStatus] = useState<{
@@ -485,25 +388,7 @@ export function ScheduledMealEditor({
 				: [],
 		[data.savedMenus, mealSlot, name],
 	);
-	const carbohydrateIngredients = catalogItems
-		.filter((item) => item.nutrition.carbs > 0)
-		.sort((a, b) => a.name.localeCompare(b.name));
 	const weekend = [0, 6].includes(new Date(`${mealDate}T12:00:00`).getDay());
-	const carbRows =
-		mealSlot === "dinner"
-			? data.members.flatMap((member) =>
-					carbs[member.id].ingredientId && Number(carbs[member.id].quantity) > 0
-						? [
-								{
-									ingredientId: carbs[member.id].ingredientId,
-									quantity: Number(carbs[member.id].quantity),
-									memberId: member.id,
-									ingredient: carbs[member.id].ingredient,
-								},
-							]
-						: [],
-				)
-			: [];
 	const isDirty =
 		JSON.stringify([
 			name.trim(),
@@ -511,10 +396,7 @@ export function ScheduledMealEditor({
 			mealDate,
 			mealSlot,
 			mealSlot === "dinner" ? undefined : mealMember,
-			rows.map((row) => [row.ingredientId, Number(row.quantity), row.ingredient]).sort(),
-			carbRows
-				.map((row) => [row.memberId, row.ingredientId, row.quantity, row.ingredient])
-				.sort(),
+			rows.map((row) => [row.memberId, row.ingredientId, Number(row.quantity), row.ingredient]).sort(),
 			pendingIngredients.map((item) => item.id).sort(),
 			pendingCompanions.map((item) => [
 				item.memberId,
@@ -531,11 +413,6 @@ export function ScheduledMealEditor({
 			opening.slot,
 			opening.slot === "dinner" ? undefined : opening.memberId,
 			opening.ingredients
-				.filter((row) => opening.slot !== "dinner" || !row.memberId)
-				.map((row) => [row.ingredientId, Number(row.quantity), row.ingredient])
-				.sort(),
-			opening.ingredients
-				.filter((row) => row.memberId)
 				.map((row) => [row.memberId, row.ingredientId, row.quantity, row.ingredient])
 				.sort(),
 			[],
@@ -564,7 +441,7 @@ export function ScheduledMealEditor({
 		memberId: mealSlot === "dinner" ? undefined : mealMember,
 		name,
 		notes,
-		ingredients: [...rows, ...carbRows],
+		ingredients: rows,
 	};
 	const adjustExisting =
 		(meal.slot === "lunch" || meal.slot === "dinner") &&
@@ -592,8 +469,11 @@ export function ScheduledMealEditor({
 				: undefined,
 		};
 	});
-	const addRow = () =>
-		setRows((current) => [...current, { ingredientId: "", quantity: 0 }]);
+	const addRow = (rowMemberId?: MemberId) =>
+		setRows((current) => [
+			...current,
+			{ ingredientId: "", quantity: 0, ...(rowMemberId ? { memberId: rowMemberId } : {}) },
+		]);
 	const updateRow = (index: number, value: MenuIngredient) =>
 		setRows((current) => current.map((row, i) => (i === index ? value : row)));
 	const applySavedMenu = (menuId: string) => {
@@ -601,52 +481,14 @@ export function ScheduledMealEditor({
 		if (!menu) return;
 		setName(menu.name);
 		setRows(
-			menu.ingredients
-				.filter((row) => mealSlot !== "dinner" || !row.memberId)
-				.map((row) => ({
-					...row,
-					...(mealSlot === "dinner" ? {} : { memberId: undefined }),
-				})),
+			menu.ingredients.map(({ memberId: rowMemberId, ...row }) => ({
+				...row,
+				...(mealSlot === "dinner" && rowMemberId ? { memberId: rowMemberId } : {}),
+			})),
 		);
-		if (mealSlot === "dinner")
-			setCarbs({
-				richard: (() => {
-					const row = menu.ingredients.find(
-						(item) => item.memberId === "richard",
-					);
-					return {
-						ingredientId: row?.ingredientId ?? "",
-						quantity: row ? String(row.quantity) : "",
-						query: row?.ingredient?.name ?? "",
-						ingredient: row?.ingredient,
-					};
-				})(),
-				michelle: (() => {
-					const row = menu.ingredients.find(
-						(item) => item.memberId === "michelle",
-					);
-					return {
-						ingredientId: row?.ingredientId ?? "",
-						quantity: row ? String(row.quantity) : "",
-						query: row?.ingredient?.name ?? "",
-						ingredient: row?.ingredient,
-					};
-				})(),
-			});
 	};
-	const invalidCarbs =
-		mealSlot === "dinner" &&
-		data.members.some(
-			(member) =>
-				Boolean(carbs[member.id].ingredientId) !==
-					Boolean(carbs[member.id].quantity) ||
-				(Boolean(carbs[member.id].quantity) &&
-					(!Number.isFinite(Number(carbs[member.id].quantity)) ||
-						Number(carbs[member.id].quantity) <= 0)),
-		);
 	const invalidMeal =
 		!name.trim() ||
-		invalidCarbs ||
 		rows.some(
 			(row) =>
 				!row.ingredientId ||
@@ -817,35 +659,15 @@ export function ScheduledMealEditor({
 			),
 		]);
 		setRows(
-			recommendation.ingredientDetails
-				.filter((row) => !row.memberId)
-				.map(({ ingredientId, quantity, ingredient }) => ({ ingredientId, quantity, ingredient })),
+			recommendation.ingredientDetails.map(
+				({ ingredientId, quantity, ingredient, memberId: rowMemberId }) => ({
+					ingredientId,
+					quantity,
+					ingredient,
+					...(mealSlot === "dinner" && rowMemberId ? { memberId: rowMemberId } : {}),
+				}),
+			),
 		);
-		if (mealSlot === "dinner")
-			setCarbs({
-				richard: (() => {
-					const row = recommendation.ingredientDetails.find(
-						(item) => item.memberId === "richard",
-					);
-					return {
-						ingredientId: row?.ingredientId ?? "",
-						quantity: row ? String(row.quantity) : "",
-						query: row?.ingredient?.name ?? "",
-						ingredient: row?.ingredient,
-					};
-				})(),
-				michelle: (() => {
-					const row = recommendation.ingredientDetails.find(
-						(item) => item.memberId === "michelle",
-					);
-					return {
-						ingredientId: row?.ingredientId ?? "",
-						quantity: row ? String(row.quantity) : "",
-						query: row?.ingredient?.name ?? "",
-						ingredient: row?.ingredient,
-					};
-				})(),
-			});
 		setPendingCompanions(
 			includeSnacks
 				? recommendation.companionSnacks.map((snack, index) => ({
@@ -973,9 +795,15 @@ export function ScheduledMealEditor({
 								Meal slot
 								<select
 									value={mealSlot}
-									onChange={(event) =>
-										setMealSlot(event.target.value as ScheduledMeal["slot"])
-									}
+										onChange={(event) => {
+											const nextSlot = event.target.value as ScheduledMeal["slot"];
+											setMealSlot(nextSlot);
+											setRows((current) =>
+												current.map((row) => ({ ...row, memberId: undefined })),
+											);
+											if (nextSlot !== "dinner")
+												setMealMember((current) => current ?? data.members[0]?.id);
+										}}
 								>
 									<option value="lunch">Lunch</option>
 									<option value="dinner">Dinner</option>
@@ -1002,73 +830,34 @@ export function ScheduledMealEditor({
 						</div>
 						<section className="pk-editor__ingredients">
 							<p className="pk-editor__eyebrow">THE DISH</p>
-							{mealSlot === "dinner" && (
-								<section
-									className="pk-editor__carbs"
-									aria-labelledby="pk-carbs-title"
-								>
-									<h2 id="pk-carbs-title">Carbohydrates</h2>
-									<p>Optional portions for each person.</p>
-									{data.members.map((member) => {
-										const carb = carbs[member.id];
-										const ingredient = catalog.get(carb.ingredientId) ?? carb.ingredient;
-										return (
-											<div className="pk-editor__carb-row" key={member.id}>
-												<CarbohydrateSearch
-													member={member.name}
-													draft={carb}
-													items={carbohydrateIngredients}
-													onChange={(value) =>
-														setCarbs((current) => ({ ...current, [member.id]: value }))
-													}
+							{(mealSlot === "dinner"
+								? [...data.members.map((member) => ({ id: member.id, name: member.name })), { id: "shared" as const, name: "Shared" }]
+								: [{ id: undefined, name: "Ingredients" }]
+							).map((group) => {
+								const groupRows = rows
+									.map((row, index) => ({ row, index }))
+									.filter(({ row }) => group.id === undefined ? !row.memberId : (row.memberId ?? "shared") === group.id);
+								return (
+									<section className="pk-editor__ingredient-group" key={group.id ?? "meal"}>
+										<div className="pk-editor__section-heading">
+											<h2>{group.name}</h2>
+										</div>
+										{groupRows.map(({ row, index }) => (
+											<div className="pk-editor__row-wrap" key={`${index}-${row.ingredientId}`}>
+												<IngredientRow
+													row={row}
+													catalog={catalogItems}
+													onChange={(value) => updateRow(index, value)}
+													onRemove={() => setRows((current) => current.filter((_, i) => i !== index))}
 												/>
-												<label>
-													Quantity ({ingredient?.unit ?? "unit"})
-													<input
-														aria-label={`${member.name} carbohydrate quantity`}
-														type="number"
-														min="0"
-														step="any"
-														value={carb.quantity}
-														onChange={(event) =>
-															setCarbs((current) => ({
-																...current,
-																[member.id]: {
-																	...current[member.id],
-																	quantity: event.target.value,
-																},
-															}))
-														}
-													/>
-												</label>
 											</div>
-										);
-									})}
-								</section>
-							)}
-							<div className="pk-editor__section-heading">
-								<h2>Ingredients</h2>
-							</div>
-							{rows.map((row, index) => (
-								<div
-									className="pk-editor__row-wrap"
-									key={`${index}-${row.ingredientId}`}
-								>
-									<IngredientRow
-										row={row}
-										catalog={catalogItems}
-										onChange={(value) => updateRow(index, value)}
-										onRemove={() =>
-											setRows((current) =>
-												current.filter((_, i) => i !== index),
-											)
-										}
-									/>
-								</div>
-							))}
-							<button type="button" className="pk-editor__add" onClick={addRow}>
-								＋ Add ingredient
-							</button>
+										))}
+										<button type="button" className="pk-editor__add" onClick={() => addRow(group.id === "shared" ? undefined : group.id)}>
+											＋ Add ingredient
+										</button>
+									</section>
+								);
+							})}
 						</section>
 						<label className="pk-editor__notes">
 							Cooking notes

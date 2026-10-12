@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../../api";
 import "./library.css";
+import { NumberInput } from "../../components/NumberInput";
 
 export type LibraryProps = {
 	menus: SavedMenu[];
@@ -872,7 +873,7 @@ export function Library({
 														ingredients.find((item) => item.id === row.ingredientId))?.unit ||
 														"unit"}
 													)
-													<input
+													<NumberInput
 														aria-label={`Quantity ${index + 1}`}
 														type="number"
 														min="0.01"
@@ -897,6 +898,7 @@ export function Library({
 												</label>
 												<button
 													type="button"
+													className="danger"
 													aria-label={`Remove ingredient ${index + 1}`}
 													onClick={() => {
 														if (
@@ -913,12 +915,13 @@ export function Library({
 														});
 													}}
 												>
-													Remove
+													×
 												</button>
 											</div>
 										))}
 										<button
 											type="button"
+											className="secondary"
 											onClick={() =>
 												setMenuDraft({
 													...menuDraft,
@@ -1412,7 +1415,7 @@ export function Library({
 										</label>
 										<label>
 											Nutrition basis amount ({ingredientDraftState.unit})
-											<input
+											<NumberInput
 												type="number"
 												min="0.001"
 												step="any"
@@ -1429,7 +1432,7 @@ export function Library({
 										{ingredientDraftState.unit !== "g" && (
 											<label>
 														Weight per {ingredientDraftState.unit} in grams (optional)
-												<input
+												<NumberInput
 													type="number"
 													min="0.001"
 													step="any"
@@ -1489,7 +1492,7 @@ export function Library({
 													{key === "calories"
 														? "Calories (kcal)"
 														: `${key[0].toUpperCase()}${key.slice(1)} (g)`}
-													<input
+													<NumberInput
 														type="number"
 														min="0"
 														step="any"

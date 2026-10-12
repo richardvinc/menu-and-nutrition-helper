@@ -379,7 +379,7 @@ test("weekly day progress includes snacks and shared dinner portions", async ({
 	await expect(progress).toContainText(/Fiber \d+ \/ [\d,]+ g/);
 });
 
-test("dinner uses two fixed optional carbohydrate portions", async ({
+test("dinner separates individual and shared ingredients", async ({
 	page,
 }) => {
 	await page.goto("/");
@@ -389,32 +389,39 @@ test("dinner uses two fixed optional carbohydrate portions", async ({
 		.filter({ hasText: "Egg fried rice" })
 		.getByRole("button", { name: "Edit", exact: true })
 		.click();
+	const group = (name: string) =>
+		page.locator(".pk-editor__ingredient-group").filter({
+			has: page.getByRole("heading", { name, exact: true }),
+		});
+	const richard = group("Richard");
+	const michelle = group("Michelle");
+	const shared = group("Shared");
+	await expect(richard).toBeVisible();
+	await expect(michelle).toBeVisible();
+	await expect(shared).toBeVisible();
 	await expect(
-		page.getByRole("heading", { name: "Carbohydrates" }),
-	).toBeVisible();
+		richard.getByRole("textbox", { name: "Search ingredient catalog" }),
+	).toHaveValue("Nasi putih");
 	await expect(
-		page.getByLabel("Richard carbohydrate", { exact: true }),
-	).toHaveValue("rice");
-	await expect(page.getByLabel("Richard carbohydrate quantity")).toHaveValue(
-		"110",
-	);
+		richard.getByRole("spinbutton", { name: "Ingredient quantity" }),
+	).toHaveValue("110");
 	await expect(
-		page.getByLabel("Michelle carbohydrate", { exact: true }),
-	).toHaveValue("rice");
-	await expect(page.getByLabel("Michelle carbohydrate quantity")).toHaveValue(
-		"70",
-	);
-	await expect(page.getByText("Carbohydrate portion")).toHaveCount(0);
-	await expect(page.locator(".pk-editor-row__remove")).toHaveCount(2);
-	const carbohydrates = await page
-		.getByRole("heading", { name: "Carbohydrates" })
-		.boundingBox();
-	const ingredients = await page
-		.getByRole("heading", { name: "Ingredients" })
-		.boundingBox();
-	expect(carbohydrates && ingredients && carbohydrates.y < ingredients.y).toBe(
-		true,
-	);
+		michelle.getByRole("textbox", { name: "Search ingredient catalog" }),
+	).toHaveValue("Nasi putih");
+	await expect(
+		michelle.getByRole("spinbutton", { name: "Ingredient quantity" }),
+	).toHaveValue("70");
+	const sharedIngredients = shared.getByRole("textbox", {
+		name: "Search ingredient catalog",
+	});
+	const sharedQuantities = shared.getByRole("spinbutton", {
+		name: "Ingredient quantity",
+	});
+	await expect(sharedIngredients).toHaveCount(2);
+	await expect(sharedIngredients.nth(0)).toHaveValue("Telur ayam besar");
+	await expect(sharedIngredients.nth(1)).toHaveValue("Brokoli");
+	await expect(sharedQuantities.nth(0)).toHaveValue("2");
+	await expect(sharedQuantities.nth(1)).toHaveValue("100");
 });
 
 test("meal name recalls a saved menu and suggestions only show on focus", async ({

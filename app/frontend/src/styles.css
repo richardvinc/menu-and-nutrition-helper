@@ -366,3 +366,46 @@ button {
 	color: #ffc3cc;
 	border-color: #71404b;
 }
+.pk-number-stepper {
+	display: grid;
+	grid-template-columns: 44px minmax(0, 1fr) 44px;
+	align-items: stretch;
+	width: 100%;
+}
+.pk-number-stepper input {
+	min-width: 0;
+	border-radius: 0 !important;
+}
+.pk-number-stepper button {
+	min-width: 0;
+	min-height: 44px;
+	padding: 0;
+	border: 1px solid var(--app-line);
+	border-radius: 8px;
+	background: var(--app-surface);
+	color: var(--app-ink);
+	font-weight: 700;
+}
+.pk-number-stepper button:first-child {
+	border-radius: 8px 0 0 8px;
+}
+.pk-number-stepper button:last-child {
+	border-radius: 0 8px 8px 0;
+}
+.library-page .pk-number-stepper button,
+.targets-page .pk-number-stepper button {
+	min-height: 36px;
+	padding: 0;
+	border: 1px solid var(--app-line);
+	border-radius: 0;
+	background: var(--app-surface);
+	color: var(--app-ink);
+}
+.library-page .pk-number-stepper button:first-child,
+.targets-page .pk-number-stepper button:first-child {
+	border-radius: 8px 0 0 8px;
+}
+.library-page .pk-number-stepper button:last-child,
+.targets-page .pk-number-stepper button:last-child {
+	border-radius: 0 8px 8px 0;
+}

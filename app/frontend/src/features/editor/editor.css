@@ -16,7 +16,7 @@
 	--line: var(--app-line);
 	position: relative;
 	display: flex;
-	width: min(1120px, 100%);
+	width: min(1360px, 100%);
 	min-height: calc(100vh - 32px);
 	flex-direction: column;
 	border-radius: 22px;
@@ -117,9 +117,7 @@
 .pk-editor__fields input,
 .pk-editor__fields select,
 .pk-editor__notes textarea,
-.pk-editor-row input,
-.pk-editor__carbs input,
-.pk-editor__carbs select {
+.pk-editor-row input {
 	width: 100%;
 	min-width: 0;
 	min-height: 44px;
@@ -132,17 +130,13 @@
 }
 .pk-editor__fields input,
 .pk-editor__fields select,
-.pk-editor-row input,
-.pk-editor__carbs input,
-.pk-editor__carbs select {
+.pk-editor-row input {
 	height: 44px;
 }
 .pk-editor__fields input:focus,
 .pk-editor__fields select:focus,
 .pk-editor__notes textarea:focus,
-.pk-editor-row input:focus,
-.pk-editor__carbs input:focus,
-.pk-editor__carbs select:focus {
+.pk-editor-row input:focus {
 	border-color: var(--app-purple);
 	outline: 3px solid #e7e2ff;
 }
@@ -166,36 +160,10 @@
 	margin: 0;
 	font: 750 20px var(--font-display);
 }
-.pk-editor__carbs {
-	margin: 8px 0 18px;
-	padding: 16px;
-	border: 1px solid var(--line);
-	border-radius: 14px;
-	background: #f7f5ff;
-}
-.pk-editor__carbs h2 {
-	margin: 0;
-	font: 750 20px var(--font-display);
-}
-.pk-editor__carbs > p {
-	margin: 4px 0 12px;
-	color: var(--muted);
-	font-size: 10px;
-}
-.pk-editor__carb-row {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) 150px;
-	gap: 10px;
-	margin-top: 10px;
-}
-.pk-editor__carb-row label {
-	display: grid;
-	gap: 5px;
-	color: var(--muted);
-	font-size: 10px;
-}
-.pk-editor__carb-search {
-	position: relative;
+.pk-editor__ingredient-group {
+	margin-top: 14px;
+	padding-top: 8px;
+	border-top: 1px solid var(--line);
 }
 .pk-editor__member--over > div:first-child span,
 .pk-editor__member--over small {
@@ -217,7 +185,7 @@
 .pk-editor-row {
 	position: relative;
 	display: grid;
-	grid-template-columns: minmax(0, 1fr) 145px auto;
+	grid-template-columns: minmax(0, 1fr) minmax(190px, 240px) 44px;
 	align-items: start;
 	gap: 10px;
 	padding: 12px 0;
@@ -304,14 +272,15 @@
 }
 .pk-editor-row__remove {
 	align-self: start;
-	min-height: 40px;
+	width: 44px;
+	min-height: 44px;
 	margin-top: 15px;
-	padding: 0 7px;
+	padding: 0;
 	border: 0;
 	background: none;
-	color: #946557;
-	font-size: 10px;
-	text-decoration: underline;
+	color: var(--app-coral);
+	font-size: 22px;
+	line-height: 1;
 }
 .pk-editor__add {
 	width: 100%;
@@ -831,12 +800,18 @@
 	.pk-editor__notes {
 		padding: 14px;
 	}
-	.pk-editor__carb-row {
-		grid-template-columns: minmax(0, 1fr) 105px;
-	}
 	.pk-editor-row {
-		grid-template-columns: minmax(0, 1fr) 103px auto;
+		grid-template-columns: minmax(0, 1fr) auto;
 		gap: 5px;
+	}
+	.pk-editor-row__ingredient {
+		grid-column: 1 / -1;
+	}
+	.pk-editor-row__quantity {
+		grid-template-columns: minmax(0, 1fr);
+	}
+	.pk-editor-row__quantity span {
+		justify-self: end;
 	}
 	.pk-editor-row__remove {
 		padding: 0 2px;
@@ -918,13 +893,13 @@
 		grid-template-columns: auto 1fr;
 	}
 	.pk-editor-row {
-		grid-template-columns: minmax(0, 1fr) 88px auto;
+		grid-template-columns: minmax(0, 1fr) auto;
 	}
 	.pk-editor-row input {
 		padding: 8px 6px;
 	}
 	.pk-editor-row__remove {
-		font-size: 9px;
+		font-size: 22px;
 	}
 	.pk-ai-card__nutrition {
 		grid-template-columns: repeat(2, minmax(0, 1fr));

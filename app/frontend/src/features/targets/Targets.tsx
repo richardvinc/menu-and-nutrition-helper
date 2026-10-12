@@ -6,6 +6,7 @@ import type {
 } from "@piring-kita/shared";
 import { useEffect, useMemo, useState } from "react";
 import "./targets.css";
+import { NumberInput } from "../../components/NumberInput";
 
 export type TargetsProps = {
 	members: MemberProfile[];
@@ -283,7 +284,7 @@ export function Targets({
 				<div className="target-form-grid">
 					<label>
 						Weight check-in for next Monday (kg)
-						<input
+						<NumberInput
 							type="number"
 							min="30"
 							max="300"
@@ -335,7 +336,7 @@ export function Targets({
 					</label>
 					<label>
 						Height (cm)
-						<input
+						<NumberInput
 							type="number"
 							min="100"
 							max="250"
@@ -378,7 +379,7 @@ export function Targets({
 					{draft.activityLevel === "custom" && (
 						<label>
 							Custom activity factor
-							<input
+							<NumberInput
 								type="number"
 								min="1"
 								max="2.5"
@@ -401,7 +402,7 @@ export function Targets({
 					)}
 					<label>
 						Deficit target (%)
-						<input
+						<NumberInput
 							type="number"
 							min="0"
 							max="60"
@@ -431,7 +432,7 @@ export function Targets({
 					<div className="target-form-grid target-advanced">
 						<label>
 							Protein (%)
-							<input
+							<NumberInput
 								type="number"
 								min="0"
 								max="100"
@@ -444,7 +445,7 @@ export function Targets({
 						</label>
 						<label>
 							Carbohydrate (%)
-							<input
+							<NumberInput
 								type="number"
 								min="0"
 								max="100"
@@ -457,7 +458,7 @@ export function Targets({
 						</label>
 						<label>
 							Fat (%)
-							<input
+							<NumberInput
 								type="number"
 								min="0"
 								max="100"
@@ -470,7 +471,7 @@ export function Targets({
 						</label>
 						<label>
 							Fiber target (g/day)
-							<input
+							<NumberInput
 								type="number"
 								min="0"
 								step="1"
@@ -491,7 +492,7 @@ export function Targets({
 						</label>
 						<label>
 							Weekend reserve (kcal/week)
-							<input
+							<NumberInput
 								type="number"
 								min="0"
 								step="50"
