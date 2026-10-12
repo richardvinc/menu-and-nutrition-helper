@@ -664,7 +664,7 @@ export function Calendar({
 		} else {
 			const item: AgendaItem = {
 				...series,
-				id: series?.id ?? crypto.randomUUID(),
+				id: series?.id ?? `agenda-${Date.now()}-${Math.random().toString(36).slice(2)}`,
 				calendarId: personal?.id ?? "",
 				title,
 				start,

@@ -2610,6 +2610,10 @@ describe("backend API", () => {
 		const occurrences = await fetch(`${base}/api/calendar/occurrences?start=2026-10-12&end=2026-11-02`).then((r) => r.json()) as { occurrences: any[] };
 		expect(occurrences.occurrences.map((event) => event.title)).toEqual(["Yoga class", "Yoga"]);
 		expect(occurrences.occurrences[0]).toMatchObject({ recurrenceId: item.start, recurring: true, calendarId: "personal" });
+		const allDayItem = { id: "weekly-all-day", calendarId: "personal", title: "Sunday event", start: "2026-10-18", end: "2026-10-19", allDay: true, recurrenceRule: "FREQ=WEEKLY;COUNT=2" };
+		expect((await fetch(`${base}/api/agendas`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(allDayItem) })).status).toBe(201);
+		const allDayOccurrences = await fetch(`${base}/api/calendar/occurrences?start=2026-10-18&end=2026-10-18`).then((r) => r.json()) as { occurrences: any[] };
+		expect(allDayOccurrences.occurrences.filter((event) => event.id === allDayItem.id)).toHaveLength(1);
 		const dstItem = { id: "dst-weekly", calendarId: "personal", title: "Morning run", start: "2026-10-26T13:00:00.000Z", end: "2026-10-26T14:00:00.000Z", allDay: false, timeZone: "America/New_York", recurrenceRule: "FREQ=WEEKLY;COUNT=3" };
 		expect((await fetch(`${base}/api/agendas`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(dstItem) })).status).toBe(201);
 		const dstOccurrences = await fetch(`${base}/api/calendar/occurrences?start=2026-10-26&end=2026-11-09`).then((r) => r.json()) as { occurrences: any[] };

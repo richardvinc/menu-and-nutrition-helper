@@ -2,6 +2,10 @@
 
 Use Windows PowerShell or Command Prompt to run commands.
 
+## ID generation
+
+Do not generate UUIDs in this project. Use timestamp-based IDs built from `Date.now()` and add a suffix when multiple IDs may be created in the same millisecond.
+
 ## Agent skills
 
 ### Issue tracker

@@ -3,6 +3,9 @@ import { expect, test } from "@playwright/test";
 test("calendar creates an all-day agenda and dashboard adapts to portrait layout", async ({
 	page,
 }) => {
+	await page.addInitScript(() => {
+		Object.defineProperty(crypto, "randomUUID", { value: undefined });
+	});
 	await page.clock.install({ time: new Date(2026, 9, 12, 12) });
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await page.goto("/");
@@ -21,6 +24,7 @@ test("calendar creates an all-day agenda and dashboard adapts to portrait layout
 		"aria-pressed",
 		"true",
 	);
+	await page.getByRole("checkbox", { name: "Personal" }).check();
 
 	const title = `All-day calendar ${Date.now()}`;
 	await page.getByRole("button", { name: "+ Agenda" }).click();
@@ -33,7 +37,15 @@ test("calendar creates an all-day agenda and dashboard adapts to portrait layout
 	await expect(editor.locator('input[type="date"]').nth(1)).toHaveValue(
 		"2026-10-12",
 	);
+	const saveResponse = page.waitForResponse(
+		(response) =>
+			response.url().endsWith("/api/agendas") &&
+			response.request().method() === "POST",
+	);
 	await editor.getByRole("button", { name: "Save" }).click();
+	const savedResponse = await saveResponse;
+	expect(savedResponse.status()).toBe(201);
+	expect(await savedResponse.json()).toMatchObject({ title, start: "2026-10-12" });
 	await expect(
 		page
 			.locator(".pk-calendar__agenda")

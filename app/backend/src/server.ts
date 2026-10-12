@@ -1386,6 +1386,10 @@ async function refreshDueCalendars(db: Database) {
 	}));
 }
 
+function newCalendarId() {
+	return `calendar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 function importIcs(text: string, fileName: string, id: string, color: string, sourceUrl?: string) {
 	const root = new ICAL.Component(ICAL.parse(text));
 	const timezoneComponents = root.getAllSubcomponents("vtimezone");
@@ -1413,7 +1417,7 @@ function importIcs(text: string, fileName: string, id: string, color: string, so
 		const rule = component.getFirstPropertyValue("rrule")?.toString();
 		const recurrenceDates = component.getAllProperties("rdate").flatMap((p: any) => p.getValues().map((x: any) => x.startDate ? value(x.startDate) : value(x)));
 		const excludedDates = component.getAllProperties("exdate").flatMap((p: any) => p.getValues().map((x: any) => value(x)));
-		items.push({ id: crypto.randomUUID(), calendarId: id, title: event.summary || "Untitled event", start, end, allDay: event.startDate.isDate, timeZone: event.startDate.zone?.tzid, recurrenceRule: rule || undefined, recurrenceDates: recurrenceDates.length ? recurrenceDates : undefined, excludedDates: excludedDates.length ? excludedDates : undefined, sourceUid: event.uid, exceptions: {} });
+		items.push({ id: `${id}-${items.length}`, calendarId: id, title: event.summary || "Untitled event", start, end, allDay: event.startDate.isDate, timeZone: event.startDate.zone?.tzid, recurrenceRule: rule || undefined, recurrenceDates: recurrenceDates.length ? recurrenceDates : undefined, excludedDates: excludedDates.length ? excludedDates : undefined, sourceUid: event.uid, exceptions: {} });
 	}
 	for (const exception of exceptions) {
 		const master = items.find((item) => item.sourceUid === exception.uid);
@@ -1460,7 +1464,7 @@ function calendarOccurrences(db: Database, start: string, end: string) {
 				const date = zone ? new Date(wallDate.getTime() - zone.utcOffset(next) * 1000) : item.timeZone && parts ? wallTimeToInstant(wallDate, item.timeZone) : wallDate;
 				if (!date) continue;
 				if (date > upper) break;
-				const rid = item.allDay ? next.toString() : date.toISOString();
+				const rid = item.allDay ? `${next.year}-${String(next.month).padStart(2, "0")}-${String(next.day).padStart(2, "0")}` : date.toISOString();
 				if (!ids.has(rid)) { ids.add(rid); push(rid, date); }
 			}
 		}
@@ -1791,7 +1795,7 @@ export function createApp(db = createDatabase()) {
 		if (typeof fileName !== "string" || !fileName.trim() || fileName.length > 255 || typeof ics !== "string" || !ics.trim()) return fail(res, "fileName and iCalendar text are required");
 		if (Buffer.byteLength(ics, "utf8") > 10 * 1024 * 1024) return fail(res, "iCalendar file exceeds the 10 MB limit", 413);
 		try {
-			const id = crypto.randomUUID();
+			const id = newCalendarId();
 			const imported = importIcs(ics, fileName.trim(), id, nextCalendarColor(db));
 			const calendarIds = new Set([...rows<CalendarSource>(db, "calendars").map((x) => x.id), id]);
 			if (imported.items.some((item) => !validAgendaItem(item, calendarIds))) throw new Error("iCalendar contains invalid event data");
@@ -1807,7 +1811,7 @@ export function createApp(db = createDatabase()) {
 		if (!rateLimit(`calendar-subscribe:${ip}`, 5, 60_000)) return fail(res, "Calendar subscription limit reached. Try again in a minute.", 429);
 		try {
 			const ics = await fetchCalendarFeed(url.toString());
-			const id = crypto.randomUUID();
+			const id = newCalendarId();
 			const feedName = url.pathname.split("/").filter(Boolean).at(-1) || url.hostname;
 			const imported = importIcs(ics, feedName, id, nextCalendarColor(db), url.toString());
 			const now = new Date().toISOString();
