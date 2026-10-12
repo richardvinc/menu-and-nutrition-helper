@@ -453,6 +453,17 @@
 	color: var(--muted);
 	font-size: 12px;
 }
+.pk-dashboard-calendar__agenda-copy {
+	display: grid;
+	min-width: 0;
+	gap: 2px;
+}
+.pk-dashboard-calendar__agenda-description {
+	color: var(--muted);
+	font-size: 12px;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
 .pk-dashboard-calendar__agenda-group > p {
 	margin: 0;
 	color: var(--muted);

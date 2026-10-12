@@ -14,6 +14,7 @@ type Frequency = "" | "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 type RepeatEnd = "never" | "count" | "until";
 type EventFormValues = {
 	title: string;
+	description: string;
 	allDay: boolean;
 	start: string;
 	end: string;
@@ -86,6 +87,7 @@ const parseRule = (rule = "") =>
 function defaultValues(date: string): EventFormValues {
 	return {
 		title: "",
+		description: "",
 		allDay: false,
 		start: `${date}T09:00`,
 		end: `${date}T10:00`,
@@ -107,6 +109,7 @@ function valuesFor(dialog: EventDialog, date: string): EventFormValues {
 	const start = displayed?.start ?? item?.start ?? values.start;
 	const end = displayed?.end ?? item?.end ?? values.end;
 	values.title = displayed?.title ?? item?.title ?? "";
+	values.description = displayed?.description ?? item?.description ?? "";
 	values.allDay = displayed?.allDay ?? item?.allDay ?? false;
 	values.start = values.allDay ? start.slice(0, 10) : toLocalInput(start);
 	values.end = values.allDay
@@ -314,6 +317,15 @@ function AgendaEditor({
 								onChange={(event) => update("title", event.target.value)}
 							/>
 						</label>
+						<label>
+							Description
+							<textarea
+								maxLength={2000}
+								value={values.description}
+								onChange={(event) => update("description", event.target.value)}
+								placeholder="Location or other details (optional)"
+							/>
+						</label>
 						<label className="pk-calendar__check">
 							<input
 								type="checkbox"
@@ -397,7 +409,7 @@ function AgendaEditor({
 										</label>
 										{values.frequency === "WEEKLY" && (
 											<div
-												className="pk-calendar__weekdays"
+												className="pk-calendar__repeat-weekdays"
 												aria-label="Repeat on weekdays"
 											>
 												{weekdays.map((day, index) => (
@@ -642,6 +654,7 @@ export function Calendar({
 		occurrenceOnly: boolean,
 	) => {
 		const title = values.title.trim();
+		const description = values.description.trim();
 		if (!title) throw new Error("Enter a title.");
 		const start = values.allDay ? values.start : localDateTime(values.start);
 		const end = values.allDay ? values.end : localDateTime(values.end);
@@ -658,7 +671,7 @@ export function Calendar({
 				api.updateAgendaOccurrence(
 					series.id,
 					target.occurrence!.recurrenceId!,
-					{ title, start, end: storedEnd, allDay: values.allDay },
+					{ title, description, start, end: storedEnd, allDay: values.allDay },
 				),
 			);
 		} else {
@@ -667,6 +680,7 @@ export function Calendar({
 				id: series?.id ?? `agenda-${Date.now()}-${Math.random().toString(36).slice(2)}`,
 				calendarId: personal?.id ?? "",
 				title,
+				description,
 				start,
 				end: storedEnd,
 				allDay: values.allDay,
@@ -857,6 +871,11 @@ export function Calendar({
 												{event.title}
 												{event.recurring && <span title="Repeating"> ↻</span>}
 											</strong>
+											{event.description && (
+												<small className="pk-calendar__event-description">
+													{event.description}
+												</small>
+											)}
 											<span>{occurrenceLabel(event)}</span>
 											<small>{event.calendarName}</small>
 										</button>

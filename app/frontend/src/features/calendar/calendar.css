@@ -239,7 +239,7 @@
 }
 .pk-calendar__calendars input[type="checkbox"],
 .pk-calendar__check input,
-.pk-calendar__weekdays input {
+.pk-calendar__repeat-weekdays input {
 	width: 17px;
 	min-height: 17px;
 	margin: 0;
@@ -390,6 +390,7 @@
 	font-weight: 700;
 }
 .pk-calendar__editor input:not([type="checkbox"]),
+.pk-calendar__editor textarea,
 .pk-calendar__editor select {
 	width: 100%;
 	min-height: 42px;
@@ -398,6 +399,17 @@
 	border-radius: 9px;
 	background: var(--app-surface);
 	color: var(--app-ink);
+}
+.pk-calendar__editor textarea {
+	min-height: 76px;
+	resize: vertical;
+}
+.pk-calendar__event-description {
+	color: var(--app-muted);
+	font-size: 12px;
+	font-weight: 400;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
 }
 .pk-calendar__form-row {
 	display: grid;
@@ -425,16 +437,16 @@
 	font-weight: 800;
 }
 .pk-calendar__repeat > label:first-of-type,
-.pk-calendar__weekdays {
+.pk-calendar__repeat-weekdays {
 	grid-column: 1 / -1;
 }
-.pk-calendar__weekdays {
+.pk-calendar__repeat-weekdays {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 10px;
 	margin: 0 0 13px;
 }
-.pk-calendar__weekdays label {
+.pk-calendar__repeat-weekdays label {
 	display: flex;
 	align-items: center;
 	gap: 4px;
@@ -540,6 +552,7 @@
 	color: #ffc2b8;
 }
 :root[data-theme="dark"] .pk-calendar__editor input:not([type="checkbox"]),
+:root[data-theme="dark"] .pk-calendar__editor textarea,
 :root[data-theme="dark"] .pk-calendar__editor select {
 	background: var(--app-raised);
 	border-color: var(--app-line);

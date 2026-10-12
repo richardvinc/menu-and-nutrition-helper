@@ -14,6 +14,7 @@ export interface CalendarOccurrence {
 	id: string;
 	calendarId: string;
 	title: string;
+	description?: string;
 	start: string;
 	end: string;
 	allDay: boolean;
@@ -56,7 +57,7 @@ export const api = {
 	updateAgendaOccurrence: (
 		id: string,
 		recurrenceId: string,
-		changes: Partial<Pick<AgendaItem, "title" | "start" | "end" | "allDay" | "timeZone">>,
+		changes: Partial<Pick<AgendaItem, "title" | "description" | "start" | "end" | "allDay" | "timeZone">>,
 	) =>
 		request<AgendaItem>(`/api/agendas/${id}`, {
 			method: "PUT",

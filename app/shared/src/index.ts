@@ -93,6 +93,7 @@ export interface AgendaItem {
 	id: string;
 	calendarId: string;
 	title: string;
+	description?: string;
 	start: string;
 	end: string;
 	allDay: boolean;
@@ -100,7 +101,7 @@ export interface AgendaItem {
 	recurrenceRule?: string;
 	recurrenceDates?: string[];
 	excludedDates?: string[];
-	exceptions?: Record<string, { cancel?: true; title?: string; start?: string; end?: string; allDay?: boolean; timeZone?: string }>;
+	exceptions?: Record<string, { cancel?: true; title?: string; description?: string; start?: string; end?: string; allDay?: boolean; timeZone?: string }>;
 	sourceUid?: string;
 }
 

@@ -299,10 +299,17 @@ function DashboardCalendar({
 												</time>
 											)
 										)}
-										<strong>
-											{event.title}
-											{event.recurring && <span title="Repeating"> ↻</span>}
-										</strong>
+										<span className="pk-dashboard-calendar__agenda-copy">
+											<strong>
+												{event.title}
+												{event.recurring && <span title="Repeating"> ↻</span>}
+											</strong>
+											{event.description && (
+												<span className="pk-dashboard-calendar__agenda-description">
+													{event.description}
+												</span>
+											)}
+										</span>
 										<small>{event.calendarName}</small>
 									</li>
 								))}
