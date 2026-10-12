@@ -25,10 +25,10 @@ export interface ScheduledMealEditorProps {
 	onSave: (
 		meal: ScheduledMeal,
 		saveToMenu?: boolean,
+		menu?: { menu: SavedMenu; exists: boolean },
 		pendingIngredients?: Ingredient[],
 		companions?: ScheduledMeal[],
 	) => void | Promise<void>;
-	onSaveMenu: (menu: SavedMenu, exists: boolean) => void | Promise<void>;
 	onSaveMenus: (menus: SavedMenu[], pendingIngredients: Ingredient[]) => void | Promise<void>;
 	onCancel: () => void;
 }
@@ -295,7 +295,6 @@ export function ScheduledMealEditor({
 	slot,
 	memberId,
 	onSave,
-	onSaveMenu,
 	onSaveMenus,
 	onCancel,
 }: ScheduledMealEditorProps) {
@@ -312,11 +311,7 @@ export function ScheduledMealEditor({
 		initialMeal?.ingredients ?? [],
 	);
 	const [saving, setSaving] = useState(false);
-	const [savingMenu, setSavingMenu] = useState(false);
-	const [menuStatus, setMenuStatus] = useState<{
-		fingerprint: string;
-		message: string;
-	} | null>(null);
+	const [saveMealToMenu, setSaveMealToMenu] = useState(false);
 	const [nameFocused, setNameFocused] = useState(false);
 	const [recommendations, setRecommendations] = useState<MealRecommendation[]>([]);
 	const [recommendationSnapshot, setRecommendationSnapshot] =
@@ -374,19 +369,14 @@ export function ScheduledMealEditor({
 	);
 	const menuResults = useMemo(
 		() =>
-			name.trim()
-				? data.savedMenus
-						.filter(
-							(menu) =>
-								menu.slot === mealSlot &&
-								menu.name
-									.toLocaleLowerCase()
-									.includes(name.trim().toLocaleLowerCase()),
-						)
-						.sort((a, b) => a.name.localeCompare(b.name))
-						.slice(0, 5)
-				: [],
-		[data.savedMenus, mealSlot, name],
+			data.savedMenus
+				.filter((menu) =>
+					menu.name
+						.toLocaleLowerCase()
+						.includes(name.trim().toLocaleLowerCase()),
+				)
+				.sort((a, b) => a.name.localeCompare(b.name)),
+		[data.savedMenus, name],
 	);
 	const weekend = [0, 6].includes(new Date(`${mealDate}T12:00:00`).getDay());
 	const isDirty =
@@ -495,38 +485,6 @@ export function ScheduledMealEditor({
 				!Number.isFinite(row.quantity) ||
 				row.quantity <= 0,
 		);
-	const menuFingerprint = JSON.stringify([
-		name.trim(),
-		mealSlot,
-		mealMember,
-		meal.ingredients,
-	]);
-	const saveToMasterMenu = async () => {
-		if (invalidMeal) return;
-		const existing = data.savedMenus.find(
-			(menu) =>
-				menu.slot === mealSlot &&
-				menu.name.trim().toLocaleLowerCase() ===
-					name.trim().toLocaleLowerCase(),
-		);
-		const menu: SavedMenu = {
-			id: existing?.id ?? Date.now().toString(),
-			name: name.trim(),
-			slot: mealSlot,
-			...(mealSlot === "dinner" || !mealMember ? {} : { memberId: mealMember }),
-			ingredients: meal.ingredients.map((row) => ({ ...row })),
-		};
-		setSavingMenu(true);
-		try {
-			await onSaveMenu(menu, Boolean(existing));
-			setMenuStatus({
-				fingerprint: menuFingerprint,
-				message: existing ? "Master menu updated." : "Saved to master menu.",
-			});
-		} finally {
-			setSavingMenu(false);
-		}
-	};
 	const save = async (event: React.FormEvent) => {
 		event.preventDefault();
 		if (invalidMeal) return;
@@ -538,13 +496,37 @@ export function ScheduledMealEditor({
 					...pendingCompanions.flatMap((companion) => companion.ingredients),
 				].map((row) => row.ingredientId),
 			);
+			const savedMeal = {
+				...meal,
+				id: initialMeal?.id ?? Date.now().toString(),
+				name: name.trim(),
+			};
+			const existingMenu = saveMealToMenu
+				? data.savedMenus.find(
+						(item) =>
+							item.slot === meal.slot &&
+							item.name.trim().toLocaleLowerCase() ===
+								name.trim().toLocaleLowerCase(),
+					)
+				: undefined;
+			const menu = saveMealToMenu
+				? {
+						exists: Boolean(existingMenu),
+						menu: {
+							id: existingMenu?.id ?? Date.now().toString(),
+							name: savedMeal.name,
+							slot: meal.slot,
+							...(meal.slot === "dinner" || !meal.memberId
+								? {}
+								: { memberId: meal.memberId }),
+							ingredients: meal.ingredients.map((row) => ({ ...row })),
+						} satisfies SavedMenu,
+					}
+				: undefined;
 			await onSave(
-				{
-					...meal,
-					id: initialMeal?.id ?? Date.now().toString(),
-					name: name.trim(),
-				},
+				savedMeal,
 				saveRecommendedMenu,
+				menu,
 				pendingIngredients.filter((item) => referenced.has(item.id)),
 				pendingCompanions,
 			);
@@ -749,7 +731,7 @@ export function ScheduledMealEditor({
 										setName(event.target.value);
 										setNameFocused(true);
 									}}
-									placeholder="Type to find a saved menu"
+					placeholder="Search or choose a saved menu"
 									autoComplete="off"
 								/>
 								{nameFocused && (
@@ -1062,16 +1044,15 @@ export function ScheduledMealEditor({
 				</div>
 				<footer className="pk-editor__footer">
 					<div className="pk-editor__master">
-						<button
-							type="button"
-							onClick={saveToMasterMenu}
-							disabled={savingMenu || invalidMeal}
-						>
-							{savingMenu ? "Saving to master…" : "Save to master menu"}
-						</button>
-						{menuStatus?.fingerprint === menuFingerprint && (
-							<span role="status">{menuStatus.message}</span>
-						)}
+						<label>
+							<input
+								type="checkbox"
+								checked={saveMealToMenu}
+								disabled={saving}
+								onChange={(event) => setSaveMealToMenu(event.target.checked)}
+							/>
+							Save to master menu
+						</label>
 					</div>
 					<button type="button" onClick={cancel}>
 						Cancel

@@ -185,3 +185,72 @@
 		font-size: 0.88rem;
 	}
 }
+
+:root[data-theme="dark"] .target-panel,
+:root[data-theme="dark"] .target-disclosure {
+	background: var(--app-surface);
+	border-color: var(--app-line);
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .target-form-grid > label,
+:root[data-theme="dark"] .target-disclosure summary {
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .target-form-grid small,
+:root[data-theme="dark"] .target-help,
+:root[data-theme="dark"] .target-recommendation p,
+:root[data-theme="dark"] .target-disclosure p,
+:root[data-theme="dark"] .target-disclosure li,
+:root[data-theme="dark"] .target-table-wrap caption,
+:root[data-theme="dark"] .target-table-wrap thead th {
+	color: var(--app-muted);
+}
+:root[data-theme="dark"] .target-recommendation {
+	background: color-mix(in srgb, var(--app-purple) 16%, var(--app-surface));
+	border-color: color-mix(in srgb, var(--app-purple) 38%, var(--app-line));
+}
+:root[data-theme="dark"] .target-recommendation strong {
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .target-disclosure a {
+	color: var(--app-purple-dark);
+}
+:root[data-theme="dark"] .target-actions button:not(.secondary),
+:root[data-theme="dark"] .targets-page button:not(.secondary) {
+	background: var(--app-purple);
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .targets-page .pk-number-stepper button {
+	background: var(--app-raised);
+	border-color: var(--app-line);
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .target-actions button.secondary,
+:root[data-theme="dark"] .targets-page button.secondary {
+	background: color-mix(in srgb, var(--app-surface) 76%, var(--app-canvas));
+	border-color: var(--app-line);
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .targets-page input,
+:root[data-theme="dark"] .targets-page select {
+	background: color-mix(in srgb, var(--app-surface) 76%, var(--app-canvas));
+	border-color: var(--app-line);
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .targets-page button:focus-visible,
+:root[data-theme="dark"] .targets-page input:focus-visible,
+:root[data-theme="dark"] .targets-page select:focus-visible,
+:root[data-theme="dark"] .targets-page summary:focus-visible {
+	outline-color: var(--app-purple);
+}
+:root[data-theme="dark"] .target-table-wrap th,
+:root[data-theme="dark"] .target-table-wrap td {
+	border-color: var(--app-line);
+}
+:root[data-theme="dark"] .target-error {
+	color: #ffc0c6;
+}
+:root[data-theme="dark"] .target-advisory {
+	background: #332b1b;
+	color: #f1d89c;
+}

@@ -2452,6 +2452,7 @@ describe("backend API", () => {
 		inconsistentMeal.close();
 		expect(await (await fetch(`${base}/api/data`)).json()).toEqual(before);
 		const legacy = Database.deserialize(bytes);
+		legacy.exec("DROP TABLE agenda_items; DROP TABLE calendars;");
 		const menu = legacy.query("SELECT data FROM saved_menus WHERE id = 'workbook-r-nasi-telur-miso'").get() as { data: string };
 		const { slot: _slot, ...legacyMenu } = JSON.parse(menu.data);
 		legacy.query("UPDATE saved_menus SET data = ? WHERE id = ?").run(JSON.stringify(legacyMenu), legacyMenu.id);
@@ -2596,5 +2597,69 @@ describe("backend API", () => {
 		expect(stored.weekendReserve).toBeCloseTo(7.84);
 		migrated.close();
 		rmSync(directory, { recursive: true, force: true });
+	});
+
+	test("supports recurring personal agendas, imported read-only calendars, visibility, and legacy JSON restore", async () => {
+		const item = { id: "weekly", calendarId: "personal", title: "Yoga", start: "2026-10-12T09:00:00.000Z", end: "2026-10-12T10:00:00.000Z", allDay: false, recurrenceRule: "FREQ=WEEKLY;COUNT=3" };
+		const created = await fetch(`${base}/api/agendas`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(item) });
+		expect(created.status).toBe(201);
+		const changed = await fetch(`${base}/api/agendas/weekly`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ scope: "occurrence", recurrenceId: item.start, changes: { title: "Yoga class" } }) });
+		expect(changed.status).toBe(200);
+		const cancelled = await fetch(`${base}/api/agendas/weekly`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ scope: "occurrence", recurrenceId: "2026-10-26T09:00:00.000Z" }) });
+		expect(cancelled.status).toBe(200);
+		const occurrences = await fetch(`${base}/api/calendar/occurrences?start=2026-10-12&end=2026-11-02`).then((r) => r.json()) as { occurrences: any[] };
+		expect(occurrences.occurrences.map((event) => event.title)).toEqual(["Yoga class", "Yoga"]);
+		expect(occurrences.occurrences[0]).toMatchObject({ recurrenceId: item.start, recurring: true, calendarId: "personal" });
+		const dstItem = { id: "dst-weekly", calendarId: "personal", title: "Morning run", start: "2026-10-26T13:00:00.000Z", end: "2026-10-26T14:00:00.000Z", allDay: false, timeZone: "America/New_York", recurrenceRule: "FREQ=WEEKLY;COUNT=3" };
+		expect((await fetch(`${base}/api/agendas`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(dstItem) })).status).toBe(201);
+		const dstOccurrences = await fetch(`${base}/api/calendar/occurrences?start=2026-10-26&end=2026-11-09`).then((r) => r.json()) as { occurrences: any[] };
+		expect(dstOccurrences.occurrences.filter((event) => event.id === dstItem.id).map((event) => event.start)).toEqual(["2026-10-26T13:00:00.000Z", "2026-11-02T14:00:00.000Z", "2026-11-09T14:00:00.000Z"]);
+		const rdateItem = { id: "rdate-only", calendarId: "personal", title: "Extra reminder", start: "2026-10-12T08:00:00.000Z", end: "2026-10-12T08:30:00.000Z", allDay: false, recurrenceDates: ["2026-10-14T08:00:00.000Z"] };
+		expect((await fetch(`${base}/api/agendas`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(rdateItem) })).status).toBe(201);
+		const rdateOccurrences = await fetch(`${base}/api/calendar/occurrences?start=2026-10-12&end=2026-10-14`).then((r) => r.json()) as { occurrences: any[] };
+		expect(rdateOccurrences.occurrences.filter((event) => event.id === rdateItem.id && event.recurring)).toHaveLength(2);
+
+		const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-WR-CALNAME:Holiday list\r\nBEGIN:VTIMEZONE\r\nTZID:Custom/Eastern\r\nBEGIN:DAYLIGHT\r\nDTSTART:20070311T020000\r\nRRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU\r\nTZOFFSETFROM:-0500\r\nTZOFFSETTO:-0400\r\nTZNAME:EDT\r\nEND:DAYLIGHT\r\nBEGIN:STANDARD\r\nDTSTART:20071104T020000\r\nRRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU\r\nTZOFFSETFROM:-0400\r\nTZOFFSETTO:-0500\r\nTZNAME:EST\r\nEND:STANDARD\r\nEND:VTIMEZONE\r\nBEGIN:VEVENT\r\nUID:one@example.test\r\nDTSTART;VALUE=DATE:20261031\r\nDTEND;VALUE=DATE:20261101\r\nSUMMARY:Holiday\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:repeat@example.test\r\nDTSTART:20261012T120000Z\r\nDTEND:20261012T130000Z\r\nRRULE:FREQ=DAILY;COUNT=3\r\nEXDATE:20261013T120000Z\r\nRDATE:20261015T120000Z\r\nSUMMARY:Reminder\r\nEND:VEVENT\r\nBEGIN:VEVENT\r\nUID:custom-zone@example.test\r\nDTSTART;TZID=Custom/Eastern:20260222T090000\r\nDTEND;TZID=Custom/Eastern:20260222T100000\r\nRRULE:FREQ=WEEKLY;COUNT=3\r\nSUMMARY:Sunday meeting\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+		const imported = await fetch(`${base}/api/calendars/import`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fileName: "holidays.ics", ics }) });
+		expect(imported.status).toBe(201);
+		const importedCalendar = await imported.json() as any;
+		expect(importedCalendar).toMatchObject({ name: "Holiday list", kind: "ics", sourceFileName: "holidays.ics", visible: true });
+		expect(importedCalendar.timeZones["Custom/Eastern"]).toEqual(expect.any(String));
+		const importedOccurrences = await fetch(`${base}/api/calendar/occurrences?start=2026-10-12&end=2026-10-16`).then((r) => r.json()) as { occurrences: any[] };
+		expect(importedOccurrences.occurrences.filter((event) => event.calendarId === importedCalendar.id).map((event) => event.start)).toEqual(["2026-10-12T12:00:00.000Z", "2026-10-14T12:00:00.000Z", "2026-10-15T12:00:00.000Z"]);
+		const holiday = await fetch(`${base}/api/calendar/occurrences?start=2026-10-31&end=2026-10-31`).then((r) => r.json()) as { occurrences: any[] };
+		expect(holiday.occurrences.filter((event) => event.calendarId === importedCalendar.id)).toMatchObject([{ title: "Holiday", start: "2026-10-31", end: "2026-11-01", allDay: true }]);
+		const persistedDatabase = Database.deserialize(db.serialize());
+		const restartedServer = createApp(persistedDatabase).listen(0);
+		await new Promise<void>((resolve) => restartedServer.once("listening", resolve));
+		try {
+			const address = restartedServer.address();
+			if (!address || typeof address === "string") throw new Error("restart test server did not bind a TCP port");
+			const customZone = await fetch(`http://127.0.0.1:${address.port}/api/calendar/occurrences?start=2026-02-22&end=2026-03-08`).then((r) => r.json()) as { occurrences: any[] };
+			expect(customZone.occurrences.filter((event) => event.title === "Sunday meeting").map((event) => event.start)).toEqual(["2026-02-22T14:00:00.000Z", "2026-03-01T14:00:00.000Z", "2026-03-08T13:00:00.000Z"]);
+		} finally {
+			await new Promise<void>((resolve, reject) => restartedServer.close((error) => error ? reject(error) : resolve()));
+			persistedDatabase.close();
+		}
+		const readOnly = await fetch(`${base}/api/agendas/${((await (await fetch(`${base}/api/data`)).json()) as AppData).agendaItems.find((x) => x.sourceUid === "one@example.test")!.id}`, { method: "DELETE" });
+		expect(readOnly.status).toBe(403);
+		const hidden = await fetch(`${base}/api/calendars/${importedCalendar.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ visible: false }) });
+		expect(hidden.status).toBe(200);
+		const hiddenOccurrences = await fetch(`${base}/api/calendar/occurrences?start=2026-10-12&end=2026-11-02`).then((r) => r.json()) as { occurrences: any[] };
+		expect(hiddenOccurrences.occurrences.every((event) => event.calendarId !== importedCalendar.id)).toBe(true);
+		const invalidImport = await fetch(`${base}/api/calendars/import`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fileName: "bad.ics", ics: "not an iCalendar file" }) });
+		expect(invalidImport.status).toBe(400);
+		const oversizedImport = await fetch(`${base}/api/calendars/import`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ fileName: "large.ics", ics: "x".repeat(10 * 1024 * 1024 + 1) }) });
+		expect(oversizedImport.status).toBe(413);
+		expect(((await (await fetch(`${base}/api/data`)).json()) as AppData).calendars).toHaveLength(2);
+
+		const current = await (await fetch(`${base}/api/backup.json`)).json() as AppData;
+		const { calendars: _calendars, agendaItems: _agendaItems, ...legacy } = current;
+		const restore = await fetch(`${base}/api/restore`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(legacy) });
+		expect(restore.status).toBe(200);
+		const restored = await (await fetch(`${base}/api/data`)).json() as AppData;
+		expect(restored.calendars).toHaveLength(1);
+		expect(restored.calendars[0].id).toBe("personal");
+		expect(restored.agendaItems).toEqual([]);
 	});
 });

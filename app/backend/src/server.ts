@@ -3,6 +3,8 @@ import { existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import type {
 	AppData,
+	AgendaItem,
+	CalendarSource,
 	Ingredient,
 	MealSlot,
 	MemberId,
@@ -20,6 +22,7 @@ import express, {
 	type Request,
 	type Response,
 } from "express";
+import ICAL from "ical.js";
 import {
 	ingredientAliases,
 	rateLimit,
@@ -866,7 +869,11 @@ export function createDatabase(
     CREATE TABLE IF NOT EXISTS scheduled_meals (id TEXT PRIMARY KEY, date TEXT NOT NULL, slot TEXT NOT NULL, member_id TEXT NOT NULL DEFAULT '', data TEXT NOT NULL);
     CREATE UNIQUE INDEX IF NOT EXISTS scheduled_slot ON scheduled_meals(date, slot, member_id);
     CREATE TABLE IF NOT EXISTS targets (member_id TEXT NOT NULL, week_start TEXT NOT NULL, data TEXT NOT NULL, PRIMARY KEY(member_id, week_start));
+    CREATE TABLE IF NOT EXISTS calendars (id TEXT PRIMARY KEY, data TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS agenda_items (id TEXT PRIMARY KEY, calendar_id TEXT NOT NULL, data TEXT NOT NULL);
   `);
+	if (!db.query("SELECT 1 FROM calendars WHERE id = 'personal'").get())
+		put(db, "calendars", "personal", { id: "personal", name: "Personal", color: "#4f7cff", visible: true, kind: "personal" } satisfies CalendarSource);
 	if (seed && !db.query("SELECT 1 FROM members LIMIT 1").get())
 		seedDatabase(db);
 	migrateIngredientSnapshots(db);
@@ -960,16 +967,18 @@ function seedDatabase(db: Database) {
 
 function put(
 	db: Database,
-	table: "members" | "ingredients" | "saved_menus" | "targets",
+	table: "members" | "ingredients" | "saved_menus" | "targets" | "calendars" | "agenda_items",
 	id: string,
 	value: unknown,
 	memberId?: string,
 	weekStart?: string,
 ) {
-	if (table === "targets")
+	if (table === "agenda_items")
+		db.query("INSERT OR REPLACE INTO agenda_items(id, calendar_id, data) VALUES (?, ?, ?)").run(id, (value as AgendaItem).calendarId, JSON.stringify(value));
+	else if (table === "targets")
 		db.query(
 			"INSERT OR REPLACE INTO targets(member_id, week_start, data) VALUES (?, ?, ?)",
-		).run(memberId, weekStart, JSON.stringify(value));
+		).run(memberId ?? "", weekStart ?? "", JSON.stringify(value));
 	else
 		db.query(`INSERT OR REPLACE INTO ${table}(id, data) VALUES (?, ?)`).run(
 			id,
@@ -994,7 +1003,9 @@ function rows<T>(
 		| "ingredients"
 		| "saved_menus"
 		| "scheduled_meals"
-		| "targets",
+		| "targets"
+		| "calendars"
+		| "agenda_items",
 ): T[] {
 	return db
 		.query(
@@ -1016,6 +1027,8 @@ function dataFromDb(db: Database): AppData {
 		savedMenus,
 		scheduledMeals: rows<ScheduledMeal>(db, "scheduled_meals"),
 		targets: rows<WeeklyTarget>(db, "targets"),
+		calendars: rows<CalendarSource>(db, "calendars"),
+		agendaItems: rows<AgendaItem>(db, "agenda_items"),
 	};
 }
 
@@ -1144,10 +1157,12 @@ function validAppData(x: any): x is AppData {
 		!Array.isArray(x.ingredients) ||
 		!Array.isArray(x.savedMenus) ||
 		!Array.isArray(x.scheduledMeals) ||
-		!Array.isArray(x.targets)
+		!Array.isArray(x.targets) ||
+		!Array.isArray(x.calendars) ||
+		!Array.isArray(x.agendaItems)
 	)
 		return false;
-	const ingredientIds = new Set(x.ingredients.map((i: any) => i?.id));
+	const ingredientIds = new Set<string>(x.ingredients.map((i: any) => i?.id as string));
 	if (
 		x.members.length !== 2 ||
 		x.members.some(
@@ -1195,8 +1210,144 @@ function validAppData(x: any): x is AppData {
 	const targetKeys = x.targets.map((t: any) => `${t.memberId}|${t.weekStart}`);
 	return (
 		x.targets.every((t: any) => validTarget(t)) &&
-		new Set(targetKeys).size === targetKeys.length
+		new Set(targetKeys).size === targetKeys.length &&
+		x.calendars.length > 0 &&
+		x.calendars.every((c: any) => c && typeof c.id === "string" && !!c.id && typeof c.name === "string" && !!c.name.trim() && typeof c.color === "string" && /^#[\da-f]{6}$/i.test(c.color) && typeof c.visible === "boolean" && ["personal", "ics"].includes(c.kind) && (c.kind !== "ics" || typeof c.sourceFileName === "string") && (c.timeZones === undefined || (!!c.timeZones && typeof c.timeZones === "object" && Object.values(c.timeZones).every((definition: any) => typeof definition === "string")))) &&
+		new Set(x.calendars.map((c: CalendarSource) => c.id)).size === x.calendars.length &&
+		x.calendars.some((c: CalendarSource) => c.id === "personal" && c.kind === "personal") &&
+		x.agendaItems.every((a: any) => validAgendaItem(a, new Set(x.calendars.map((c: CalendarSource) => c.id)))) &&
+		new Set(x.agendaItems.map((a: AgendaItem) => a.id)).size === x.agendaItems.length
 	);
+}
+
+const validAgendaDateTime = (value: unknown, allDay: boolean) => allDay
+	? validDate(value)
+	: typeof value === "string" && /^\d{4}-\d\d-\d\dT/.test(value) && !Number.isNaN(Date.parse(value));
+function validAgendaItem(a: any, calendarIds: Set<string>): a is AgendaItem {
+	if (!a || typeof a !== "object" || typeof a.id !== "string" || !a.id || !calendarIds.has(a.calendarId) || typeof a.title !== "string" || !a.title.trim() || a.title.length > 300 || typeof a.allDay !== "boolean" || !validAgendaDateTime(a.start, a.allDay) || !validAgendaDateTime(a.end, a.allDay) || (a.allDay ? a.end <= a.start : Date.parse(a.end) <= Date.parse(a.start)) || (a.timeZone !== undefined && typeof a.timeZone !== "string") || (a.recurrenceRule !== undefined && typeof a.recurrenceRule !== "string") || (a.recurrenceDates !== undefined && (!Array.isArray(a.recurrenceDates) || a.recurrenceDates.some((d: any) => !validAgendaDateTime(d, a.allDay)))) || (a.excludedDates !== undefined && (!Array.isArray(a.excludedDates) || a.excludedDates.some((d: any) => !validAgendaDateTime(d, a.allDay)))) || (a.exceptions !== undefined && (!a.exceptions || typeof a.exceptions !== "object"))) return false;
+	try { if (a.recurrenceRule) ICAL.Recur.fromString(a.recurrenceRule); } catch { return false; }
+	if (a.exceptions) for (const [rid, ex] of Object.entries(a.exceptions) as [string, any][]) {
+		const allDay = ex?.allDay ?? a.allDay;
+		const occurrenceStart = ex?.start ?? a.start;
+		const occurrenceEnd = ex?.end ?? a.end;
+		if (!validAgendaDateTime(rid, a.allDay) || !ex || typeof ex !== "object" || (ex.cancel !== undefined && ex.cancel !== true) || (ex.cancel !== true && Object.keys(ex).length === 0) || (ex.title !== undefined && typeof ex.title !== "string") || (ex.start !== undefined && !validAgendaDateTime(ex.start, allDay)) || (ex.end !== undefined && !validAgendaDateTime(ex.end, allDay)) || (ex.allDay !== undefined && typeof ex.allDay !== "boolean") || (ex.timeZone !== undefined && typeof ex.timeZone !== "string") || (allDay ? occurrenceEnd <= occurrenceStart : Date.parse(occurrenceEnd) <= Date.parse(occurrenceStart))) return false;
+	}
+	return true;
+}
+
+function importIcs(text: string, fileName: string, id: string, color: string) {
+	const root = new ICAL.Component(ICAL.parse(text));
+	const timezoneComponents = root.getAllSubcomponents("vtimezone");
+	for (const component of timezoneComponents) {
+		const zone = new ICAL.Timezone(component);
+		ICAL.TimezoneService.register(zone, zone.tzid);
+	}
+	const name = root.getFirstPropertyValue("x-wr-calname")?.toString().trim();
+	const timeZones = Object.fromEntries(timezoneComponents.map((component: any) => [component.getFirstPropertyValue("tzid")?.toString(), JSON.stringify(component.toJSON())]).filter(([tzid]) => !!tzid));
+	const calendars: CalendarSource = { id, name: name || fileName, color, visible: true, kind: "ics", sourceFileName: fileName, ...(Object.keys(timeZones).length ? { timeZones } : {}) };
+	const components = root.getAllSubcomponents("vevent");
+	if (!components.length) throw new Error("iCalendar file contains no events");
+	const items: AgendaItem[] = [];
+	const exceptions: Array<{ uid: string; rid: string; value: any }> = [];
+	for (const component of components) {
+		const event = new ICAL.Event(component);
+		const value = (time: any) => time.isDate ? time.toString() : time.toJSDate().toISOString();
+		const start = value(event.startDate);
+		const end = value(event.endDate);
+		if (event.isRecurrenceException()) {
+			const cancelled = component.getFirstPropertyValue("status")?.toString().toUpperCase() === "CANCELLED";
+			exceptions.push({ uid: event.uid, rid: value(component.getFirstPropertyValue("recurrence-id")), value: cancelled ? { cancel: true } : { title: event.summary, start, end, allDay: event.startDate.isDate, timeZone: event.startDate.zone?.tzid } });
+			continue;
+		}
+		const rule = component.getFirstPropertyValue("rrule")?.toString();
+		const recurrenceDates = component.getAllProperties("rdate").flatMap((p: any) => p.getValues().map((x: any) => x.startDate ? value(x.startDate) : value(x)));
+		const excludedDates = component.getAllProperties("exdate").flatMap((p: any) => p.getValues().map((x: any) => value(x)));
+		items.push({ id: crypto.randomUUID(), calendarId: id, title: event.summary || "Untitled event", start, end, allDay: event.startDate.isDate, timeZone: event.startDate.zone?.tzid, recurrenceRule: rule || undefined, recurrenceDates: recurrenceDates.length ? recurrenceDates : undefined, excludedDates: excludedDates.length ? excludedDates : undefined, sourceUid: event.uid, exceptions: {} });
+	}
+	for (const exception of exceptions) {
+		const master = items.find((item) => item.sourceUid === exception.uid);
+		if (master) master.exceptions![exception.rid] = exception.value;
+	}
+	if (!items.length) throw new Error("iCalendar file contains no master events");
+	return { calendar: calendars, items };
+}
+
+function calendarOccurrences(db: Database, start: string, end: string) {
+	const calendars = rows<CalendarSource>(db, "calendars").filter((calendar) => calendar.visible);
+	const calendarById = new Map(calendars.map((calendar) => [calendar.id, calendar]));
+	const lower = new Date(`${start}T00:00:00.000Z`);
+	const upper = new Date(`${end}T23:59:59.999Z`);
+	const occurrences: any[] = [];
+	for (const item of rows<AgendaItem>(db, "agenda_items")) {
+		const calendar = calendarById.get(item.calendarId);
+		if (!calendar) continue;
+		const baseStart = item.allDay ? new Date(`${item.start}T00:00:00Z`) : new Date(item.start);
+		const duration = item.allDay ? (Date.parse(`${item.end}T00:00:00Z`) - baseStart.getTime()) : Date.parse(item.end) - baseStart.getTime();
+		const push = (recurrenceId: string, date: Date) => {
+			if (item.excludedDates?.includes(recurrenceId)) return;
+			const exception = item.exceptions?.[recurrenceId];
+			if (exception?.cancel) return;
+			const startValue = exception?.start ?? (item.allDay ? date.toISOString().slice(0, 10) : date.toISOString());
+			const endValue = exception?.end ?? (item.allDay ? new Date(date.getTime() + duration).toISOString().slice(0, 10) : new Date(date.getTime() + duration).toISOString());
+			const visibleStart = item.allDay ? new Date(`${startValue}T00:00:00Z`) : new Date(startValue);
+			const visibleEnd = item.allDay ? new Date(`${endValue}T00:00:00Z`) : new Date(endValue);
+			if (visibleStart <= upper && (item.allDay ? visibleEnd > lower : visibleEnd >= lower)) occurrences.push({ id: item.id, calendarId: item.calendarId, title: exception?.title ?? item.title, start: startValue, end: endValue, allDay: exception?.allDay ?? item.allDay, timeZone: exception?.timeZone ?? item.timeZone, recurrenceId, recurring: !!item.recurrenceRule || !!item.recurrenceDates?.length, calendarName: calendar.name, color: calendar.color });
+		};
+		const ids = new Set<string>();
+		if (baseStart <= upper && new Date(baseStart.getTime() + duration) >= lower) { const rid = item.start; ids.add(rid); push(rid, baseStart); }
+		if (item.recurrenceRule) {
+			const definition = item.timeZone ? calendar.timeZones?.[item.timeZone] : undefined;
+			const zone = definition ? new ICAL.Timezone(new ICAL.Component(JSON.parse(definition))) : null;
+			const parts = item.timeZone && !item.allDay && !zone ? zonedTimeParts(baseStart, item.timeZone) : null;
+			const dtstart = parts ? ICAL.Time.fromData({ ...parts, isDate: false }, ICAL.Timezone.utcTimezone) : ICAL.Time.fromJSDate(baseStart, true);
+			if (zone) ICAL.Timezone.convert_time(dtstart, ICAL.Timezone.utcTimezone, zone);
+			const iterator = new ICAL.RecurIterator({ rule: ICAL.Recur.fromString(item.recurrenceRule), dtstart });
+			for (let count = 0; count < 20000; count++) {
+				const next = iterator.next();
+				if (!next) break;
+				const wallDate = next.toJSDate();
+				const date = zone ? new Date(wallDate.getTime() - zone.utcOffset(next) * 1000) : item.timeZone && parts ? wallTimeToInstant(wallDate, item.timeZone) : wallDate;
+				if (!date) continue;
+				if (date > upper) break;
+				const rid = item.allDay ? next.toString() : date.toISOString();
+				if (!ids.has(rid)) { ids.add(rid); push(rid, date); }
+			}
+		}
+		for (const dateValue of item.recurrenceDates ?? []) {
+			const date = item.allDay ? new Date(`${dateValue}T00:00:00Z`) : new Date(dateValue);
+			if (!ids.has(dateValue) && date <= upper && new Date(date.getTime() + duration) >= lower) { ids.add(dateValue); push(dateValue, date); }
+		}
+	}
+	return occurrences.sort((a, b) => a.start.localeCompare(b.start));
+}
+
+function zonedTimeParts(date: Date, timeZone: string) {
+	let parts: Intl.DateTimeFormatPart[];
+	try { parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(date); }
+	catch { parts = new Intl.DateTimeFormat("en-CA", { timeZone: "UTC", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(date); }
+	const values = Object.fromEntries(parts.map((part) => [part.type, Number(part.value)]));
+	return { year: values.year, month: values.month, day: values.day, hour: values.hour, minute: values.minute, second: values.second };
+}
+
+function wallTimeToInstant(wallDate: Date, timeZone: string) {
+	const target = { year: wallDate.getUTCFullYear(), month: wallDate.getUTCMonth() + 1, day: wallDate.getUTCDate(), hour: wallDate.getUTCHours(), minute: wallDate.getUTCMinutes(), second: wallDate.getUTCSeconds() };
+	const wallTimestamp = wallDate.getTime();
+	let candidate = wallTimestamp;
+	for (let index = 0; index < 3; index++) {
+		const local = zonedTimeParts(new Date(candidate), timeZone);
+		const localTimestamp = Date.UTC(local.year, local.month - 1, local.day, local.hour, local.minute, local.second);
+		candidate += wallTimestamp - localTimestamp;
+	}
+	const resolved = zonedTimeParts(new Date(candidate), timeZone);
+	return Object.keys(target).every((key) => target[key as keyof typeof target] === resolved[key as keyof typeof resolved]) ? new Date(candidate) : null;
+}
+
+function extraCalendarColor(index: number) {
+	const hue = (index * 137.508) % 360;
+	const chroma = 0.72;
+	const x = chroma * (1 - Math.abs(((hue / 60) % 2) - 1));
+	const [r, g, b] = hue < 60 ? [chroma, x, 0] : hue < 120 ? [x, chroma, 0] : hue < 180 ? [0, chroma, x] : hue < 240 ? [0, x, chroma] : hue < 300 ? [x, 0, chroma] : [chroma, 0, x];
+	return `#${[r, g, b].map((value) => Math.round((value + 0.12) * 255).toString(16).padStart(2, "0")).join("")}`;
 }
 function validTarget(t: any): t is WeeklyTarget {
 	return (
@@ -1363,7 +1514,7 @@ function targetForRequest(
 function replaceData(db: Database, data: AppData, normalizeTargets = true) {
 	db.transaction(() => {
 		db.exec(
-			"DELETE FROM scheduled_meals; DELETE FROM saved_menus; DELETE FROM ingredients; DELETE FROM targets; DELETE FROM members;",
+			"DELETE FROM agenda_items; DELETE FROM calendars; DELETE FROM scheduled_meals; DELETE FROM saved_menus; DELETE FROM ingredients; DELETE FROM targets; DELETE FROM members;",
 		);
 		data.members.forEach((x) => put(db, "members", x.id, x));
 		data.ingredients.forEach((x) => put(db, "ingredients", x.id, x));
@@ -1384,6 +1535,8 @@ function replaceData(db: Database, data: AppData, normalizeTargets = true) {
 				target.weekStart,
 			);
 		});
+		data.calendars.forEach((x) => put(db, "calendars", x.id, x));
+		data.agendaItems.forEach((x) => put(db, "agenda_items", x.id, x));
 	})();
 }
 
@@ -1394,11 +1547,14 @@ function validateSQLiteBackup(bytes: Uint8Array): AppData {
 		const schema = (database: Database) => database
 			.query("SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name")
 			.all() as { type: string; name: string; sql: string }[];
-		const normalizeSchema = (rows: ReturnType<typeof schema>) =>
+			const normalizeSchema = (rows: ReturnType<typeof schema>) =>
 			rows.map((x) => `${x.type}|${x.name}|${x.sql.toLowerCase().replace(/\s+/g, " ").trim()}`).join("\n");
 		let sameSchema: boolean;
 		try {
-			sameSchema = normalizeSchema(schema(backup)) === normalizeSchema(schema(reference));
+			const backupSchema = schema(backup);
+			const referenceSchema = schema(reference);
+			const backupHasCalendarSchema = backupSchema.some((row) => row.name === "calendars");
+			sameSchema = normalizeSchema(backupSchema) === normalizeSchema(referenceSchema) || (!backupHasCalendarSchema && normalizeSchema(backupSchema) === normalizeSchema(referenceSchema.filter((row) => !["calendars", "agenda_items"].includes(row.name))));
 		} finally {
 			reference.close();
 		}
@@ -1407,6 +1563,7 @@ function validateSQLiteBackup(bytes: Uint8Array): AppData {
 			throw new Error("SQLite backup failed its integrity check");
 		if ((backup.query("PRAGMA foreign_key_check").all() as unknown[]).length)
 			throw new Error("SQLite backup contains invalid foreign keys");
+		const hasCalendarTables = (backup.query("SELECT name FROM sqlite_master WHERE type='table' AND name='calendars'").get() !== null);
 		const data: AppData = {
 			members: rows<MemberProfile>(backup, "members"),
 			ingredients: rows<Ingredient>(backup, "ingredients"),
@@ -1416,12 +1573,16 @@ function validateSQLiteBackup(bytes: Uint8Array): AppData {
 			})),
 			scheduledMeals: rows<ScheduledMeal>(backup, "scheduled_meals"),
 			targets: rows<WeeklyTarget>(backup, "targets"),
+			calendars: hasCalendarTables ? rows<CalendarSource>(backup, "calendars") : [{ id: "personal", name: "Personal", color: "#4f7cff", visible: true, kind: "personal" }],
+			agendaItems: hasCalendarTables ? rows<AgendaItem>(backup, "agenda_items") : [],
 		};
 		const rowsWithIds = [
 			...backup.query("SELECT id, data FROM members").all() as { id: string; data: string }[],
 			...backup.query("SELECT id, data FROM ingredients").all() as { id: string; data: string }[],
 			...backup.query("SELECT id, data FROM saved_menus").all() as { id: string; data: string }[],
 			...backup.query("SELECT id, data FROM scheduled_meals").all() as { id: string; data: string }[],
+			...(hasCalendarTables ? backup.query("SELECT id, data FROM calendars").all() as { id: string; data: string }[] : []),
+			...(hasCalendarTables ? backup.query("SELECT id, data FROM agenda_items").all() as { id: string; data: string }[] : []),
 		];
 		if (rowsWithIds.some(({ id, data: json }) => id !== JSON.parse(json).id))
 			throw new Error("SQLite backup data is invalid");
@@ -1442,7 +1603,7 @@ function validateSQLiteBackup(bytes: Uint8Array): AppData {
 
 export function createApp(db = createDatabase()) {
 	const app = express();
-	app.use(express.json({ limit: "10mb" }));
+	app.use(express.json({ limit: "21mb" }));
 	const fail = (res: Response, error: unknown, status = 400) =>
 		res.status(status).json({
 			error:
@@ -1453,7 +1614,7 @@ export function createApp(db = createDatabase()) {
 						: "request failed",
 		});
 	const existing = <_T>(
-		table: "scheduled_meals" | "saved_menus" | "ingredients",
+		table: "scheduled_meals" | "saved_menus" | "ingredients" | "agenda_items",
 		id: string,
 	) =>
 		db.query(`SELECT data FROM ${table} WHERE id = ?`).get(id) as {
@@ -1471,6 +1632,84 @@ export function createApp(db = createDatabase()) {
 		});
 	});
 	app.get("/api/data", (_req, res) => res.json(dataFromDb(db)));
+	app.post("/api/calendars/import", (req, res) => {
+		const { fileName, ics } = req.body ?? {};
+		if (typeof fileName !== "string" || !fileName.trim() || fileName.length > 255 || typeof ics !== "string" || !ics.trim()) return fail(res, "fileName and iCalendar text are required");
+		if (Buffer.byteLength(ics, "utf8") > 10 * 1024 * 1024) return fail(res, "iCalendar file exceeds the 10 MB limit", 413);
+		try {
+			const colors = ["#ef4444", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6", "#eab308", "#06b6d4", "#84cc16", "#a855f7", "#0f766e"];
+			const used = new Set(rows<CalendarSource>(db, "calendars").map((calendar) => calendar.color.toLowerCase()));
+			let color = colors.find((candidate) => !used.has(candidate));
+			let colorIndex = rows<CalendarSource>(db, "calendars").length;
+			while (!color) {
+				const generated = extraCalendarColor(colorIndex++);
+				if (!used.has(generated)) color = generated;
+			}
+			const id = crypto.randomUUID();
+			const imported = importIcs(ics, fileName.trim(), id, color);
+			const calendarIds = new Set([...rows<CalendarSource>(db, "calendars").map((x) => x.id), id]);
+			if (imported.items.some((item) => !validAgendaItem(item, calendarIds))) throw new Error("iCalendar contains invalid event data");
+			db.transaction(() => { put(db, "calendars", id, imported.calendar); imported.items.forEach((item) => put(db, "agenda_items", item.id, item)); })();
+			return res.status(201).json(imported.calendar);
+		} catch (e) { return fail(res, e); }
+	});
+	app.patch("/api/calendars/:id", (req, res) => {
+		const calendar = rows<CalendarSource>(db, "calendars").find((x) => x.id === req.params.id);
+		if (!calendar) return fail(res, "calendar not found", 404);
+		if (typeof req.body?.visible !== "boolean") return fail(res, "visible must be a boolean");
+		calendar.visible = req.body.visible;
+		put(db, "calendars", calendar.id, calendar);
+		return res.json(calendar);
+	});
+	app.delete("/api/calendars/:id", (req, res) => {
+		const calendar = rows<CalendarSource>(db, "calendars").find((x) => x.id === req.params.id);
+		if (!calendar) return fail(res, "calendar not found", 404);
+		if (calendar.kind !== "ics") return fail(res, "Personal calendar cannot be deleted", 403);
+		db.transaction(() => { db.query("DELETE FROM agenda_items WHERE calendar_id = ?").run(calendar.id); db.query("DELETE FROM calendars WHERE id = ?").run(calendar.id); })();
+		return res.json({ ok: true });
+	});
+	app.post("/api/agendas", (req, res) => {
+		const item = req.body;
+		if (!validAgendaItem(item, new Set(["personal"]))) return fail(res, "invalid agenda item");
+		if (existing("agenda_items", item.id)) return fail(res, "agenda id already exists", 409);
+		put(db, "agenda_items", item.id, item);
+		return res.status(201).json(item);
+	});
+	app.put("/api/agendas/:id", (req, res) => {
+		const stored = rows<AgendaItem>(db, "agenda_items").find((x) => x.id === req.params.id);
+		if (!stored) return fail(res, "agenda item not found", 404);
+		if (stored.calendarId !== "personal") return fail(res, "imported calendar events are read-only", 403);
+		if (req.body?.scope === "occurrence") {
+			const recurrenceId = req.body.recurrenceId;
+			const changes = req.body.changes;
+			if (!stored.recurrenceRule || !validAgendaDateTime(recurrenceId, stored.allDay) || !changes || typeof changes !== "object") return fail(res, "invalid occurrence update");
+			const updated = { ...stored, exceptions: { ...(stored.exceptions ?? {}), [recurrenceId]: { ...changes } } };
+			if (!validAgendaItem(updated, new Set(["personal"]))) return fail(res, "invalid occurrence update");
+			put(db, "agenda_items", stored.id, updated);
+			return res.json(updated);
+		}
+		const item = req.body;
+		if (!validAgendaItem(item, new Set(["personal"])) || item.id !== stored.id) return fail(res, "invalid agenda item");
+		put(db, "agenda_items", item.id, item);
+		return res.json(item);
+	});
+	app.delete("/api/agendas/:id", (req, res) => {
+		const stored = rows<AgendaItem>(db, "agenda_items").find((x) => x.id === req.params.id);
+		if (!stored) return fail(res, "agenda item not found", 404);
+		if (stored.calendarId !== "personal") return fail(res, "imported calendar events are read-only", 403);
+		if (req.body?.scope === "occurrence") {
+			const recurrenceId = req.body.recurrenceId;
+			if (!stored.recurrenceRule || !validAgendaDateTime(recurrenceId, stored.allDay)) return fail(res, "invalid occurrence deletion");
+			stored.exceptions = { ...(stored.exceptions ?? {}), [recurrenceId]: { cancel: true } };
+			put(db, "agenda_items", stored.id, stored);
+		} else db.query("DELETE FROM agenda_items WHERE id = ?").run(stored.id);
+		return res.json({ ok: true });
+	});
+	app.get("/api/calendar/occurrences", (req, res) => {
+		const { start, end } = req.query;
+		if (!validDate(start) || !validDate(end) || (start as string) > (end as string)) return fail(res, "start and end must be valid ordered dates");
+		try { return res.json({ occurrences: calendarOccurrences(db, start as string, end as string) }); } catch (e) { return fail(res, e); }
+	});
 	app.get("/api/ai/status", (_req, res) =>
 		res.json({
 			recommendations: Boolean(
@@ -1956,7 +2195,7 @@ export function createApp(db = createDatabase()) {
 		}
 	});
 	app.post("/api/meals/save", async (req, res) => {
-		const { meal, menu, exists: update } = req.body ?? {};
+		const { meal, menu, menuExists = false, exists: update } = req.body ?? {};
 		const companions = req.body?.companions ?? [];
 		const pendingIngredients: Ingredient[] = [];
 		const currentIngredients = rows<Ingredient>(db, "ingredients");
@@ -2059,7 +2298,11 @@ export function createApp(db = createDatabase()) {
 			return fail(res, "meal id already exists", 409);
 		if (menu !== undefined && !validMenu(menu, ids))
 			return fail(res, "invalid saved menu");
-		if (menu && existing("saved_menus", menu.id))
+		if (menu !== undefined && typeof menuExists !== "boolean")
+			return fail(res, "invalid saved menu update flag");
+		if (menu && menuExists && !existing("saved_menus", menu.id))
+			return fail(res, "saved menu not found", 404);
+		if (menu && !menuExists && existing("saved_menus", menu.id))
 			return fail(res, "saved menu id already exists", 409);
 		try {
 			const availableIngredients = [...currentIngredients, ...pendingIngredients];
@@ -2350,15 +2593,13 @@ export function createApp(db = createDatabase()) {
 			.send(JSON.stringify(dataFromDb(db), null, 2)),
 	);
 	app.post("/api/restore", (req, res) => {
-		const value = Array.isArray(req.body?.savedMenus)
-			? {
-					...req.body,
-					savedMenus: req.body.savedMenus.map((menu: any) => ({
-						...menu,
-						slot: menu.slot ?? "lunch",
-					})),
-				}
-			: req.body;
+		const raw = req.body;
+		const value = raw && typeof raw === "object" ? {
+			...raw,
+			calendars: raw.calendars ?? [{ id: "personal", name: "Personal", color: "#4f7cff", visible: true, kind: "personal" }],
+			agendaItems: raw.agendaItems ?? [],
+			savedMenus: Array.isArray(raw.savedMenus) ? raw.savedMenus.map((menu: any) => ({ ...menu, slot: menu.slot ?? "lunch" })) : raw.savedMenus,
+		} : raw;
 		if (!validAppData(value)) return fail(res, "backup data is invalid");
 		try {
 			replaceData(db, value);

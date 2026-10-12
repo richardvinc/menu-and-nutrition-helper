@@ -9,13 +9,14 @@ import type {
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import { Dashboard } from "./features/dashboard/Dashboard";
+import { Calendar } from "./features/calendar/Calendar";
 import { ScheduledMealEditor } from "./features/editor/ScheduledMealEditor";
 import { Library } from "./features/library";
 import { Targets } from "./features/targets";
 import { WeeklyPlanner } from "./features/week/WeeklyPlanner";
 import { type AppTheme, toggleTheme } from "./theme";
 
-type Page = "today" | "week" | "library" | "targets";
+type Page = "today" | "week" | "calendar" | "library" | "targets";
 type EditorState = {
 	meal?: ScheduledMeal;
 	date: string;
@@ -114,6 +115,7 @@ export function App() {
 	const navigation: { id: Page; label: string }[] = [
 		{ id: "today", label: "Today" },
 		{ id: "week", label: "Week" },
+		{ id: "calendar", label: "Calendar" },
 		{ id: "library", label: "Library" },
 		{ id: "targets", label: "Targets" },
 	];
@@ -173,6 +175,8 @@ export function App() {
 					run(() => api.swapDays(firstDate, secondDate))
 				}
 			/>
+		) : page === "calendar" ? (
+			<Calendar data={data} onReload={reload} />
 		) : page === "library" ? (
 			<Library
 				menus={data.savedMenus}
@@ -277,14 +281,14 @@ export function App() {
 					slot={editor.slot}
 					memberId={editor.memberId}
 					onCancel={() => setEditor(null)}
-					onSaveMenu={(menu, exists) => run(() => api.saveMenu(menu, exists))}
 					onSaveMenus={(menus, pendingIngredients) => run(() => api.saveRecommendedMenus(menus, pendingIngredients))}
-					onSave={async (meal, saveMenu, pendingIngredients, companions) => {
+					onSave={async (meal, saveMenu, menu, pendingIngredients, companions) => {
 						await run(() =>
 							api.saveMealAndMenu(
 								meal,
 								Boolean(editor.meal),
 								Boolean(saveMenu),
+								menu,
 								pendingIngredients ?? [],
 								companions ?? [],
 							),

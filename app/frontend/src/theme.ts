@@ -5,7 +5,7 @@ export function applyTheme(theme: AppTheme) {
 	document.documentElement.style.colorScheme = theme;
 	document
 		.querySelector('meta[name="theme-color"]')
-		?.setAttribute("content", theme === "dark" ? "#13121e" : "#eef1f8");
+		?.setAttribute("content", theme === "dark" ? "#101214" : "#eef1f8");
 	return theme;
 }
 

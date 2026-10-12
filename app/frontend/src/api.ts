@@ -1,5 +1,7 @@
 import type {
 	AppData,
+	AgendaItem,
+	CalendarSource,
 	Ingredient,
 	Nutrition,
 	SavedMenu,
@@ -7,6 +9,20 @@ import type {
 	TargetPreview,
 	TargetPreviewRequest,
 } from "@piring-kita/shared";
+
+export interface CalendarOccurrence {
+	id: string;
+	calendarId: string;
+	title: string;
+	start: string;
+	end: string;
+	allDay: boolean;
+	timeZone?: string;
+	recurrenceId?: string;
+	recurring: boolean;
+	calendarName: string;
+	color: string;
+}
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
 	const response = await fetch(url, {
@@ -28,6 +44,43 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 export const api = {
 	config: () => request<{ dashboardRefreshIntervalMs: number }>("/api/config"),
 	data: () => request<AppData>("/api/data"),
+	calendarOccurrences: (start: string, end: string) =>
+		request<{ occurrences: CalendarOccurrence[] }>(
+			`/api/calendar/occurrences?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+		),
+	saveAgenda: (item: AgendaItem, exists: boolean) =>
+		request<AgendaItem>(`/api/agendas${exists ? `/${item.id}` : ""}`, {
+			method: exists ? "PUT" : "POST",
+			body: JSON.stringify(item),
+		}),
+	updateAgendaOccurrence: (
+		id: string,
+		recurrenceId: string,
+		changes: Partial<Pick<AgendaItem, "title" | "start" | "end" | "allDay" | "timeZone">>,
+	) =>
+		request<AgendaItem>(`/api/agendas/${id}`, {
+			method: "PUT",
+			body: JSON.stringify({ scope: "occurrence", recurrenceId, changes }),
+		}),
+	deleteAgenda: (id: string, recurrenceId?: string) =>
+		request<void>(`/api/agendas/${id}`, {
+			method: "DELETE",
+			...(recurrenceId
+				? { body: JSON.stringify({ scope: "occurrence", recurrenceId }) }
+				: {}),
+		}),
+	importCalendar: async (file: File) =>
+		request<CalendarSource>("/api/calendars/import", {
+			method: "POST",
+			body: JSON.stringify({ fileName: file.name, ics: await file.text() }),
+		}),
+	setCalendarVisibility: (id: string, visible: boolean) =>
+		request<CalendarSource>(`/api/calendars/${id}`, {
+			method: "PATCH",
+			body: JSON.stringify({ visible }),
+		}),
+	removeCalendar: (id: string) =>
+		request<void>(`/api/calendars/${id}`, { method: "DELETE" }),
 	restoreDatabase: (file: File) =>
 		fetch("/api/database.sqlite", {
 			method: "POST",
@@ -52,6 +105,7 @@ export const api = {
 		meal: ScheduledMeal,
 		exists: boolean,
 		saveMenu: boolean,
+		menu: { menu: SavedMenu; exists: boolean } | undefined,
 		pendingIngredients: Ingredient[],
 		companions: ScheduledMeal[] = [],
 	) =>
@@ -62,15 +116,18 @@ export const api = {
 				exists,
 				pendingIngredients,
 				companions,
-				menu: saveMenu
-					? {
-							id: `ai-menu-${Date.now()}`,
-							name: meal.name,
-							slot: meal.slot,
-							...(meal.memberId ? { memberId: meal.memberId } : {}),
-							ingredients: meal.ingredients,
-						}
-					: undefined,
+				menu:
+					menu?.menu ??
+					(saveMenu
+						? {
+								id: `ai-menu-${Date.now()}`,
+								name: meal.name,
+								slot: meal.slot,
+								...(meal.memberId ? { memberId: meal.memberId } : {}),
+								ingredients: meal.ingredients,
+							}
+						: undefined),
+				menuExists: menu?.exists ?? false,
 			}),
 		}),
 	deleteMeal: (id: string) =>

@@ -74,12 +74,39 @@ export interface WeeklyTarget {
 	macroGrams: Pick<Nutrition, "protein" | "carbs" | "fat">;
 }
 
+export interface CalendarSource {
+	id: string;
+	name: string;
+	color: string;
+	visible: boolean;
+	kind: "personal" | "ics";
+	sourceFileName?: string;
+	timeZones?: Record<string, string>;
+}
+
+export interface AgendaItem {
+	id: string;
+	calendarId: string;
+	title: string;
+	start: string;
+	end: string;
+	allDay: boolean;
+	timeZone?: string;
+	recurrenceRule?: string;
+	recurrenceDates?: string[];
+	excludedDates?: string[];
+	exceptions?: Record<string, { cancel?: true; title?: string; start?: string; end?: string; allDay?: boolean; timeZone?: string }>;
+	sourceUid?: string;
+}
+
 export interface AppData {
 	members: MemberProfile[];
 	ingredients: Ingredient[];
 	savedMenus: SavedMenu[];
 	scheduledMeals: ScheduledMeal[];
 	targets: WeeklyTarget[];
+	calendars: CalendarSource[];
+	agendaItems: AgendaItem[];
 }
 
 export interface TargetPreviewRequest {

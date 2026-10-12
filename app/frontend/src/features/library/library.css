@@ -399,3 +399,66 @@
 		padding-inline: 4px;
 	}
 }
+
+:root[data-theme="dark"] .library-backup,
+:root[data-theme="dark"] .library-page .library-tabs button,
+:root[data-theme="dark"] .library-editor,
+:root[data-theme="dark"] .library-card,
+:root[data-theme="dark"] .library-page button.secondary {
+	background: var(--app-surface);
+	color: var(--app-ink);
+	border-color: var(--app-line);
+}
+:root[data-theme="dark"] .library-page .library-tabs {
+	border-color: var(--app-line);
+}
+:root[data-theme="dark"] .library-page .library-tabs button[aria-selected="true"],
+:root[data-theme="dark"] .library-page button:not(.secondary):not(.danger):not([aria-selected]) {
+	background: var(--app-purple);
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .library-page .library-tabs button[aria-selected="false"] {
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .library-toolbar label,
+:root[data-theme="dark"] .library-editor label,
+:root[data-theme="dark"] .library-editor legend {
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .library-page input,
+:root[data-theme="dark"] .library-page select {
+	background: color-mix(in srgb, var(--app-surface) 76%, var(--app-canvas));
+	border-color: var(--app-line);
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .library-page button:focus-visible,
+:root[data-theme="dark"] .library-page input:focus-visible,
+:root[data-theme="dark"] .library-page select:focus-visible,
+:root[data-theme="dark"] .library-backup .button:focus-visible {
+	outline-color: var(--app-purple);
+}
+:root[data-theme="dark"] .library-page button.danger,
+:root[data-theme="dark"] .library-row button.danger {
+	background: color-mix(in srgb, #c85a67 18%, var(--app-surface));
+	border-color: color-mix(in srgb, #c85a67 42%, var(--app-line));
+	color: #ffc0c6;
+}
+:root[data-theme="dark"] .library-card p,
+:root[data-theme="dark"] .library-card ul,
+:root[data-theme="dark"] .feature-hint,
+:root[data-theme="dark"] .usda-matches p,
+:root[data-theme="dark"] .library-backup p {
+	color: var(--app-muted);
+}
+:root[data-theme="dark"] .library-card__badge {
+	background: var(--app-raised);
+	color: var(--app-muted);
+}
+:root[data-theme="dark"] .library-card.is-editing {
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-purple) 25%, transparent), var(--app-shadow);
+}
+:root[data-theme="dark"] .feature-error {
+	background: #382329;
+	border-color: #75414a;
+	color: #ffc0c6;
+}

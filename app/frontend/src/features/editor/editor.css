@@ -415,14 +415,25 @@
 	gap: 10px;
 	margin-right: auto;
 }
-.pk-editor__master button {
-	border-color: #b9cbbf;
+.pk-editor__master label {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 44px;
 	color: var(--green);
+	font-size: 12px;
 	font-weight: 700;
+	cursor: pointer;
 }
-.pk-editor__master span {
-	color: var(--green);
-	font-size: 11px;
+.pk-editor__master input[type="checkbox"] {
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	accent-color: var(--green);
+}
+.pk-editor__master input[type="checkbox"]:disabled {
+	cursor: not-allowed;
+	opacity: 0.5;
 }
 .pk-editor__footer button[type="submit"] {
 	border-color: var(--green);
@@ -918,8 +929,5 @@
 	.pk-editor__master {
 		width: 100%;
 		margin-right: 0;
-	}
-	.pk-editor__master button {
-		flex: 0 1 auto;
 	}
 }

@@ -223,11 +223,23 @@ test("dark theme applies the nighttime surface palette", async ({ page }) => {
 	await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 	await expect(page.locator("body")).toHaveCSS(
 		"background-color",
-		"rgb(19, 18, 30)",
+		"rgb(16, 18, 20)",
 	);
 	await expect(page.locator(".app-header")).toHaveCSS(
 		"background-color",
-		"rgba(33, 31, 48, 0.96)",
+		"rgba(27, 30, 32, 0.96)",
+	);
+	await expect(page.locator(".theme-toggle")).toHaveCSS(
+		"background-color",
+		"rgb(37, 41, 44)",
+	);
+	await expect(page.locator(".theme-toggle")).toHaveCSS(
+		"color",
+		"rgb(242, 244, 245)",
+	);
+	await expect(page.locator(".app-brand small")).toHaveCSS(
+		"color",
+		"rgb(173, 179, 183)",
 	);
 });
 

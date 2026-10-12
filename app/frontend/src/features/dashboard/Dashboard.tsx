@@ -4,11 +4,13 @@ import type {
 	Nutrition,
 	ScheduledMeal,
 } from "@piring-kita/shared";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import { api, type CalendarOccurrence } from "../../api";
 import "./dashboard.css";
 
 type DashboardData = Pick<
 	AppData,
-	"members" | "ingredients" | "scheduledMeals"
+	"members" | "ingredients" | "scheduledMeals" | "calendars"
 >;
 
 export interface DashboardProps {
@@ -19,6 +21,23 @@ export interface DashboardProps {
 
 const dayKey = (date: Date) =>
 	`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const monthCalendar = (today: Date) => {
+	const first = new Date(today.getFullYear(), today.getMonth(), 1, 12);
+	first.setDate(first.getDate() - first.getDay());
+	return Array.from({ length: 42 }, (_, index) => {
+		const day = new Date(first);
+		day.setDate(first.getDate() + index);
+		return day;
+	});
+};
+const agendaOnDate = (event: CalendarOccurrence, date: string) => {
+	if (event.allDay)
+		return date >= event.start.slice(0, 10) && date < event.end.slice(0, 10);
+	const start = new Date(`${date}T00:00:00`);
+	const end = new Date(start);
+	end.setDate(end.getDate() + 1);
+	return new Date(event.start) < end && new Date(event.end) > start;
+};
 const mondayOf = (date: Date) => {
 	const monday = new Date(date);
 	monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
@@ -47,7 +66,7 @@ const weeklyEntries = (meals: ScheduledMeal[]) =>
 			),
 		},
 		{
-			label: "DINNER",
+			label: "[Dinner]",
 			meals: meals.filter((meal) => meal.slot === "dinner"),
 		},
 	].filter((entry) => entry.meals.length > 0);
@@ -95,11 +114,13 @@ function dinnerIngredientRows(
 	meal: ScheduledMeal,
 	ingredients: Map<string, Ingredient>,
 ) {
-	return ([
-		{ label: "[R]", memberId: "richard" },
-		{ label: "[M]", memberId: "michelle" },
-		{ label: "[Shared]", memberId: undefined },
-	] as const).flatMap((group) => {
+	return (
+		[
+			{ label: "[R]", memberId: "richard" },
+			{ label: "[M]", memberId: "michelle" },
+			{ label: "[Shared]", memberId: undefined },
+		] as const
+	).flatMap((group) => {
 		const rows = meal.ingredients
 			.map((row, index) => ({ row, index }))
 			.filter(({ row }) => row.memberId === group.memberId);
@@ -114,6 +135,140 @@ function dinnerIngredientRows(
 				]
 			: [];
 	});
+}
+
+function DashboardCalendar({
+	today,
+	calendars,
+}: {
+	today: Date;
+	calendars: DashboardData["calendars"];
+}) {
+	const days = useMemo(
+		() => monthCalendar(today),
+		[today.getFullYear(), today.getMonth()],
+	);
+	const start = dayKey(days[0]);
+	const end = dayKey(days[days.length - 1]);
+	const [events, setEvents] = useState<CalendarOccurrence[]>([]);
+	const visibleEvents = events.filter(
+		(event) =>
+			calendars.find((calendar) => calendar.id === event.calendarId)?.visible,
+	);
+	useEffect(() => {
+		let active = true;
+		api
+			.calendarOccurrences(start, end)
+			.then(({ occurrences }) => {
+				if (active) setEvents(occurrences);
+			})
+			.catch(() => undefined);
+		return () => {
+			active = false;
+		};
+	}, [start, end, calendars]);
+	const eventsFor = (date: string) =>
+		visibleEvents.filter((event) => agendaOnDate(event, date));
+	const todayEvents = eventsFor(dayKey(today)).sort((a, b) =>
+		a.start.localeCompare(b.start),
+	);
+	return (
+		<section
+			className="pk-panel pk-dashboard-calendar"
+			aria-labelledby="pk-dashboard-calendar-heading"
+		>
+			<div className="pk-panel__heading">
+				<div>
+					<p className="pk-eyebrow">PLAN AHEAD</p>
+					<h2 id="pk-dashboard-calendar-heading">
+						{today.toLocaleDateString(undefined, {
+							month: "long",
+							year: "numeric",
+						})}
+					</h2>
+				</div>
+			</div>
+			<div className="pk-dashboard-calendar__weekdays">
+				{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+					<span key={day}>{day}</span>
+				))}
+			</div>
+			<div className="pk-dashboard-calendar__grid">
+				{days.map((day) => {
+					const key = dayKey(day);
+					const dayEvents = eventsFor(key);
+					return (
+						<div
+							className={`pk-dashboard-calendar__day${day.getMonth() === today.getMonth() ? "" : " is-outside"}${key === dayKey(today) ? " is-today" : ""}`}
+							key={key}
+							aria-label={`${day.toLocaleDateString(undefined, { month: "long", day: "numeric" })}${dayEvents.length ? `, ${dayEvents.length} agendas` : ""}`}
+						>
+							<strong>{day.getDate()}</strong>
+							<div>
+								{dayEvents.slice(0, 3).map((event) => (
+									<span
+										className="pk-dashboard-calendar__event"
+										key={`${event.id}-${event.recurrenceId ?? event.start}`}
+										style={{ "--event-color": event.color } as CSSProperties}
+										title={event.title}
+									>
+										{event.recurring && <b aria-label="Repeating">↻ </b>}
+										{event.title}
+									</span>
+								))}
+								{dayEvents.length > 3 && (
+									<small>+{dayEvents.length - 3} more</small>
+								)}
+								{dayEvents.length > 1 && (
+									<small className="pk-dashboard-calendar__portrait-more">
+										+{dayEvents.length - 1} more
+									</small>
+								)}
+							</div>
+						</div>
+					);
+				})}
+			</div>
+			<section className="pk-dashboard-calendar__agenda">
+				<h3>Today’s agenda</h3>
+				{todayEvents.length ? (
+					<ul>
+						{todayEvents.map((event) => (
+							<li
+								className="pk-dashboard-calendar__agenda-item"
+								key={`${event.id}-${event.recurrenceId ?? event.start}`}
+							>
+								<span
+									className="pk-dashboard-calendar__legend"
+									style={{ background: event.color }}
+								/>
+								{!event.allDay && (
+									<time>
+										{new Date(event.start).toLocaleTimeString([], {
+											hour: "numeric",
+											minute: "2-digit",
+										})}
+									</time>
+								)}
+								<strong>
+									{event.title}
+									{event.recurring && <span title="Repeating"> ↻</span>}
+								</strong>
+								<small>{event.calendarName}</small>
+							</li>
+						))}
+						{todayEvents.length > 3 && (
+							<li className="pk-dashboard-calendar__agenda-more">
+								+{todayEvents.length - 3} more
+							</li>
+						)}
+					</ul>
+				) : (
+					<p>No agenda for today.</p>
+				)}
+			</section>
+		</section>
+	);
 }
 
 export function Dashboard({
@@ -228,8 +383,8 @@ export function Dashboard({
 														{card.slot === "dinner"
 															? dinnerIngredientRows(meal, ingredients)
 															: meal.ingredients.map((row, index) =>
-																ingredientRow(row, index, ingredients),
-															)}
+																	ingredientRow(row, index, ingredients),
+																)}
 													</ul>
 												</>
 											) : (
@@ -298,6 +453,7 @@ export function Dashboard({
 					</div>
 				</div>
 			</section>
+			<DashboardCalendar today={today} calendars={data.calendars} />
 		</main>
 	);
 }

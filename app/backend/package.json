@@ -9,7 +9,8 @@
 	},
 	"dependencies": {
 		"@piring-kita/shared": "workspace:*",
-		"express": "latest"
+		"express": "latest",
+		"ical.js": "^2.2.1"
 	},
 	"devDependencies": {
 		"@types/express": "latest"
