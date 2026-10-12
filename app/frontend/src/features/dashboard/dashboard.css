@@ -121,6 +121,32 @@
 	font-size: 18px;
 	line-height: 1.2;
 }
+.pk-dashboard__meal-link {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.pk-dashboard__meal-link:hover {
+	text-decoration: underline;
+}
+.pk-dashboard__meal-link:focus-visible {
+	border-radius: 3px;
+	outline: 2px solid var(--app-purple);
+	outline-offset: 3px;
+}
+.pk-week-summary__grid .pk-dashboard__meal-link {
+	display: block;
+	max-width: 100%;
+	font-size: inherit;
+	font-weight: inherit;
+	line-height: inherit;
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
 .pk-meal-card__nutrition {
 	margin-bottom: 11px;
 	color: var(--muted);

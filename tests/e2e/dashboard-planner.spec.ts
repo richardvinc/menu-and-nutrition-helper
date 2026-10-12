@@ -106,7 +106,7 @@ test.afterAll(async ({ request }) => {
 	for (const meal of testMeals) await request.delete(`/api/meals/${meal.id}`);
 });
 
-test("dashboard shows static today, tomorrow, and weekly meal cards", async ({
+test("dashboard shows today, tomorrow, and weekly meal cards", async ({
 	page,
 }) => {
 	await page.clock.install({ time: new Date(2026, 9, 8, 12) });
@@ -138,7 +138,12 @@ test("dashboard shows static today, tomorrow, and weekly meal cards", async ({
 	).toBeVisible();
 	await expect(page.locator(".pk-day__heading > span")).toHaveCount(0);
 	await expect(page.getByText("Ingredient list")).toHaveCount(0);
-	await expect(page.locator(".pk-dashboard button")).toHaveCount(0);
+	await expect(
+		page
+			.locator(".pk-day")
+			.first()
+			.getByRole("button", { name: "Sesame chicken bowl" }),
+	).toBeVisible();
 	await expect(
 		page.getByRole("heading", { name: "Weekly menu" }),
 	).toBeVisible();

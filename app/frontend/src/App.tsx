@@ -109,6 +109,7 @@ export function App() {
 	const weekDate = today.getDay() === 0 ? addDays(today, 1) : today;
 	const weekStart = dateKey(monday(weekDate));
 	const [plannerWeekStart, setPlannerWeekStart] = useState(weekStart);
+	const [plannerFocusDate, setPlannerFocusDate] = useState(weekStart);
 	const effectiveWeek = dateKey(addDays(monday(today), 7));
 	const navigation: { id: Page; label: string }[] = [
 		{ id: "today", label: "Today" },
@@ -141,11 +142,23 @@ export function App() {
 	) => setEditor({ meal, date, slot, memberId });
 	const content =
 		page === "today" ? (
-			<Dashboard data={data} today={today} />
+			<Dashboard
+				data={data}
+				today={today}
+				onEditMeal={(meal) => {
+					setPlannerWeekStart(
+						dateKey(monday(new Date(`${meal.date}T12:00:00`))),
+					);
+					setPlannerFocusDate(meal.date);
+					setPage("week");
+					openEditor(meal.date, meal.slot, meal.memberId, meal);
+				}}
+			/>
 		) : page === "week" ? (
 			<WeeklyPlanner
 				data={data}
 				weekStart={plannerWeekStart}
+				initialSelectedDate={plannerFocusDate}
 				currentWeekStart={weekStart}
 				onWeekChange={setPlannerWeekStart}
 				onEditMeal={(meal) =>

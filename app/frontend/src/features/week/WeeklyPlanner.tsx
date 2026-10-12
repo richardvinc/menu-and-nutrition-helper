@@ -14,6 +14,7 @@ type PlannerData = Pick<
 export interface WeeklyPlannerProps {
 	data: PlannerData;
 	weekStart: string;
+	initialSelectedDate: string;
 	currentWeekStart: string;
 	onWeekChange: (weekStart: string) => void;
 	onEditMeal: (meal: ScheduledMeal) => void;
@@ -57,6 +58,7 @@ const fmt = (value: number) => Math.round(value).toLocaleString();
 export function WeeklyPlanner({
 	data,
 	weekStart,
+	initialSelectedDate,
 	currentWeekStart,
 	onWeekChange,
 	onEditMeal,
@@ -65,7 +67,7 @@ export function WeeklyPlanner({
 	onDeleteMeal,
 	onSwapDays,
 }: WeeklyPlannerProps) {
-	const [selectedDate, setSelectedDate] = useState(weekStart);
+	const [selectedDate, setSelectedDate] = useState(initialSelectedDate);
 	const [deleting, setDeleting] = useState(false);
 	const [movingMeal, setMovingMeal] = useState<ScheduledMeal | null>(null);
 	const [destinationDate, setDestinationDate] = useState("");
@@ -78,7 +80,14 @@ export function WeeklyPlanner({
 		active: boolean;
 	} | null>(null);
 	const [dropDate, setDropDate] = useState("");
-	useEffect(() => setSelectedDate(weekStart), [weekStart]);
+	useEffect(() => {
+		setSelectedDate(
+			initialSelectedDate >= weekStart &&
+				initialSelectedDate <= addDays(weekStart, 6)
+				? initialSelectedDate
+				: weekStart,
+		);
+	}, [weekStart, initialSelectedDate]);
 	const dates = useMemo(
 		() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
 		[weekStart],

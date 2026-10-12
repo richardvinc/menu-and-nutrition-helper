@@ -14,6 +14,7 @@ type DashboardData = Pick<
 export interface DashboardProps {
 	data: DashboardData;
 	today?: Date;
+	onEditMeal: (meal: ScheduledMeal) => void;
 }
 
 const dayKey = (date: Date) =>
@@ -35,23 +36,21 @@ const weeklyEntries = (meals: ScheduledMeal[]) =>
 	[
 		{
 			label: "[R]",
-			names: meals
-				.filter((meal) => meal.slot === "lunch" && meal.memberId === "richard")
-				.map((meal) => meal.name),
+			meals: meals.filter(
+				(meal) => meal.slot === "lunch" && meal.memberId === "richard",
+			),
 		},
 		{
 			label: "[M]",
-			names: meals
-				.filter((meal) => meal.slot === "lunch" && meal.memberId === "michelle")
-				.map((meal) => meal.name),
+			meals: meals.filter(
+				(meal) => meal.slot === "lunch" && meal.memberId === "michelle",
+			),
 		},
 		{
 			label: "DINNER",
-			names: meals
-				.filter((meal) => meal.slot === "dinner")
-				.map((meal) => meal.name),
+			meals: meals.filter((meal) => meal.slot === "dinner"),
 		},
-	].filter((entry) => entry.names.length > 0);
+	].filter((entry) => entry.meals.length > 0);
 
 function mealNutrition(
 	meal: ScheduledMeal,
@@ -70,7 +69,11 @@ function mealNutrition(
 	}, blankNutrition());
 }
 
-export function Dashboard({ data, today = new Date() }: DashboardProps) {
+export function Dashboard({
+	data,
+	today = new Date(),
+	onEditMeal,
+}: DashboardProps) {
 	const ingredients = new Map(
 		data.ingredients.map((ingredient) => [ingredient.id, ingredient]),
 	);
@@ -153,7 +156,15 @@ export function Dashboard({ data, today = new Date() }: DashboardProps) {
 											<p className="pk-meal-card__label">{card.label}</p>
 											{meal ? (
 												<>
-													<h3>{meal.name}</h3>
+													<h3>
+														<button
+															className="pk-dashboard__meal-link"
+															type="button"
+															onClick={() => onEditMeal(meal)}
+														>
+															{meal.name}
+														</button>
+													</h3>
 													<p className="pk-meal-card__nutrition">
 														{fmt(mealNutrition(meal, ingredients).calories)}{" "}
 														kcal ·{" "}
@@ -229,7 +240,18 @@ export function Dashboard({ data, today = new Date() }: DashboardProps) {
 										{weeklyEntries(meals).map((entry) => (
 											<li key={entry.label}>
 												<small>{entry.label}</small>
-												<span>{entry.names.join(" · ")}</span>
+												<span>
+													{entry.meals.map((meal) => (
+														<button
+															className="pk-dashboard__meal-link"
+															type="button"
+															key={meal.id}
+															onClick={() => onEditMeal(meal)}
+														>
+															{meal.name}
+														</button>
+													))}
+												</span>
 											</li>
 										))}
 									</ul>
