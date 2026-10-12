@@ -197,6 +197,7 @@ function AgendaEditor({
 	);
 	const [saving, setSaving] = useState(false);
 	const item = dialog.series ?? dialog.item;
+	const isNewAgenda = !item && !dialog.occurrence;
 	const canEdit = dialog.occurrence
 		? dialog.occurrence.calendarId === personalId
 		: !item || item.calendarId === personalId;
@@ -205,6 +206,37 @@ function AgendaEditor({
 		key: K,
 		value: EventFormValues[K],
 	) => setValues((current) => ({ ...current, [key]: value }));
+	const updateStart = (start: string) =>
+		setValues((current) => {
+			if (!start) return { ...current, start };
+			if (current.allDay)
+				return {
+					...current,
+					start,
+					end: isNewAgenda || current.end < start ? start : current.end,
+				};
+			if (isNewAgenda) {
+				const endTime = current.end.slice(11) || "10:00";
+				const sameDayEnd = `${start.slice(0, 10)}T${endTime}`;
+				const end =
+					Date.parse(sameDayEnd) > Date.parse(start)
+						? sameDayEnd
+						: toLocalInput(
+								new Date(Date.parse(start) + 60 * 60_000).toISOString(),
+							);
+				return {
+					...current,
+					start,
+					end,
+				};
+			}
+			if (current.end >= start) return { ...current, start };
+			const duration = Date.parse(current.end) - Date.parse(current.start);
+			const end = new Date(
+				Date.parse(start) + (duration > 0 ? duration : 60 * 60_000),
+			);
+			return { ...current, start, end: toLocalInput(end.toISOString()) };
+		});
 	const submit = async (event: FormEvent) => {
 		event.preventDefault();
 		setSaving(true);
@@ -317,7 +349,7 @@ function AgendaEditor({
 									type={values.allDay ? "date" : "datetime-local"}
 									required
 									value={values.start}
-									onChange={(event) => update("start", event.target.value)}
+									onChange={(event) => updateStart(event.target.value)}
 								/>
 							</label>
 							<label>
@@ -325,6 +357,7 @@ function AgendaEditor({
 								<input
 									type={values.allDay ? "date" : "datetime-local"}
 									required
+									min={values.start}
 									value={values.end}
 									onChange={(event) => update("end", event.target.value)}
 								/>

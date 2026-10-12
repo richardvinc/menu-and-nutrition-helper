@@ -169,9 +169,42 @@ function DashboardCalendar({
 	}, [start, end, calendars]);
 	const eventsFor = (date: string) =>
 		visibleEvents.filter((event) => agendaOnDate(event, date));
-	const todayEvents = eventsFor(dayKey(today)).sort((a, b) =>
-		a.start.localeCompare(b.start),
-	);
+	const sortedEventsFor = (date: string) =>
+		eventsFor(date).sort((a, b) => a.start.localeCompare(b.start));
+	const tomorrow = new Date(today);
+	tomorrow.setDate(tomorrow.getDate() + 1);
+	const tomorrowKey = dayKey(tomorrow);
+	const thisWeekStart = mondayOf(today);
+	const thisWeekDays = Array.from({ length: 7 }, (_, offset) => {
+		const day = new Date(thisWeekStart);
+		day.setDate(day.getDate() + offset);
+		return { day, key: dayKey(day) };
+	}).filter(({ key }) => key > tomorrowKey);
+	const agendaItem = (event: CalendarOccurrence, date?: Date) => ({
+		event,
+		date,
+	});
+	const agendaGroups = [
+		{
+			label: "Today",
+			showDate: false,
+			events: sortedEventsFor(dayKey(today)).map((event) => agendaItem(event)),
+		},
+		{
+			label: "Tomorrow",
+			showDate: false,
+			events: sortedEventsFor(dayKey(tomorrow)).map((event) =>
+				agendaItem(event),
+			),
+		},
+		{
+			label: "Later this week",
+			showDate: true,
+			events: thisWeekDays.flatMap(({ day, key }) =>
+				sortedEventsFor(key).map((event) => agendaItem(event, day)),
+			),
+		},
+	];
 	return (
 		<section
 			className="pk-panel pk-dashboard-calendar"
@@ -229,44 +262,57 @@ function DashboardCalendar({
 					);
 				})}
 			</div>
-			<section className="pk-dashboard-calendar__agenda">
-				<h3>Today’s agenda</h3>
-				{todayEvents.length ? (
-					<ul>
-						{todayEvents.map((event) => (
-							<li
-								className="pk-dashboard-calendar__agenda-item"
-								key={`${event.id}-${event.recurrenceId ?? event.start}`}
-							>
-								<span
-									className="pk-dashboard-calendar__legend"
-									style={{ background: event.color }}
-								/>
-								{!event.allDay && (
-									<time>
-										{new Date(event.start).toLocaleTimeString([], {
-											hour: "numeric",
-											minute: "2-digit",
-										})}
-									</time>
-								)}
-								<strong>
-									{event.title}
-									{event.recurring && <span title="Repeating"> ↻</span>}
-								</strong>
-								<small>{event.calendarName}</small>
-							</li>
-						))}
-						{todayEvents.length > 3 && (
-							<li className="pk-dashboard-calendar__agenda-more">
-								+{todayEvents.length - 3} more
-							</li>
+			<div className="pk-dashboard-calendar__agenda">
+				{agendaGroups.map((group) => (
+					<section
+						className="pk-dashboard-calendar__agenda-group"
+						key={group.label}
+					>
+						<h3>{group.label}</h3>
+						{group.events.length ? (
+							<ul>
+								{group.events.map(({ event, date }) => (
+									<li
+										className="pk-dashboard-calendar__agenda-item"
+										key={`${event.id}-${event.recurrenceId ?? event.start}-${date ? dayKey(date) : ""}`}
+									>
+										<span
+											className="pk-dashboard-calendar__legend"
+											style={{ background: event.color }}
+										/>
+										{group.showDate && date ? (
+											<span className="pk-dashboard-calendar__agenda-date">
+												{date.toLocaleDateString(undefined, { weekday: "short" })}
+												{!event.allDay &&
+													` · ${new Date(event.start).toLocaleTimeString([], {
+														hour: "numeric",
+														minute: "2-digit",
+													})}`}
+											</span>
+										) : (
+											!event.allDay && (
+												<time dateTime={event.start}>
+													{new Date(event.start).toLocaleTimeString([], {
+														hour: "numeric",
+														minute: "2-digit",
+													})}
+												</time>
+											)
+										)}
+										<strong>
+											{event.title}
+											{event.recurring && <span title="Repeating"> ↻</span>}
+										</strong>
+										<small>{event.calendarName}</small>
+									</li>
+								))}
+							</ul>
+						) : (
+							<p>No events.</p>
 						)}
-					</ul>
-				) : (
-					<p>No agenda for today.</p>
-				)}
-			</section>
+					</section>
+				))}
+			</div>
 		</section>
 	);
 }
@@ -453,7 +499,10 @@ export function Dashboard({
 					</div>
 				</div>
 			</section>
-			<DashboardCalendar today={today} calendars={data.calendars} />
+			<DashboardCalendar
+				today={today}
+				calendars={data.calendars}
+			/>
 		</main>
 	);
 }

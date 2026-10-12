@@ -448,17 +448,15 @@
 	border-radius: 9px;
 	background: var(--app-surface);
 }
-.pk-dashboard-calendar__agenda-more {
-	display: none !important;
-}
 .pk-dashboard-calendar__agenda time,
-.pk-dashboard-calendar__agenda small,
-.pk-dashboard-calendar__agenda > p {
+.pk-dashboard-calendar__agenda small {
 	color: var(--muted);
 	font-size: 12px;
 }
-.pk-dashboard-calendar__agenda > p {
+.pk-dashboard-calendar__agenda-group > p {
 	margin: 0;
+	color: var(--muted);
+	font-size: 12px;
 }
 .pk-dashboard-calendar__legend {
 	width: 10px;
@@ -563,9 +561,6 @@
 		padding: 4px 6px;
 		font-size: 11px;
 	}
-	.pk-dashboard-calendar__agenda-item:nth-child(n + 4) {
-		display: none;
-	}
 	.pk-dashboard-calendar__agenda-item strong {
 		min-width: 0;
 		overflow: hidden;
@@ -577,13 +572,6 @@
 		display: none;
 	}
 	.pk-dashboard-calendar__agenda time {
-		font-size: 10px;
-		white-space: nowrap;
-	}
-	.pk-dashboard-calendar__agenda-more {
-		display: grid !important;
-		place-items: center;
-		color: var(--muted);
 		font-size: 10px;
 		white-space: nowrap;
 	}
@@ -727,5 +715,172 @@
 	}
 	.pk-week-summary__grid li span {
 		font-size: 11px;
+	}
+}
+
+@media (min-width: 701px) and (max-width: 1200px) and (min-height: 1600px) and (orientation: portrait) {
+	/* shortcut: long meal or agenda lists can outgrow the viewport; add overflow handling if real data needs it. */
+	.pk-dashboard {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		align-items: start;
+		gap: 36px 16px;
+	}
+	.pk-dashboard__days {
+		grid-column: 1 / -1;
+		gap: 14px;
+	}
+	.pk-day__heading {
+		margin-bottom: 10px;
+	}
+	.pk-day:first-child {
+		padding: 14px;
+		border-radius: 18px;
+	}
+	.pk-day:first-child .pk-day__heading h2 {
+		font-size: 27px;
+	}
+	.pk-day:first-child .pk-day__cards .pk-meal-card {
+		padding: 12px;
+	}
+	.pk-meal-card {
+		padding: 10px;
+		border-radius: 12px;
+	}
+	.pk-day__cards {
+		gap: 14px;
+	}
+	.pk-meal-card__label {
+		margin-bottom: 5px;
+		font-size: 10px;
+	}
+	.pk-meal-card h3 {
+		font-size: 16px;
+	}
+	.pk-meal-card__nutrition {
+		margin-bottom: 6px;
+		font-size: 11px;
+	}
+	.pk-meal-card__notes {
+		margin-bottom: 6px;
+		padding: 5px 7px;
+		font-size: 10px;
+	}
+	.pk-meal-card li {
+		padding: 4px 0;
+		font-size: 11px;
+	}
+	.pk-meal-card li strong {
+		font-size: 10px;
+	}
+	.pk-meal-card__empty {
+		min-height: 64px;
+	}
+	.pk-week-summary {
+		grid-column: 1;
+		margin-top: 0;
+		padding: 8px;
+	}
+	.pk-week-summary .pk-panel__heading {
+		margin-bottom: 4px;
+	}
+	.pk-week-summary__grid > section {
+		display: grid;
+		grid-template-columns: 54px minmax(0, 1fr);
+		align-items: center;
+		gap: 5px;
+		padding: 3px 6px;
+		border-radius: 9px;
+	}
+	.pk-week-summary__grid {
+		grid-template-columns: 1fr;
+		gap: 3px;
+	}
+	.pk-week-summary__grid header {
+		margin: 0;
+		font-size: 10px;
+	}
+	.pk-week-summary__grid header strong {
+		width: 21px;
+		height: 21px;
+		font-size: 11px;
+	}
+	.pk-week-summary__grid ul {
+		grid-column: 2;
+	}
+	.pk-week-summary__grid li {
+		grid-template-columns: 8px 55px minmax(0, 1fr);
+		gap: 4px;
+		padding: 1px 0;
+	}
+	.pk-week-summary__grid li span {
+		font-size: 11px;
+	}
+	.pk-week-summary__grid li small {
+		font-size: 9px;
+	}
+	.pk-week-summary__grid section > p {
+		grid-column: 2;
+		font-size: 10px;
+	}
+	.pk-dashboard-calendar {
+		grid-column: 2;
+		margin-top: 0;
+		padding: 10px;
+	}
+	.pk-dashboard-calendar .pk-panel__heading {
+		margin-bottom: 6px;
+	}
+	.pk-dashboard-calendar__day {
+		min-height: 44px;
+		padding: 3px;
+	}
+	.pk-dashboard-calendar__weekdays {
+		padding-bottom: 4px;
+		font-size: 11px;
+	}
+	.pk-dashboard-calendar__agenda {
+		margin-top: 6px;
+		padding: 7px;
+	}
+	.pk-dashboard-calendar__agenda h3 {
+		margin-bottom: 4px;
+		font-size: 13px;
+	}
+	.pk-dashboard-calendar__agenda ul {
+		grid-template-columns: 1fr;
+		gap: 3px;
+	}
+	.pk-dashboard-calendar__agenda li {
+		min-height: 24px;
+		gap: 4px;
+		padding: 3px 4px;
+	}
+	.pk-dashboard-calendar__agenda-group + .pk-dashboard-calendar__agenda-group {
+		margin-top: 8px;
+		padding-top: 8px;
+		border-top: 1px solid var(--line);
+	}
+	.pk-dashboard-calendar__agenda-group h3 {
+		margin: 0 0 4px;
+		font-size: 12px;
+	}
+	.pk-dashboard-calendar__agenda-group > p {
+		font-size: 10px;
+	}
+	.pk-dashboard-calendar__agenda .pk-dashboard-calendar__agenda-item:nth-child(n + 4) {
+		display: grid;
+	}
+	.pk-dashboard-calendar__agenda .pk-dashboard-calendar__agenda-item {
+		grid-template-columns: 8px auto minmax(0, 1fr) auto;
+	}
+	.pk-dashboard-calendar__agenda .pk-dashboard-calendar__agenda-item small {
+		display: block;
+		font-size: 9px;
+	}
+	.pk-dashboard-calendar__agenda-date {
+		color: var(--muted);
+		font-size: 9px;
+		white-space: nowrap;
 	}
 }
