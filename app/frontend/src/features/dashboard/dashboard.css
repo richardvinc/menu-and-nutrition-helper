@@ -193,6 +193,15 @@
 	font-size: 12px;
 	white-space: nowrap;
 }
+.pk-meal-card li.pk-meal-card__group {
+	justify-content: flex-start;
+	padding-bottom: 4px;
+	border-bottom: 0;
+	color: var(--green);
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.6px;
+}
 .pk-day__cards .pk-meal-card--snack ul {
 	display: flex;
 	flex-wrap: wrap;

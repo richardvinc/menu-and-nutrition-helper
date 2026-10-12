@@ -69,6 +69,53 @@ function mealNutrition(
 	}, blankNutrition());
 }
 
+function ingredientRow(
+	row: ScheduledMeal["ingredients"][number],
+	index: number,
+	ingredients: Map<string, Ingredient>,
+	group = "",
+) {
+	const ingredient = row.ingredient ?? ingredients.get(row.ingredientId);
+	return (
+		<li key={`${group}-${row.ingredientId}-${index}`}>
+			<span>
+				{ingredient?.name ?? "Unknown ingredient"}
+				{ingredient?.unit !== "g" &&
+					ingredient?.equivalentGrams != null &&
+					` · 1 ${ingredient.unit} (${ingredient.equivalentGrams} g)`}
+			</span>
+			<strong>
+				{row.quantity} {ingredient?.unit ?? ""}
+			</strong>
+		</li>
+	);
+}
+
+function dinnerIngredientRows(
+	meal: ScheduledMeal,
+	ingredients: Map<string, Ingredient>,
+) {
+	return ([
+		{ label: "[R]", memberId: "richard" },
+		{ label: "[M]", memberId: "michelle" },
+		{ label: "[Shared]", memberId: undefined },
+	] as const).flatMap((group) => {
+		const rows = meal.ingredients
+			.map((row, index) => ({ row, index }))
+			.filter(({ row }) => row.memberId === group.memberId);
+		return rows.length
+			? [
+					<li className="pk-meal-card__group" key={group.label}>
+						{group.label}
+					</li>,
+					...rows.map(({ row, index }) =>
+						ingredientRow(row, index, ingredients, group.label),
+					),
+				]
+			: [];
+	});
+}
+
 export function Dashboard({
 	data,
 	today = new Date(),
@@ -178,23 +225,11 @@ export function Dashboard({
 														</p>
 													)}
 													<ul>
-														{meal.ingredients.map((row, index) => {
-															const ingredient =
-																row.ingredient ?? ingredients.get(row.ingredientId);
-															return (
-																<li key={`${row.ingredientId}-${index}`}>
-																	<span>
-																		{ingredient?.name ?? "Unknown ingredient"}
-																		{ingredient?.unit !== "g" &&
-																			ingredient?.equivalentGrams != null &&
-																			` · 1 ${ingredient.unit} (${ingredient.equivalentGrams} g)`}
-																	</span>
-																	<strong>
-																		{row.quantity} {ingredient?.unit ?? ""}
-																	</strong>
-																</li>
-															);
-														})}
+														{card.slot === "dinner"
+															? dinnerIngredientRows(meal, ingredients)
+															: meal.ingredients.map((row, index) =>
+																ingredientRow(row, index, ingredients),
+															)}
 													</ul>
 												</>
 											) : (
