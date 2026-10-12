@@ -170,6 +170,9 @@
 	gap: 12px;
 	margin-bottom: 14px;
 }
+.pk-calendar__calendars > header {
+	flex-wrap: wrap;
+}
 .pk-calendar__agenda header h2,
 .pk-calendar__calendars h2 {
 	margin: 0;
@@ -281,6 +284,45 @@
 	height: 100%;
 	opacity: 0;
 	cursor: pointer;
+}
+.pk-calendar__subscribe {
+	display: flex;
+	flex: 1 1 100%;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 7px;
+}
+.pk-calendar__subscribe label {
+	font-size: 12px;
+	font-weight: 700;
+}
+.pk-calendar__subscribe input {
+	flex: 1 1 180px;
+	min-width: 0;
+	min-height: 36px;
+	padding: 0 10px;
+	border: 1px solid var(--app-line);
+	border-radius: 9px;
+	background: var(--app-surface);
+	color: var(--app-ink);
+}
+.pk-calendar__subscribe button {
+	min-height: 36px;
+	padding: 0 11px;
+	border: 1px solid var(--app-purple);
+	border-radius: 9px;
+	background: var(--app-purple);
+	color: white;
+	font-weight: 700;
+}
+.pk-calendar__subscribe button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+.pk-calendar__subscribe small {
+	flex-basis: 100%;
+	color: var(--app-muted);
+	font-size: 11px;
 }
 .pk-calendar__error {
 	margin: 0 0 14px;

@@ -74,6 +74,11 @@ export const api = {
 			method: "POST",
 			body: JSON.stringify({ fileName: file.name, ics: await file.text() }),
 		}),
+	subscribeCalendar: (url: string) =>
+		request<CalendarSource>("/api/calendars/subscribe", {
+			method: "POST",
+			body: JSON.stringify({ url }),
+		}),
 	setCalendarVisibility: (id: string, visible: boolean) =>
 		request<CalendarSource>(`/api/calendars/${id}`, {
 			method: "PATCH",

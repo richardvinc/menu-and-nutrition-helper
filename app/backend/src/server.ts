@@ -1,5 +1,8 @@
 import { Database } from "bun:sqlite";
+import { lookup as dnsLookup } from "node:dns/promises";
+import { request as httpsRequest } from "node:https";
 import { existsSync, mkdirSync } from "node:fs";
+import { isIP } from "node:net";
 import { dirname, resolve } from "node:path";
 import type {
 	AppData,
@@ -1014,7 +1017,12 @@ function rows<T>(
 		.all()
 		.map((row: any) => JSON.parse(row.data));
 }
-function dataFromDb(db: Database): AppData {
+function publicCalendar(calendar: CalendarSource) {
+	const { sourceUrl, ...safe } = calendar;
+	return { ...safe, subscribed: !!sourceUrl };
+}
+
+function dataFromDb(db: Database, includeSubscriptionUrls = false): AppData {
 	const savedMenus = rows<SavedMenu>(db, "saved_menus").map((menu) => ({
 		...menu,
 		slot: menu.slot ?? "lunch",
@@ -1027,7 +1035,7 @@ function dataFromDb(db: Database): AppData {
 		savedMenus,
 		scheduledMeals: rows<ScheduledMeal>(db, "scheduled_meals"),
 		targets: rows<WeeklyTarget>(db, "targets"),
-		calendars: rows<CalendarSource>(db, "calendars"),
+		calendars: rows<CalendarSource>(db, "calendars").map((calendar) => includeSubscriptionUrls ? calendar : publicCalendar(calendar)),
 		agendaItems: rows<AgendaItem>(db, "agenda_items"),
 	};
 }
@@ -1212,7 +1220,7 @@ function validAppData(x: any): x is AppData {
 		x.targets.every((t: any) => validTarget(t)) &&
 		new Set(targetKeys).size === targetKeys.length &&
 		x.calendars.length > 0 &&
-		x.calendars.every((c: any) => c && typeof c.id === "string" && !!c.id && typeof c.name === "string" && !!c.name.trim() && typeof c.color === "string" && /^#[\da-f]{6}$/i.test(c.color) && typeof c.visible === "boolean" && ["personal", "ics"].includes(c.kind) && (c.kind !== "ics" || typeof c.sourceFileName === "string") && (c.timeZones === undefined || (!!c.timeZones && typeof c.timeZones === "object" && Object.values(c.timeZones).every((definition: any) => typeof definition === "string")))) &&
+		x.calendars.every((c: any) => c && typeof c.id === "string" && !!c.id && typeof c.name === "string" && !!c.name.trim() && typeof c.color === "string" && /^#[\da-f]{6}$/i.test(c.color) && typeof c.visible === "boolean" && ["personal", "ics"].includes(c.kind) && (c.kind !== "ics" || typeof c.sourceFileName === "string") && (c.sourceUrl === undefined || (c.kind === "ics" && isCalendarFeedUrl(c.sourceUrl))) && (c.subscribed === undefined || typeof c.subscribed === "boolean") && (c.lastRefreshedAt === undefined || validCalendarTimestamp(c.lastRefreshedAt)) && (c.lastRefreshAttemptAt === undefined || validCalendarTimestamp(c.lastRefreshAttemptAt)) && (c.refreshError === undefined || (typeof c.refreshError === "string" && c.refreshError.length <= 500)) && (c.timeZones === undefined || (!!c.timeZones && typeof c.timeZones === "object" && Object.values(c.timeZones).every((definition: any) => typeof definition === "string")))) &&
 		new Set(x.calendars.map((c: CalendarSource) => c.id)).size === x.calendars.length &&
 		x.calendars.some((c: CalendarSource) => c.id === "personal" && c.kind === "personal") &&
 		x.agendaItems.every((a: any) => validAgendaItem(a, new Set(x.calendars.map((c: CalendarSource) => c.id)))) &&
@@ -1235,7 +1243,150 @@ function validAgendaItem(a: any, calendarIds: Set<string>): a is AgendaItem {
 	return true;
 }
 
-function importIcs(text: string, fileName: string, id: string, color: string) {
+const validCalendarTimestamp = (value: unknown) => typeof value === "string" && !Number.isNaN(Date.parse(value));
+
+function calendarFeedUrl(value: unknown): URL {
+	if (typeof value !== "string" || !value.trim() || value.length > 2048) throw new Error("Enter a valid HTTPS calendar URL.");
+	let url: URL;
+	try { url = new URL(value.trim()); } catch { throw new Error("Enter a valid HTTPS calendar URL."); }
+	if (url.protocol !== "https:" || !url.hostname || url.username || url.password || (url.port && url.port !== "443") || isIP(url.hostname)) throw new Error("Calendar subscriptions require an HTTPS URL on port 443 without credentials or an IP address.");
+	url.hash = "";
+	return url;
+}
+
+function isCalendarFeedUrl(value: unknown) {
+	try { calendarFeedUrl(value); return true; } catch { return false; }
+}
+
+class CalendarFeedError extends Error {
+	constructor(message: string, readonly status = 502) { super(message); }
+}
+
+function publicIpv4(address: string) {
+	const octets = address.split(".").map(Number);
+	if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+	const [a, b, c] = octets;
+	return !(a === 0 || a === 10 || a === 127 || a >= 224 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && (b === 0 && (c === 0 || c === 2) || b === 88 && c === 99 || b === 168)) || (a === 198 && (b === 18 || b === 19 || b === 51 && c === 100)) || (a === 203 && b === 0 && c === 113));
+}
+
+// shortcut: feeds must use HTTPS on port 443 and public IPv4; add pinned IPv6 support if a public feed requires it.
+async function fetchCalendarFeed(value: unknown, redirects = 0): Promise<string> {
+	const url = calendarFeedUrl(value);
+	let addresses: Awaited<ReturnType<typeof dnsLookup>>[];
+	try { addresses = await dnsLookup(url.hostname, { family: 4, all: true, verbatim: true }); }
+	catch { throw new CalendarFeedError("Could not resolve the calendar host."); }
+	if (!addresses.length || addresses.some(({ address }) => !publicIpv4(address))) throw new CalendarFeedError("Calendar URL must resolve only to public IPv4 addresses.", 400);
+	const address = addresses[0];
+	return new Promise((resolve, reject) => {
+		let timeout: ReturnType<typeof setTimeout>;
+		let followingRedirect = false;
+		const request = httpsRequest(url, {
+			family: 4,
+			autoSelectFamily: false,
+			headers: { accept: "text/calendar, application/ics, text/plain;q=0.9, */*;q=0.1", "user-agent": "PiringKita calendar subscription" },
+			lookup: (_hostname, _options, callback) => callback(null, address.address, address.family),
+		}, (response) => {
+			if ([301, 302, 303, 307, 308].includes(response.statusCode ?? 0)) {
+				const location = response.headers.location;
+				if (!location || redirects >= 3) {
+					response.destroy();
+					clearTimeout(timeout);
+					return reject(new CalendarFeedError("Calendar feed redirected too many times or without a location."));
+				}
+				let target: string;
+				try { target = new URL(location, url).toString(); } catch {
+					response.destroy();
+					clearTimeout(timeout);
+					return reject(new CalendarFeedError("Calendar feed returned an invalid redirect."));
+				}
+				followingRedirect = true;
+				response.destroy();
+				clearTimeout(timeout);
+				void fetchCalendarFeed(target, redirects + 1).then(resolve, reject);
+				return;
+			}
+			if (response.statusCode !== 200) {
+				response.destroy();
+				clearTimeout(timeout);
+				return reject(new CalendarFeedError(`Calendar host returned HTTP ${response.statusCode ?? "error"}.`));
+			}
+			response.once("close", () => clearTimeout(timeout));
+			const chunks: Buffer[] = [];
+			let size = 0;
+			response.on("data", (chunk: Buffer | string) => {
+				const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+				size += bytes.length;
+				if (size > 10 * 1024 * 1024) {
+					const error = new CalendarFeedError("iCalendar feed exceeds the 10 MB limit.", 413);
+					response.destroy(error);
+					request.destroy(error);
+					return;
+				}
+				chunks.push(bytes);
+			});
+			response.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+			response.on("error", reject);
+		});
+		timeout = setTimeout(() => request.destroy(new CalendarFeedError("Calendar feed request timed out.")), 15_000);
+		request.on("error", (error) => { clearTimeout(timeout); if (!followingRedirect) reject(error); });
+		request.end();
+	});
+}
+
+function nextCalendarColor(db: Database) {
+	const colors = ["#ef4444", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6", "#eab308", "#06b6d4", "#84cc16", "#a855f7", "#0f766e"];
+	const used = new Set(rows<CalendarSource>(db, "calendars").map((calendar) => calendar.color.toLowerCase()));
+	let color = colors.find((candidate) => !used.has(candidate));
+	let colorIndex = rows<CalendarSource>(db, "calendars").length;
+	while (!color) {
+		const generated = extraCalendarColor(colorIndex++);
+		if (!used.has(generated)) color = generated;
+	}
+	return color;
+}
+
+async function refreshDueCalendars(db: Database) {
+	const now = Date.now();
+	const due = rows<CalendarSource>(db, "calendars").filter((calendar) => {
+		if (!calendar.sourceUrl) return false;
+		const lastAttempt = Date.parse(calendar.lastRefreshAttemptAt ?? calendar.lastRefreshedAt ?? "");
+		const retryAfter = calendar.refreshError ? 60 * 60_000 : 7 * 24 * 60 * 60_000;
+		return !Number.isFinite(lastAttempt) || now - lastAttempt >= retryAfter;
+	});
+	const claimed = due.map((calendar) => {
+		const current = { ...calendar, lastRefreshAttemptAt: new Date(now).toISOString() };
+		put(db, "calendars", calendar.id, current);
+		return current;
+	});
+	await Promise.all(claimed.map(async (calendar) => {
+		try {
+			const ics = await fetchCalendarFeed(calendar.sourceUrl);
+			const imported = importIcs(ics, calendar.sourceFileName ?? "online-calendar.ics", calendar.id, calendar.color, calendar.sourceUrl);
+			const oldByUid = new Map(rows<AgendaItem>(db, "agenda_items").filter((item) => item.calendarId === calendar.id).map((item) => [item.sourceUid, item.id]));
+			const reusedIds = new Set<string>();
+			for (const item of imported.items) {
+				const previousId = item.sourceUid ? oldByUid.get(item.sourceUid) : undefined;
+				if (previousId && !reusedIds.has(previousId)) { item.id = previousId; reusedIds.add(previousId); }
+			}
+			const current = rows<CalendarSource>(db, "calendars").find((item) => item.id === calendar.id);
+			if (!current || current.sourceUrl !== calendar.sourceUrl) return;
+			const refreshed: CalendarSource = { ...current, name: imported.calendar.name, timeZones: imported.calendar.timeZones, lastRefreshedAt: new Date().toISOString() };
+			delete refreshed.refreshError;
+			const calendarIds = new Set(rows<CalendarSource>(db, "calendars").map((item) => item.id));
+			if (imported.items.some((item) => !validAgendaItem(item, calendarIds))) throw new Error("iCalendar contains invalid event data");
+			db.transaction(() => {
+				db.query("DELETE FROM agenda_items WHERE calendar_id = ?").run(calendar.id);
+				put(db, "calendars", refreshed.id, refreshed);
+				imported.items.forEach((item) => put(db, "agenda_items", item.id, item));
+			})();
+		} catch (error) {
+			const current = rows<CalendarSource>(db, "calendars").find((item) => item.id === calendar.id);
+			if (current) put(db, "calendars", calendar.id, { ...current, refreshError: (error instanceof Error ? error.message : "Calendar refresh failed.").slice(0, 500) });
+		}
+	}));
+}
+
+function importIcs(text: string, fileName: string, id: string, color: string, sourceUrl?: string) {
 	const root = new ICAL.Component(ICAL.parse(text));
 	const timezoneComponents = root.getAllSubcomponents("vtimezone");
 	for (const component of timezoneComponents) {
@@ -1244,7 +1395,7 @@ function importIcs(text: string, fileName: string, id: string, color: string) {
 	}
 	const name = root.getFirstPropertyValue("x-wr-calname")?.toString().trim();
 	const timeZones = Object.fromEntries(timezoneComponents.map((component: any) => [component.getFirstPropertyValue("tzid")?.toString(), JSON.stringify(component.toJSON())]).filter(([tzid]) => !!tzid));
-	const calendars: CalendarSource = { id, name: name || fileName, color, visible: true, kind: "ics", sourceFileName: fileName, ...(Object.keys(timeZones).length ? { timeZones } : {}) };
+	const calendars: CalendarSource = { id, name: name || fileName, color, visible: true, kind: "ics", sourceFileName: fileName, ...(sourceUrl ? { sourceUrl } : {}), ...(Object.keys(timeZones).length ? { timeZones } : {}) };
 	const components = root.getAllSubcomponents("vevent");
 	if (!components.length) throw new Error("iCalendar file contains no events");
 	const items: AgendaItem[] = [];
@@ -1631,27 +1782,44 @@ export function createApp(db = createDatabase()) {
 					: 60_000,
 		});
 	});
-	app.get("/api/data", (_req, res) => res.json(dataFromDb(db)));
+	app.get("/api/data", async (_req, res) => {
+		try { await refreshDueCalendars(db); return res.json(dataFromDb(db)); }
+		catch (error) { return fail(res, error); }
+	});
 	app.post("/api/calendars/import", (req, res) => {
 		const { fileName, ics } = req.body ?? {};
 		if (typeof fileName !== "string" || !fileName.trim() || fileName.length > 255 || typeof ics !== "string" || !ics.trim()) return fail(res, "fileName and iCalendar text are required");
 		if (Buffer.byteLength(ics, "utf8") > 10 * 1024 * 1024) return fail(res, "iCalendar file exceeds the 10 MB limit", 413);
 		try {
-			const colors = ["#ef4444", "#8b5cf6", "#ec4899", "#f97316", "#14b8a6", "#eab308", "#06b6d4", "#84cc16", "#a855f7", "#0f766e"];
-			const used = new Set(rows<CalendarSource>(db, "calendars").map((calendar) => calendar.color.toLowerCase()));
-			let color = colors.find((candidate) => !used.has(candidate));
-			let colorIndex = rows<CalendarSource>(db, "calendars").length;
-			while (!color) {
-				const generated = extraCalendarColor(colorIndex++);
-				if (!used.has(generated)) color = generated;
-			}
 			const id = crypto.randomUUID();
-			const imported = importIcs(ics, fileName.trim(), id, color);
+			const imported = importIcs(ics, fileName.trim(), id, nextCalendarColor(db));
 			const calendarIds = new Set([...rows<CalendarSource>(db, "calendars").map((x) => x.id), id]);
 			if (imported.items.some((item) => !validAgendaItem(item, calendarIds))) throw new Error("iCalendar contains invalid event data");
 			db.transaction(() => { put(db, "calendars", id, imported.calendar); imported.items.forEach((item) => put(db, "agenda_items", item.id, item)); })();
-			return res.status(201).json(imported.calendar);
+			return res.status(201).json(publicCalendar(imported.calendar));
 		} catch (e) { return fail(res, e); }
+	});
+	app.post("/api/calendars/subscribe", async (req, res) => {
+		let url: URL;
+		try { url = calendarFeedUrl(req.body?.url); }
+		catch (error) { return fail(res, error); }
+		const ip = req.ip || req.socket.remoteAddress || "unknown";
+		if (!rateLimit(`calendar-subscribe:${ip}`, 5, 60_000)) return fail(res, "Calendar subscription limit reached. Try again in a minute.", 429);
+		try {
+			const ics = await fetchCalendarFeed(url.toString());
+			const id = crypto.randomUUID();
+			const feedName = url.pathname.split("/").filter(Boolean).at(-1) || url.hostname;
+			const imported = importIcs(ics, feedName, id, nextCalendarColor(db), url.toString());
+			const now = new Date().toISOString();
+			imported.calendar.lastRefreshedAt = now;
+			imported.calendar.lastRefreshAttemptAt = now;
+			const calendarIds = new Set([...rows<CalendarSource>(db, "calendars").map((calendar) => calendar.id), id]);
+			if (imported.items.some((item) => !validAgendaItem(item, calendarIds))) throw new Error("iCalendar contains invalid event data");
+			db.transaction(() => { put(db, "calendars", id, imported.calendar); imported.items.forEach((item) => put(db, "agenda_items", item.id, item)); })();
+			return res.status(201).json(publicCalendar(imported.calendar));
+		} catch (error) {
+			return fail(res, error, error instanceof CalendarFeedError ? error.status : 400);
+		}
 	});
 	app.patch("/api/calendars/:id", (req, res) => {
 		const calendar = rows<CalendarSource>(db, "calendars").find((x) => x.id === req.params.id);
@@ -1659,7 +1827,7 @@ export function createApp(db = createDatabase()) {
 		if (typeof req.body?.visible !== "boolean") return fail(res, "visible must be a boolean");
 		calendar.visible = req.body.visible;
 		put(db, "calendars", calendar.id, calendar);
-		return res.json(calendar);
+		return res.json(publicCalendar(calendar));
 	});
 	app.delete("/api/calendars/:id", (req, res) => {
 		const calendar = rows<CalendarSource>(db, "calendars").find((x) => x.id === req.params.id);
@@ -1705,10 +1873,10 @@ export function createApp(db = createDatabase()) {
 		} else db.query("DELETE FROM agenda_items WHERE id = ?").run(stored.id);
 		return res.json({ ok: true });
 	});
-	app.get("/api/calendar/occurrences", (req, res) => {
+	app.get("/api/calendar/occurrences", async (req, res) => {
 		const { start, end } = req.query;
 		if (!validDate(start) || !validDate(end) || (start as string) > (end as string)) return fail(res, "start and end must be valid ordered dates");
-		try { return res.json({ occurrences: calendarOccurrences(db, start as string, end as string) }); } catch (e) { return fail(res, e); }
+		try { await refreshDueCalendars(db); return res.json({ occurrences: calendarOccurrences(db, start as string, end as string) }); } catch (e) { return fail(res, e); }
 	});
 	app.get("/api/ai/status", (_req, res) =>
 		res.json({
@@ -2590,7 +2758,7 @@ export function createApp(db = createDatabase()) {
 		res
 			.type("application/json")
 			.attachment("piring-kita-backup.json")
-			.send(JSON.stringify(dataFromDb(db), null, 2)),
+			.send(JSON.stringify(dataFromDb(db, true), null, 2)),
 	);
 	app.post("/api/restore", (req, res) => {
 		const raw = req.body;

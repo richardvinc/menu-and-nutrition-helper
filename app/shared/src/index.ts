@@ -81,6 +81,11 @@ export interface CalendarSource {
 	visible: boolean;
 	kind: "personal" | "ics";
 	sourceFileName?: string;
+	sourceUrl?: string;
+	subscribed?: boolean;
+	lastRefreshedAt?: string;
+	lastRefreshAttemptAt?: string;
+	refreshError?: string;
 	timeZones?: Record<string, string>;
 }
 

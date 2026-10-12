@@ -545,6 +545,7 @@ export function Calendar({
 	const [dialog, setDialog] = useState<EventDialog | null>(null);
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
+	const [calendarUrl, setCalendarUrl] = useState("");
 	const gridStart = useMemo(() => monthGridStart(month), [month]);
 	const gridDates = useMemo(
 		() =>
@@ -596,6 +597,21 @@ export function Calendar({
 			active = false;
 		};
 	}, [gridDates[0], gridDates[41], data.calendars]);
+	useEffect(() => {
+		const interval = window.setInterval(() => {
+			void api
+				.calendarOccurrences(gridDates[0], gridDates[41])
+				.then(async ({ occurrences: next }) => {
+					setOccurrences(next);
+					setError("");
+					await onReload();
+				})
+				.catch((reason) =>
+					setError(reason instanceof Error ? reason.message : "Could not load calendar events."),
+				);
+		}, 60 * 60 * 1000);
+		return () => window.clearInterval(interval);
+	}, [gridDates[0], gridDates[41], onReload]);
 
 	const refresh = async () => {
 		const { occurrences: next } = await api.calendarOccurrences(
@@ -683,6 +699,11 @@ export function Calendar({
 			return;
 		}
 		await mutate(() => api.importCalendar(file));
+	};
+	const subscribeCalendar = async (event: FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		await mutate(() => api.subscribeCalendar(calendarUrl.trim()));
+		setCalendarUrl("");
 	};
 
 	return (
@@ -868,6 +889,22 @@ export function Calendar({
 									}}
 								/>
 							</label>
+							<form className="pk-calendar__subscribe" onSubmit={(event) => void subscribeCalendar(event).catch(() => {})}>
+								<label htmlFor="calendar-subscription-url">Subscribe by URL</label>
+								<input
+									id="calendar-subscription-url"
+									name="calendarUrl"
+									type="url"
+									value={calendarUrl}
+									required
+									placeholder="https://example.com/calendar.ics"
+									onChange={(event) => setCalendarUrl(event.target.value)}
+								/>
+								<button type="submit" disabled={busy || !calendarUrl.trim()}>
+									Subscribe
+								</button>
+								<small>Subscriptions check for updates weekly.</small>
+							</form>
 						</header>
 						<ul>
 							{data.calendars.map((calendar) => (
@@ -890,6 +927,14 @@ export function Calendar({
 											style={{ background: calendar.color }}
 										/>
 										{calendar.name}
+											{calendar.subscribed && (
+											<small>
+												Subscribed
+												{calendar.refreshError && (
+													<span role="status"> · Update failed: {calendar.refreshError}</span>
+												)}
+											</small>
+										)}
 									</label>
 									{calendar.kind === "ics" && (
 										<button
