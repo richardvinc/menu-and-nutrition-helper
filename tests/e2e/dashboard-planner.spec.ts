@@ -85,6 +85,15 @@ const testMeals = [
 		],
 	},
 	{
+		id: "seed-1008-r-snack",
+		date: "2026-10-08",
+		slot: "snack",
+		memberId: "richard",
+		name: "Apple snack",
+		notes: "",
+		ingredients: [{ ingredientId: "apple", quantity: 1 }],
+	},
+	{
 		id: "seed-1008-m-snack",
 		date: "2026-10-08",
 		slot: "snack",
@@ -106,116 +115,59 @@ test.afterAll(async ({ request }) => {
 	for (const meal of testMeals) await request.delete(`/api/meals/${meal.id}`);
 });
 
-test("dashboard shows today, tomorrow, and weekly meal cards", async ({
+test("dashboard shows Oct 8 meals and opens the meal editor", async ({
 	page,
 }) => {
 	await page.clock.install({ time: new Date(2026, 9, 8, 12) });
 	await page.setViewportSize({ width: 1280, height: 900 });
 	await page.goto("/");
-	await expect(
-		page.getByRole("heading", { name: "Thursday, October 8" }),
-	).toBeVisible();
-	await expect(
-		page.getByRole("heading", { name: "Friday, October 9" }),
-	).toBeVisible();
-	await expect(
-		page.locator(".pk-day").first().locator(".pk-meal-card"),
-	).toHaveCount(5);
-	await expect(
-		page.locator(".pk-day").first().getByText("Richard’s lunch"),
-	).toBeVisible();
-	await expect(
-		page.locator(".pk-day").first().getByText("Michelle’s lunch"),
-	).toBeVisible();
-	await expect(
-		page.locator(".pk-day").first().getByText("Our dinner"),
-	).toBeVisible();
-	await expect(
-		page.locator(".pk-day").first().getByText("Richard’s snack"),
-	).toBeVisible();
-	await expect(
-		page.locator(".pk-day").first().getByText("Michelle’s snack"),
-	).toBeVisible();
-	await expect(page.locator(".pk-day__heading > span")).toHaveCount(0);
-	await expect(page.getByText("Ingredient list")).toHaveCount(0);
-	await expect(
-		page
-			.locator(".pk-day")
-			.first()
-			.getByRole("button", { name: "Sesame chicken bowl" }),
-	).toBeVisible();
-	await expect(
-		page.getByRole("heading", { name: "Weekly menu" }),
-	).toBeVisible();
+	const today = page.locator('.pk-day[aria-labelledby="pk-day-2026-10-08"]');
+	await expect(today).toBeVisible();
+	const columns = today.locator(".pk-day__columns");
+	await expect(columns.locator(":scope > .pk-day__member-card")).toHaveCount(2);
+	const richard = columns.locator(".pk-day__member-card").filter({ hasText: "Richard" });
+	const michelle = columns.locator(".pk-day__member-card").filter({ hasText: "Michelle" });
+	for (const member of [richard, michelle]) {
+		await expect(member.locator(".pk-day__target")).toBeVisible();
+		await expect(member.locator(".pk-day__member-meals .pk-meal-card--lunch")).toHaveCount(1);
+		await expect(member.locator(".pk-day__member-meals .pk-meal-card--snack")).toHaveCount(1);
+		await expect(member.getByRole("progressbar")).toHaveCount(1);
+		await expect(member.locator('.pk-day__target-metric:not(.is-calories) [role="progressbar"]')).toHaveCount(0);
+	}
+	await expect(columns.locator(".pk-day__dinner-column .pk-meal-card")).toHaveCount(1);
+	await expect(columns.getByRole("heading", { name: "Shared Dinner" })).toBeVisible();
+	for (const name of ["Sesame chicken bowl", "Green tofu bowl", "Egg fried rice", "Apple snack", "Banana snack"])
+		await expect(today.getByRole("button", { name })).toBeVisible();
+	await expect(page.getByRole("heading", { name: "Weekly menu" })).toBeVisible();
 	await expect(page.locator(".pk-week-summary__grid > section")).toHaveCount(7);
-	const weekDays = page.locator(".pk-week-summary__grid > section");
-	const firstDay = await weekDays.nth(0).boundingBox();
-	const fourthDay = await weekDays.nth(3).boundingBox();
-	const fifthDay = await weekDays.nth(4).boundingBox();
-	expect(fourthDay?.y).toBe(firstDay?.y);
-	expect(fifthDay && firstDay && fifthDay.y > firstDay.y).toBe(true);
-	await expect(
-		page.locator(".pk-week-summary__grid small", { hasText: "[R]" }).first(),
-	).toBeVisible();
-	await expect(
-		page.locator(".pk-week-summary__grid small", { hasText: "[M]" }).first(),
-	).toBeVisible();
-	await expect(
-		page.locator(".pk-week-summary__grid small", { hasText: /^LUNCH$/ }),
-	).toHaveCount(0);
-	expect(
-		Number.parseFloat(
-			await page
-				.locator(".pk-week-summary__grid li span")
-				.first()
-				.evaluate((element) => getComputedStyle(element).fontSize),
-		),
-	).toBeGreaterThanOrEqual(14);
-	expect(
-		await page
-			.locator(".pk-week-summary__grid li span")
-			.first()
-			.evaluate((element) => getComputedStyle(element).whiteSpace),
-	).not.toBe("nowrap");
-	const firstItem = page.locator(".pk-week-summary__grid li").first();
-	const labelBox = await firstItem.locator("small").boundingBox();
-	const nameBox = await firstItem.locator("span").boundingBox();
-	expect(
-		labelBox && nameBox && nameBox.y - labelBox.y - labelBox.height,
-	).toBeGreaterThanOrEqual(4);
-	expect(
-		await page.evaluate(() => ({
-			width: document.documentElement.scrollWidth <= innerWidth,
-			height: document.documentElement.scrollHeight > innerHeight,
-		})),
-	).toEqual({ width: true, height: true });
+	await page.locator(".pk-week-summary__grid").getByRole("button", { name: "Sesame chicken bowl" }).click();
+	await expect(page.getByRole("heading", { name: "Nutrition in this meal" })).toBeVisible();
 });
 
-test("weekly summary keeps equal day cells and borders its empty grid slot", async ({
+test("weekly summary is a visible seven-day vertical scan at tablet width", async ({
 	page,
 }) => {
+	await page.clock.install({ time: new Date(2026, 9, 8, 12) });
 	await page.setViewportSize({ width: 1174, height: 700 });
 	await page.goto("/");
 	const grid = page.locator(".pk-week-summary__grid");
-	await expect(grid.locator(":scope > section")).toHaveCount(7);
-	const layout = await grid.evaluate((element) => {
-		const days = element.querySelectorAll(":scope > section");
-		const firstDay = days[0];
-		const lastDay = days[6];
-		return {
-			firstWidth: firstDay.getBoundingClientRect().width,
-			lastWidth: lastDay.getBoundingClientRect().width,
-			emptySlotTopBorder: parseFloat(
-				getComputedStyle(element, "::after").borderTopWidth,
-			),
-			emptySlotLeftBorder: parseFloat(
-				getComputedStyle(element, "::after").borderLeftWidth,
-			),
-		};
-	});
-	expect(Math.abs(layout.firstWidth - layout.lastWidth)).toBeLessThanOrEqual(1);
-	expect(layout.emptySlotTopBorder).toBeGreaterThan(0);
-	expect(layout.emptySlotLeftBorder).toBeGreaterThan(0);
+	await grid.scrollIntoViewIfNeeded();
+	const rows = grid.locator(":scope > section");
+	await expect(rows).toHaveCount(7);
+	const rowBounds = await rows.evaluateAll((elements) =>
+		elements.map((element) => {
+			const { x, y, width, bottom } = element.getBoundingClientRect();
+			return { x, y, width, bottom };
+		}),
+	);
+	for (const row of rowBounds) {
+		expect(row.x).toBe(rowBounds[0].x);
+		expect(row.width).toBe(rowBounds[0].width);
+		expect(row.y).toBeLessThan(700);
+		expect(row.bottom).toBeLessThanOrEqual(700);
+	}
+	for (let index = 1; index < rowBounds.length; index++)
+		expect(rowBounds[index].y).toBeGreaterThan(rowBounds[index - 1].y);
 });
 
 test("dark theme applies the nighttime surface palette", async ({ page }) => {
@@ -394,6 +346,37 @@ test("weekly day progress includes snacks and shared dinner portions", async ({
 	await expect(progress).toContainText(/Calories 751 \/ [\d,]+ kcal/);
 	await expect(progress).toContainText(/Protein 66 \/ [\d,]+ g/);
 	await expect(progress).toContainText(/Fiber \d+ \/ [\d,]+ g/);
+});
+
+test("Week highlights today's card by color", async ({ page }) => {
+	await page.clock.install({ time: new Date(2026, 9, 8, 12) });
+	await page.goto("/");
+	await page.getByRole("button", { name: "Week", exact: true }).click();
+	const days = page.locator(".pk-week-day");
+	const today = page.locator('.pk-week-day[data-date="2026-10-08"]');
+	const otherDay = page.locator('.pk-week-day[data-date="2026-10-07"]');
+	await expect(today).toHaveClass(/is-today/);
+	await expect(today.getByText("Today", { exact: true })).toHaveCount(0);
+	await expect(page.locator(".pk-week-day.is-today")).toHaveCount(1);
+	await expect(otherDay).not.toHaveClass(/is-today/);
+	for (const theme of ["light", "dark"]) {
+		const currentTheme = await page.locator("html").getAttribute("data-theme");
+		if (currentTheme !== theme)
+			await page.getByRole("button", { name: `Switch to ${theme} mode` }).click();
+		const colors = await Promise.all(
+			[today, otherDay].map((day) =>
+				day.evaluate((element) => {
+					const style = getComputedStyle(element);
+					return [style.backgroundColor, style.borderTopColor];
+				}),
+			),
+		);
+		expect(colors[0][0]).not.toBe(colors[1][0]);
+		expect(colors[0][1]).not.toBe(colors[1][1]);
+	}
+	await page.getByRole("button", { name: "Next week" }).click();
+	await expect(days).toHaveCount(7);
+	await expect(page.locator(".pk-week-day.is-today")).toHaveCount(0);
 });
 
 test("dinner separates individual and shared ingredients", async ({
@@ -849,9 +832,224 @@ test("desktop day cards drag and drop their full menus", async ({ page }) => {
 	}
 });
 
+test("1080x1920 dashboard kiosk layout shows both days, calendar, and weekly plan", async ({
+	page,
+}) => {
+	await page.clock.install({ time: new Date(2026, 9, 8, 12) });
+	await page.setViewportSize({ width: 1080, height: 1920 });
+	await page.route("**/api/data", async (route) => {
+		const response = await route.fetch();
+		const data = await response.json();
+		const ingredientRows = data.ingredients.slice(0, 7).map(
+			(ingredient: { id: string }, index: number) => ({
+				ingredientId: ingredient.id,
+				quantity: 40 + index * 10,
+			}),
+		);
+		const fixtures = [
+			{
+				date: "2026-10-08",
+				slot: "lunch",
+				memberId: "richard",
+				name: "Sesame chicken bowl with a long display name for kiosk layout",
+				notes: "Prep the sauce ahead and keep the vegetables crisp before serving.",
+			},
+			{
+				date: "2026-10-08",
+				slot: "lunch",
+				memberId: "michelle",
+				name: "Green tofu bowl",
+				notes: "",
+			},
+			{ date: "2026-10-08", slot: "dinner", name: "Egg fried rice", notes: "" },
+			{
+				date: "2026-10-09",
+				slot: "lunch",
+				memberId: "richard",
+				name: "Chicken lunch",
+				notes: "",
+			},
+			{
+				date: "2026-10-09",
+				slot: "lunch",
+				memberId: "michelle",
+				name: "Tofu lunch",
+				notes: "",
+			},
+			{ date: "2026-10-09", slot: "dinner", name: "Friday dinner", notes: "" },
+			{
+				date: "2026-10-08",
+				slot: "snack",
+				memberId: "richard",
+				name: "Apple snack",
+				notes: "",
+			},
+			{
+				date: "2026-10-08",
+				slot: "snack",
+				memberId: "michelle",
+				name: "Banana snack",
+				notes: "",
+			},
+			{
+				date: "2026-10-09",
+				slot: "snack",
+				memberId: "richard",
+				name: "Pear snack",
+				notes: "",
+			},
+			{
+				date: "2026-10-09",
+				slot: "snack",
+				memberId: "michelle",
+				name: "Yogurt snack",
+				notes: "",
+			},
+		];
+		const now = Date.now();
+		data.scheduledMeals = [
+			...data.scheduledMeals.filter(
+				(meal: { date: string }) =>
+					meal.date !== "2026-10-08" &&
+					meal.date !== "2026-10-09" &&
+					meal.date !== "2026-10-10",
+			),
+			...fixtures.map((fixture, index) => ({
+				id: `kiosk-${now}-${index}`,
+				...fixture,
+				ingredients:
+					fixture.slot === "snack" ? ingredientRows.slice(0, 1) : ingredientRows,
+			})),
+		];
+		await route.fulfill({ response, json: data });
+	});
+	await page.goto("/");
+	const days = page.locator(".pk-dashboard__days > .pk-day");
+	await expect(days).toHaveCount(2);
+	const today = days.nth(0);
+	await expect(today).toContainText("Thursday, October 8");
+	const todayColumns = today.locator(".pk-day__columns");
+	await expect(todayColumns.locator(".pk-day__member-card")).toHaveCount(2);
+	await expect(todayColumns.locator(".pk-day__dinner-column .pk-meal-card")).toHaveCount(1);
+	await expect(todayColumns.getByRole("heading", { name: "Shared Dinner" })).toBeVisible();
+	await expect(today).toContainText(
+		"Prep the sauce ahead and keep the vegetables crisp before serving.",
+	);
+	await expect(days.nth(1)).toContainText("Friday, October 9");
+	for (const day of [today, days.nth(1)]) {
+		const columns = day.locator(".pk-day__columns");
+		const lunchCards = columns.locator(".pk-day__member-meals .pk-meal-card--lunch");
+		const dinnerCard = columns.locator(".pk-day__dinner-column .pk-meal-card");
+		await expect(lunchCards).toHaveCount(2);
+		await expect(dinnerCard).toHaveCount(1);
+		for (const card of [lunchCards.nth(0), lunchCards.nth(1), dinnerCard])
+			await expect(card.locator("li:not(.pk-meal-card__group)")).toHaveCount(7);
+		for (const member of await columns.locator(".pk-day__member-card").all()) {
+			await expect(member.locator(".pk-day__member-meals .pk-meal-card--lunch")).toHaveCount(1);
+			await expect(member.locator(".pk-day__member-meals .pk-meal-card--snack")).toHaveCount(1);
+			await expect(member.getByRole("progressbar")).toHaveCount(1);
+			await expect(member.locator('.pk-day__target-metric:not(.is-calories) [role="progressbar"]')).toHaveCount(0);
+		}
+		await expect(columns.getByRole("heading", { name: "Shared Dinner" })).toBeVisible();
+	}
+	await expect(page.getByRole("heading", { name: "Agenda", exact: true })).toBeVisible();
+	await expect(page.getByRole("heading", { name: "October 2026" })).toBeVisible();
+	const calendar = page.locator(".pk-dashboard-calendar");
+	await expect(
+		calendar.locator(".pk-dashboard-calendar__grid > .pk-dashboard-calendar__day"),
+	).toHaveCount(42);
+	await expect(page.getByRole("heading", { name: "Weekly menu" })).toBeVisible();
+	const weeklyRows = page.locator(".pk-week-summary__grid > section");
+	await expect(weeklyRows).toHaveCount(7);
+	for (const row of await weeklyRows.all()) {
+		await expect(row.locator("li")).toHaveCount(3);
+		await expect(row.locator("li small")).toHaveText(["R", "M", "Shared dinner"]);
+	}
+	const saturday = weeklyRows.nth(5);
+	await expect(saturday.locator("header strong")).toHaveText("10");
+	await expect(saturday.locator("li .pk-muted")).toHaveText([
+		"Not planned",
+		"Not planned",
+		"Not planned",
+	]);
+	const measureBounds = () =>
+		page.evaluate(() => {
+			const lastIngredients = [
+				...document.querySelectorAll(
+					".pk-day__columns .pk-day__member-meals .pk-meal-card--lunch li:not(.pk-meal-card__group):last-child, .pk-day__columns .pk-day__dinner-column .pk-meal-card li:not(.pk-meal-card__group):last-child",
+				),
+			];
+			const calendarPanel = document.querySelector(".pk-dashboard-calendar");
+			const weeklyPanel = document.querySelector(".pk-week-summary");
+			const rows = [
+				...document.querySelectorAll(".pk-week-summary__grid > section"),
+			];
+			return {
+				lastIngredientBottoms: lastIngredients.map(
+					(row) => row.getBoundingClientRect().bottom,
+				),
+				calendarTop: calendarPanel?.getBoundingClientRect().top ?? -1,
+				calendarBottom: calendarPanel?.getBoundingClientRect().bottom ?? -1,
+				weeklyTop: weeklyPanel?.getBoundingClientRect().top ?? -1,
+				weeklyBottom: weeklyPanel?.getBoundingClientRect().bottom ?? -1,
+				weeklyRowBottoms: rows.map(
+					(row) => row.getBoundingClientRect().bottom,
+				),
+				viewportHeight: innerHeight,
+			};
+		});
+	const themeMeasurements = [];
+	for (const theme of ["light", "dark"]) {
+		const currentTheme = await page.locator("html").getAttribute("data-theme");
+		if (currentTheme !== theme)
+			await page.getByRole("button", { name: `Switch to ${theme} mode` }).click();
+		await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+		themeMeasurements.push({
+			theme,
+			bounds: await measureBounds(),
+			document: await page.evaluate(() => ({
+				width: document.documentElement.scrollWidth,
+				height: document.documentElement.scrollHeight,
+			})),
+		});
+	}
+	const layoutFailures = themeMeasurements.flatMap(({ theme, bounds, document }) => {
+		const failures = [];
+		if (bounds.lastIngredientBottoms.length !== 6)
+			failures.push(`${theme}: found ${bounds.lastIngredientBottoms.length} final ingredient rows`);
+		if (bounds.lastIngredientBottoms.some((bottom) => bottom > bounds.viewportHeight))
+			failures.push(`${theme}: at least one meal ingredient row extends below the viewport`);
+		if (bounds.calendarTop < 0 || bounds.calendarBottom > bounds.viewportHeight)
+			failures.push(`${theme}: calendar panel is outside the viewport`);
+		if (bounds.weeklyTop < 0 || bounds.weeklyBottom > bounds.viewportHeight)
+			failures.push(`${theme}: weekly panel is outside the viewport`);
+		if (Math.abs(bounds.calendarTop - bounds.weeklyTop) > 1)
+			failures.push(`${theme}: calendar and weekly panel tops do not align`);
+		if (Math.abs(bounds.calendarBottom - bounds.weeklyBottom) > 1)
+			failures.push(`${theme}: calendar and weekly panel bottoms do not align`);
+		if (bounds.weeklyRowBottoms.length !== 7)
+			failures.push(`${theme}: found ${bounds.weeklyRowBottoms.length} weekly rows`);
+		if (bounds.weeklyRowBottoms.some((bottom) => bottom > bounds.viewportHeight))
+			failures.push(`${theme}: at least one weekly row extends below the viewport`);
+		if (document.width > 1080 || document.height > 1920)
+			failures.push(`${theme}: document measures ${document.width}x${document.height}`);
+		return failures;
+	});
+	await today
+		.getByRole("button", {
+			name: "Sesame chicken bowl with a long display name for kiosk layout",
+		})
+		.click();
+	await expect(
+		page.getByRole("heading", { name: "Nutrition in this meal" }),
+	).toBeVisible();
+	expect(layoutFailures, JSON.stringify(themeMeasurements)).toEqual([]);
+});
+
 test("390px weekly planner uses a selected-day agenda without horizontal overflow", async ({
 	page,
 }) => {
+	await page.clock.install({ time: new Date(2026, 9, 8, 12) });
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto("/");
 	expect(

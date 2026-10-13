@@ -1,24 +1,22 @@
 import type {
 	AppData,
 	Ingredient,
+	MemberId,
 	Nutrition,
 	ScheduledMeal,
 } from "@piring-kita/shared";
 import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { api, type CalendarOccurrence } from "../../api";
 import "./dashboard.css";
-
 type DashboardData = Pick<
 	AppData,
-	"members" | "ingredients" | "scheduledMeals" | "calendars"
+	"members" | "ingredients" | "scheduledMeals" | "calendars" | "targets"
 >;
-
 export interface DashboardProps {
 	data: DashboardData;
 	today?: Date;
 	onEditMeal: (meal: ScheduledMeal) => void;
 }
-
 const dayKey = (date: Date) =>
 	`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const monthCalendar = (today: Date) => {
@@ -51,26 +49,65 @@ const blankNutrition = (): Nutrition => ({
 	fiber: 0,
 });
 const fmt = (value: number) => Math.round(value).toLocaleString();
+function TargetMetric({
+	label,
+	value,
+	target,
+	unit,
+	context,
+}: {
+	label: string;
+	value: number;
+	target?: number;
+	unit: string;
+	context?: string;
+}) {
+	const hasTarget = target != null;
+	const isCalories = label === "Calories";
+	return (
+		<span
+			className={`pk-day__target-metric${isCalories ? " is-calories" : ""}`}
+		>
+			<span className="pk-day__target-metric-label">{label}</span>
+			<span className="pk-day__target-metric-value">
+				{fmt(value)}
+				{hasTarget ? ` / ${fmt(target)} ${unit}` : ` ${unit}`}
+				{!hasTarget && context ? ` · ${context}` : ""}
+			</span>
+			{isCalories && hasTarget && target > 0 && (
+				<span
+					className="pk-day__target-bar"
+					role="progressbar"
+					aria-label={`${label}: ${fmt(value)} of ${fmt(target)} ${unit}`}
+					aria-valuemin={0}
+					aria-valuemax={target}
+					aria-valuenow={Math.min(value, target)}
+				>
+					<span style={{ width: `${Math.min(100, (value / target) * 100)}%` }} />
+				</span>
+			)}
+		</span>
+	);
+}
 const weeklyEntries = (meals: ScheduledMeal[]) =>
 	[
 		{
-			label: "[R]",
+			label: "R",
 			meals: meals.filter(
 				(meal) => meal.slot === "lunch" && meal.memberId === "richard",
 			),
 		},
 		{
-			label: "[M]",
+			label: "M",
 			meals: meals.filter(
 				(meal) => meal.slot === "lunch" && meal.memberId === "michelle",
 			),
 		},
 		{
-			label: "[Dinner]",
+			label: "Shared dinner",
 			meals: meals.filter((meal) => meal.slot === "dinner"),
 		},
-	].filter((entry) => entry.meals.length > 0);
-
+	];
 function mealNutrition(
 	meal: ScheduledMeal,
 	ingredients: Map<string, Ingredient>,
@@ -87,7 +124,6 @@ function mealNutrition(
 		return total;
 	}, blankNutrition());
 }
-
 function ingredientRow(
 	row: ScheduledMeal["ingredients"][number],
 	index: number,
@@ -109,7 +145,6 @@ function ingredientRow(
 		</li>
 	);
 }
-
 function dinnerIngredientRows(
 	meal: ScheduledMeal,
 	ingredients: Map<string, Ingredient>,
@@ -136,7 +171,6 @@ function dinnerIngredientRows(
 			: [];
 	});
 }
-
 function DashboardCalendar({
 	today,
 	calendars,
@@ -188,11 +222,13 @@ function DashboardCalendar({
 		{
 			label: "Today",
 			showDate: false,
+			maxEvents: 3,
 			events: sortedEventsFor(dayKey(today)).map((event) => agendaItem(event)),
 		},
 		{
 			label: "Tomorrow",
 			showDate: false,
+			maxEvents: 3,
 			events: sortedEventsFor(dayKey(tomorrow)).map((event) =>
 				agendaItem(event),
 			),
@@ -200,130 +236,144 @@ function DashboardCalendar({
 		{
 			label: "Later this week",
 			showDate: true,
+			maxEvents: 4,
 			events: thisWeekDays.flatMap(({ day, key }) =>
 				sortedEventsFor(key).map((event) => agendaItem(event, day)),
 			),
 		},
 	];
 	return (
-		<section
-			className="pk-panel pk-dashboard-calendar"
-			aria-labelledby="pk-dashboard-calendar-heading"
-		>
-			<div className="pk-panel__heading">
-				<div>
-					<p className="pk-eyebrow">PLAN AHEAD</p>
-					<h2 id="pk-dashboard-calendar-heading">
-						{today.toLocaleDateString(undefined, {
-							month: "long",
-							year: "numeric",
-						})}
-					</h2>
+		<>
+			<section
+				className="pk-panel pk-dashboard-agenda"
+				aria-labelledby="pk-dashboard-agenda-heading"
+			>
+				<div className="pk-panel__heading">
+					<div>
+						<p className="pk-eyebrow">UPCOMING</p>
+						<h2 id="pk-dashboard-agenda-heading">Agenda</h2>
+					</div>
 				</div>
-			</div>
-			<div className="pk-dashboard-calendar__weekdays">
-				{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-					<span key={day}>{day}</span>
-				))}
-			</div>
-			<div className="pk-dashboard-calendar__grid">
-				{days.map((day) => {
-					const key = dayKey(day);
-					const dayEvents = eventsFor(key);
-					return (
-						<div
-							className={`pk-dashboard-calendar__day${day.getMonth() === today.getMonth() ? "" : " is-outside"}${key === dayKey(today) ? " is-today" : ""}`}
-							key={key}
-							aria-label={`${day.toLocaleDateString(undefined, { month: "long", day: "numeric" })}${dayEvents.length ? `, ${dayEvents.length} agendas` : ""}`}
+				<div className="pk-dashboard-calendar__agenda">
+					{agendaGroups.map((group) => (
+						<section
+							className="pk-dashboard-calendar__agenda-group"
+							key={group.label}
 						>
-							<strong>{day.getDate()}</strong>
-							<div>
-								{dayEvents.slice(0, 3).map((event) => (
-									<span
-										className="pk-dashboard-calendar__event"
-										key={`${event.id}-${event.recurrenceId ?? event.start}`}
-										style={{ "--event-color": event.color } as CSSProperties}
-										title={event.title}
-									>
-										{event.recurring && <b aria-label="Repeating">↻ </b>}
-										{event.title}
-									</span>
-								))}
-								{dayEvents.length > 3 && (
-									<small>+{dayEvents.length - 3} more</small>
-								)}
-								{dayEvents.length > 1 && (
-									<small className="pk-dashboard-calendar__portrait-more">
-										+{dayEvents.length - 1} more
-									</small>
-								)}
-							</div>
-						</div>
-					);
-				})}
-			</div>
-			<div className="pk-dashboard-calendar__agenda">
-				{agendaGroups.map((group) => (
-					<section
-						className="pk-dashboard-calendar__agenda-group"
-						key={group.label}
-					>
-						<h3>{group.label}</h3>
-						{group.events.length ? (
-							<ul>
-								{group.events.map(({ event, date }) => (
-									<li
-										className="pk-dashboard-calendar__agenda-item"
-										key={`${event.id}-${event.recurrenceId ?? event.start}-${date ? dayKey(date) : ""}`}
-									>
-										<span
-											className="pk-dashboard-calendar__legend"
-											style={{ background: event.color }}
-										/>
-										{group.showDate && date ? (
-											<span className="pk-dashboard-calendar__agenda-date">
-												{date.toLocaleDateString(undefined, { weekday: "short" })}
-												{!event.allDay &&
-													` · ${new Date(event.start).toLocaleTimeString([], {
-														hour: "numeric",
-														minute: "2-digit",
-													})}`}
-											</span>
-										) : (
-											!event.allDay && (
-												<time dateTime={event.start}>
-													{new Date(event.start).toLocaleTimeString([], {
-														hour: "numeric",
-														minute: "2-digit",
+							<h3>{group.label}</h3>
+							{group.events.length ? (
+								<ul>
+									{group.events
+										.slice(0, group.maxEvents)
+										.map(({ event, date }) => (
+										<li
+											className="pk-dashboard-calendar__agenda-item"
+											key={`${event.id}-${event.recurrenceId ?? event.start}-${date ? dayKey(date) : ""}`}
+										>
+											<span
+												className="pk-dashboard-calendar__legend"
+												style={{ background: event.color }}
+											/>
+											{group.showDate && date ? (
+												<span className="pk-dashboard-calendar__agenda-date">
+													{date.toLocaleDateString(undefined, {
+														weekday: "short",
 													})}
-												</time>
-											)
-										)}
-										<span className="pk-dashboard-calendar__agenda-copy">
-											<strong>
-												{event.title}
-												{event.recurring && <span title="Repeating"> ↻</span>}
-											</strong>
-											{event.description && (
-												<span className="pk-dashboard-calendar__agenda-description">
-													{event.description}
+													{!event.allDay &&
+														` · ${new Date(event.start).toLocaleTimeString([], {
+															hour: "numeric",
+															minute: "2-digit",
+														})}`}
 												</span>
+											) : (
+												!event.allDay && (
+													<time dateTime={event.start}>
+														{new Date(event.start).toLocaleTimeString([], {
+															hour: "numeric",
+															minute: "2-digit",
+														})}
+													</time>
+												)
 											)}
+											<span className="pk-dashboard-calendar__agenda-copy">
+												<strong>
+													{event.title}
+													{event.recurring && <span title="Repeating"> â†»</span>}
+												</strong>
+												{event.description && (
+													<span className="pk-dashboard-calendar__agenda-description">
+														{event.description}
+													</span>
+												)}
+											</span>
+										</li>
+									))}
+								</ul>
+							) : (
+								<p>No events.</p>
+							)}
+							{group.events.length > group.maxEvents && (
+								<p>+{group.events.length - group.maxEvents} more</p>
+							)}
+						</section>
+					))}
+				</div>
+			</section>
+			<section
+					className="pk-panel pk-dashboard-calendar"
+					aria-labelledby="pk-dashboard-calendar-heading"
+				>
+				<div className="pk-panel__heading">
+					<div>
+						<p className="pk-eyebrow">PLAN AHEAD</p>
+						<h2 id="pk-dashboard-calendar-heading">
+							{today.toLocaleDateString(undefined, {
+								month: "long",
+								year: "numeric",
+							})}
+						</h2>
+					</div>
+				</div>
+				<div className="pk-dashboard-calendar__weekdays">
+					{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+						<span key={day}>{day}</span>
+					))}
+				</div>
+				<div className="pk-dashboard-calendar__grid">
+					{days.map((day) => {
+						const key = dayKey(day);
+						const dayEvents = eventsFor(key);
+						return (
+							<div
+								className={`pk-dashboard-calendar__day${day.getMonth() === today.getMonth() ? "" : " is-outside"}${key === dayKey(today) ? " is-today" : ""}`}
+								key={key}
+								aria-label={`${day.toLocaleDateString(undefined, { month: "long", day: "numeric" })}${dayEvents.length ? `, ${dayEvents.length} agendas` : ""}`}
+							>
+								<strong>{day.getDate()}</strong>
+								<div>
+									{dayEvents.slice(0, 1).map((event) => (
+										<span
+											className="pk-dashboard-calendar__event"
+											key={`${event.id}-${event.recurrenceId ?? event.start}`}
+											style={{ "--event-color": event.color } as CSSProperties}
+											title={event.title}
+										>
+											{event.recurring && <b aria-label="Repeating">â†» </b>}
+											{event.title}
 										</span>
-										<small>{event.calendarName}</small>
-									</li>
-								))}
-							</ul>
-						) : (
-							<p>No events.</p>
-						)}
-					</section>
-				))}
-			</div>
-		</section>
+									))}
+									{dayEvents.length > 1 && (
+										<small>+{dayEvents.length - 1} more</small>
+									)}
+								</div>
+							</div>
+						);
+					})}
+				</div>
+			</section>
+		</>
 	);
 }
-
 export function Dashboard({
 	data,
 	today = new Date(),
@@ -332,6 +382,30 @@ export function Dashboard({
 	const ingredients = new Map(
 		data.ingredients.map((ingredient) => [ingredient.id, ingredient]),
 	);
+	const plannedNutrition = (meals: ScheduledMeal[], memberId: MemberId) =>
+		meals.reduce((total, meal) => {
+			for (const row of meal.ingredients) {
+				const ingredient = row.ingredient ?? ingredients.get(row.ingredientId);
+				if (!ingredient) continue;
+				const factor = row.quantity / ingredient.basisAmount;
+				const share =
+					meal.slot === "dinner" && !meal.memberId
+						? row.memberId
+							? row.memberId === memberId
+								? 1
+								: 0
+							: 0.5
+						: meal.memberId === memberId
+							? 1
+							: 0;
+				total.calories += ingredient.nutrition.calories * factor * share;
+				total.protein += ingredient.nutrition.protein * factor * share;
+				total.carbs += ingredient.nutrition.carbs * factor * share;
+				total.fat += ingredient.nutrition.fat * factor * share;
+				total.fiber += ingredient.nutrition.fiber * factor * share;
+			}
+			return total;
+		}, blankNutrition());
 	const weekDate = new Date(today);
 	if (today.getDay() === 0) weekDate.setDate(today.getDate() + 1);
 	const weekStart = dayKey(mondayOf(weekDate));
@@ -352,13 +426,12 @@ export function Dashboard({
 		};
 	});
 	const mealCards = [
-		{ label: "Richard’s lunch", memberId: "richard", slot: "lunch" },
-		{ label: "Michelle’s lunch", memberId: "michelle", slot: "lunch" },
-		{ label: "Our dinner", memberId: undefined, slot: "dinner" },
-		{ label: "Richard’s snack", memberId: "richard", slot: "snack" },
-		{ label: "Michelle’s snack", memberId: "michelle", slot: "snack" },
+		{ memberId: "richard", slot: "lunch" },
+		{ memberId: "richard", slot: "snack" },
+		{ memberId: "michelle", slot: "lunch" },
+		{ memberId: "michelle", slot: "snack" },
+		{ memberId: undefined, slot: "dinner" },
 	] as const;
-
 	return (
 		<main className="pk-dashboard">
 			{/* <header className="pk-dashboard__header">
@@ -366,7 +439,6 @@ export function Dashboard({
 				<h1>Good food, ready when you are.</h1>
 				<p className="pk-muted">Today and tomorrow at a glance.</p>
 			</header> */}
-
 			<div className="pk-dashboard__days">
 				{[0, 1].map((offset) => {
 					const day = new Date(today);
@@ -375,9 +447,127 @@ export function Dashboard({
 					const dayMeals = data.scheduledMeals.filter(
 						(meal) => meal.date === date,
 					);
+					const weekStart = dayKey(mondayOf(day));
+					const weekend = [0, 6].includes(day.getDay());
+					const renderCard = (card: (typeof mealCards)[number]) => {
+						const meal = dayMeals.find(
+							(item) =>
+								item.slot === card.slot &&
+								(card.slot === "dinner" || item.memberId === card.memberId),
+						);
+						return (
+							<article
+								className={`pk-meal-card pk-meal-card--${card.slot}`}
+								key={`${card.slot}-${card.memberId ?? "shared"}`}
+							>
+<h3
+										className={`pk-meal-card__label pk-meal-card__label--${card.slot}`}
+									>
+										{card.slot === "dinner"
+											? "Shared Dinner"
+											: card.slot[0].toUpperCase() + card.slot.slice(1)}
+									</h3>
+								{meal ? (
+									<>
+<h4>
+										<button
+											className="pk-dashboard__meal-link"
+											type="button"
+											onClick={() => onEditMeal(meal)}
+										>
+											{meal.name}
+										</button>
+									</h4>
+										<p className="pk-meal-card__nutrition">
+											{fmt(mealNutrition(meal, ingredients).calories)} kcal ·{" "}
+											{fmt(mealNutrition(meal, ingredients).protein)} g protein
+										</p>
+										{meal.notes.trim() && (
+											<p className="pk-meal-card__notes">
+												<strong>Cooking note</strong>
+												<span>{meal.notes}</span>
+											</p>
+										)}
+										<ul>
+											{card.slot === "dinner"
+												? dinnerIngredientRows(meal, ingredients)
+												: meal.ingredients.map((row, index) =>
+														ingredientRow(row, index, ingredients),
+													)}
+										</ul>
+									</>
+								) : (
+									<div className="pk-meal-card__empty">
+										<strong>Nothing planned</strong>
+										<p>No {card.slot} is scheduled.</p>
+									</div>
+								)}
+							</article>
+						);
+					};
+					const memberColumn = (memberId: MemberId) => {
+						const target = data.targets
+							.filter(
+								(item) =>
+									item.memberId === memberId && item.weekStart <= weekStart,
+							)
+							.sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
+						const totals = plannedNutrition(dayMeals, memberId);
+						const weekdayTarget = target && !weekend ? target : undefined;
+						return (
+							<article className="pk-day__member-card" key={memberId}>
+								<div className="pk-day__target">
+									<strong>
+										{data.members.find((member) => member.id === memberId)?.name ??
+											memberId}
+									</strong>
+									<div className="pk-day__target-metrics">
+										<TargetMetric
+											label="Calories"
+											value={totals.calories}
+											target={weekdayTarget?.weekdayCalories}
+											unit="kcal"
+											context={weekend ? "self-managed" : "target unavailable"}
+										/>
+										<TargetMetric
+											label="Protein"
+											value={totals.protein}
+											target={weekdayTarget?.macroGrams.protein}
+											unit="g"
+										/>
+										<TargetMetric
+											label="Carbs"
+											value={totals.carbs}
+											target={weekdayTarget?.macroGrams.carbs}
+											unit="g"
+										/>
+										<TargetMetric
+											label="Fat"
+											value={totals.fat}
+											target={weekdayTarget?.macroGrams.fat}
+											unit="g"
+										/>
+										<TargetMetric
+											label="Fiber"
+											value={totals.fiber}
+											target={weekdayTarget?.fiberGrams}
+											unit="g"
+										/>
+									</div>
+								</div>
+								<div className="pk-day__member-meals">
+									{mealCards
+										.filter((card) => card.memberId === memberId)
+										.map(renderCard)}
+								</div>
+							</article>
+						);
+					};
 					return (
 						<section
-							className="pk-day"
+							className={`pk-day${
+								offset === 0 ? " is-today" : " is-tomorrow"
+							}`}
 							key={date}
 							aria-labelledby={`pk-day-${date}`}
 						>
@@ -395,66 +585,21 @@ export function Dashboard({
 									</h2>
 								</div>
 							</div>
-							<div className="pk-day__cards">
-								{mealCards.map((card) => {
-									const meal = dayMeals.find(
-										(item) =>
-											item.slot === card.slot &&
-											(card.slot === "dinner" ||
-												item.memberId === card.memberId),
-									);
-									return (
-										<article
-											className={`pk-meal-card pk-meal-card--${card.slot}`}
-											key={card.label}
-										>
-											<p className="pk-meal-card__label">{card.label}</p>
-											{meal ? (
-												<>
-													<h3>
-														<button
-															className="pk-dashboard__meal-link"
-															type="button"
-															onClick={() => onEditMeal(meal)}
-														>
-															{meal.name}
-														</button>
-													</h3>
-													<p className="pk-meal-card__nutrition">
-														{fmt(mealNutrition(meal, ingredients).calories)}{" "}
-														kcal ·{" "}
-														{fmt(mealNutrition(meal, ingredients).protein)} g
-														protein
-													</p>
-													{meal.notes.trim() && (
-														<p className="pk-meal-card__notes">
-															<strong>Cooking note</strong>
-															<span>{meal.notes}</span>
-														</p>
-													)}
-													<ul>
-														{card.slot === "dinner"
-															? dinnerIngredientRows(meal, ingredients)
-															: meal.ingredients.map((row, index) =>
-																	ingredientRow(row, index, ingredients),
-																)}
-													</ul>
-												</>
-											) : (
-												<div className="pk-meal-card__empty">
-													<strong>Nothing planned</strong>
-													<p>No {card.slot} is scheduled.</p>
-												</div>
-											)}
-										</article>
-									);
-								})}
+							<div className="pk-day__columns">
+								{memberColumn("richard")}
+								{memberColumn("michelle")}
+								<div className="pk-day__dinner-column">
+									{renderCard(mealCards[4])}
+								</div>
 							</div>
 						</section>
 					);
 				})}
 			</div>
-
+			<DashboardCalendar
+				today={today}
+				calendars={data.calendars}
+			/>
 			<section
 				className="pk-panel pk-week-summary"
 				aria-labelledby="pk-week-summary-heading"
@@ -478,13 +623,13 @@ export function Dashboard({
 									</span>
 									<strong>{day.getDate()}</strong>
 								</header>
-								{meals.length ? (
-									<ul>
-										{weeklyEntries(meals).map((entry) => (
-											<li key={entry.label}>
-												<small>{entry.label}</small>
-												<span>
-													{entry.meals.map((meal) => (
+								<ul>
+									{weeklyEntries(meals).map((entry) => (
+										<li key={entry.label}>
+											<small>{entry.label}</small>
+											<span>
+												{entry.meals.length ? (
+													entry.meals.map((meal) => (
 														<button
 															className="pk-dashboard__meal-link"
 															type="button"
@@ -493,23 +638,19 @@ export function Dashboard({
 														>
 															{meal.name}
 														</button>
-													))}
-												</span>
-											</li>
-										))}
-									</ul>
-								) : (
-									<p>No meals</p>
-								)}
+													))
+												) : (
+													<span className="pk-muted">Not planned</span>
+												)}
+											</span>
+										</li>
+									))}
+								</ul>
 							</section>
 						))}
 					</div>
 				</div>
 			</section>
-			<DashboardCalendar
-				today={today}
-				calendars={data.calendars}
-			/>
 		</main>
 	);
 }

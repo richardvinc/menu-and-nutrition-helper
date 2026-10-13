@@ -131,6 +131,14 @@
 .pk-week-day:nth-child(4n + 4) {
 	border-top: 4px solid var(--app-coral);
 }
+.pk-week .pk-week-day.is-today {
+	border-color: color-mix(in srgb, var(--app-purple) 58%, var(--line));
+	background: color-mix(in srgb, var(--app-purple) 14%, var(--app-surface));
+}
+:root[data-theme="dark"] .pk-week .pk-week-day.is-today {
+	border-color: color-mix(in srgb, var(--app-purple) 58%, var(--line));
+	background: color-mix(in srgb, var(--app-purple) 20%, var(--app-surface));
+}
 .pk-week-day > header {
 	display: flex;
 	justify-content: space-between;

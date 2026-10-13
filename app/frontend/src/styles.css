@@ -232,6 +232,36 @@ button {
 :root[data-theme="dark"] .app-mobile-nav {
 	background: rgba(27, 30, 32, 0.96);
 }
+
+@media (min-width: 701px) and (max-width: 1200px) and (min-height: 1600px) and (orientation: portrait) {
+	.app-shell:has(> .pk-dashboard) {
+		display: flex;
+		flex-direction: column;
+		height: 100dvh;
+		min-height: 0;
+		padding: 10px 16px;
+	}
+	.app-shell:has(> .pk-dashboard) > .app-header {
+		flex: none;
+		margin-bottom: 10px;
+		padding: 5px 8px;
+		border-radius: 14px;
+	}
+	.app-shell:has(> .pk-dashboard) > .app-header nav {
+		gap: 3px;
+	}
+	.app-shell:has(> .pk-dashboard) > .app-header nav button,
+	.app-shell:has(> .pk-dashboard) .theme-toggle {
+		min-height: 36px;
+		padding-inline: 9px;
+		font-size: 12px;
+	}
+	.app-shell:has(> .pk-dashboard) .brand-mark {
+		width: 36px;
+		height: 36px;
+	}
+}
+
 :root[data-theme="dark"] .brand-mark {
 	background: var(--app-raised);
 }
@@ -286,6 +316,10 @@ button {
 :root[data-theme="dark"] .pk-day:first-child {
 	border-color: color-mix(in srgb, var(--app-purple) 24%, var(--app-line));
 	background: color-mix(in srgb, var(--app-purple) 4%, var(--app-surface));
+}
+:root[data-theme="dark"] .app-shell:has(> .pk-dashboard) .pk-day.is-today {
+	border-color: color-mix(in srgb, var(--app-yellow) 55%, var(--app-line));
+	background: color-mix(in srgb, var(--app-yellow) 16%, var(--app-surface));
 }
 :root[data-theme="dark"] .pk-dashboard-calendar__day.is-outside {
 	background: color-mix(in srgb, var(--app-canvas) 70%, var(--app-surface));

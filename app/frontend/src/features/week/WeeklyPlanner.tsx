@@ -92,6 +92,7 @@ export function WeeklyPlanner({
 		() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
 		[weekStart],
 	);
+	const today = isoDate(new Date());
 	const selectedMeals = data.scheduledMeals.filter(
 		(meal) => meal.date === selectedDate,
 	);
@@ -295,9 +296,9 @@ export function WeeklyPlanner({
 	const dayCard = (date: string) => (
 		<section
 			data-date={date}
-			className={`pk-week-day${dayDrag?.date === date && dayDrag.active ? " is-dragging" : ""}${dropDate === date ? " is-drop-target" : ""}`}
+			className={`pk-week-day${date === today ? " is-today" : ""}${dayDrag?.date === date && dayDrag.active ? " is-dragging" : ""}${dropDate === date ? " is-drop-target" : ""}`}
 			key={date}
-			aria-label={shortDate(date)}
+			aria-label={`${shortDate(date)}${date === today ? ", today" : ""}`}
 			onPointerDown={(event) => startDayDrag(event, date)}
 			onPointerMove={moveDayDrag}
 			onPointerUp={finishDayDrag}
