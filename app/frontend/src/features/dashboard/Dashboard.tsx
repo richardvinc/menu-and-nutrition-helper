@@ -279,26 +279,29 @@ function DashboardCalendar({
 													{date.toLocaleDateString(undefined, {
 														weekday: "short",
 													})}
-													{!event.allDay &&
-														` · ${new Date(event.start).toLocaleTimeString([], {
-															hour: "numeric",
-															minute: "2-digit",
-														})}`}
+													{` · ${
+														event.allDay
+															? "All-Day"
+															: new Date(event.start).toLocaleTimeString([], {
+																hour: "numeric",
+																minute: "2-digit",
+															})
+													}`}
 												</span>
 											) : (
-												!event.allDay && (
-													<time dateTime={event.start}>
-														{new Date(event.start).toLocaleTimeString([], {
+												<time dateTime={event.start}>
+													{event.allDay
+														? "All-Day"
+														: new Date(event.start).toLocaleTimeString([], {
 															hour: "numeric",
 															minute: "2-digit",
 														})}
-													</time>
-												)
+												</time>
 											)}
 											<span className="pk-dashboard-calendar__agenda-copy">
 												<strong>
 													{event.title}
-													{event.recurring && <span title="Repeating"> â†»</span>}
+													{event.recurring && <span title="Repeating"> ↻</span>}
 												</strong>
 												{event.description && (
 													<span className="pk-dashboard-calendar__agenda-description">
@@ -358,7 +361,7 @@ function DashboardCalendar({
 											style={{ "--event-color": event.color } as CSSProperties}
 											title={event.title}
 										>
-											{event.recurring && <b aria-label="Repeating">â†» </b>}
+											{event.recurring && <b aria-label="Repeating">↻ </b>}
 											{event.title}
 										</span>
 									))}
