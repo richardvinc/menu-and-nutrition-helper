@@ -1091,7 +1091,7 @@ export function Library({
 														!row.ingredientId ||
 														(!row.ingredient &&
 															!ingredients.some((item) => item.id === row.ingredientId)),
-												),
+												)
 											}
 										>
 											{saving ? "Saving…" : "Save menu"}
