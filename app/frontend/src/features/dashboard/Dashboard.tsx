@@ -657,7 +657,7 @@ export function Dashboard({
 														</button>
 													))
 												) : (
-													<span className="pk-muted">Not planned</span>
+													<span className="pk-muted">-</span>
 												)}
 											</span>
 										</li>
