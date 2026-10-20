@@ -104,7 +104,7 @@ const weeklyEntries = (meals: ScheduledMeal[]) =>
 			),
 		},
 		{
-			label: "Shared dinner",
+			label: "Dinner",
 			meals: meals.filter((meal) => meal.slot === "dinner"),
 		},
 	];
