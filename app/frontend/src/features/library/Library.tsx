@@ -5,7 +5,7 @@ import type {
 	MenuIngredient,
 	SavedMenu,
 } from "@piring-kita/shared";
-import type { FormEvent } from "react";
+import type { FormEvent, KeyboardEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../../api";
@@ -27,8 +27,9 @@ type MenuDraft = {
 	name: string;
 	slot: MealSlot;
 	memberId?: MemberId;
-	ingredients: MenuIngredient[];
+	ingredients: MenuIngredientDraft[];
 };
+type MenuIngredientDraft = MenuIngredient & { draftKey: string };
 type IngredientDraft = {
 	id: string;
 	name: string;
@@ -46,6 +47,127 @@ type IngredientDraft = {
 	fiber: string;
 };
 type UsdaPortion = { label: string; amount: number; gramWeight: number };
+
+let lastMenuIngredientKeyTime = 0;
+let menuIngredientKeySequence = 0;
+const menuIngredientDraft = (
+	row: MenuIngredient = { ingredientId: "", quantity: 100 },
+): MenuIngredientDraft => {
+	const now = Date.now();
+	menuIngredientKeySequence =
+		now === lastMenuIngredientKeyTime ? menuIngredientKeySequence + 1 : 0;
+	lastMenuIngredientKeyTime = now;
+	return { ...row, draftKey: `${now}-${menuIngredientKeySequence}` };
+};
+
+const focusFirstSuggestion = (event: KeyboardEvent<HTMLInputElement>) => {
+	if (event.key !== "ArrowDown") return;
+	const option = event.currentTarget.parentElement?.querySelector<HTMLElement>(
+		"[role=option]",
+	);
+	if (option) {
+		event.preventDefault();
+		option.focus();
+	}
+};
+
+function MenuIngredientPicker({
+	row,
+	index,
+	catalog,
+	onSelect,
+	onClear,
+}: {
+	row: MenuIngredient;
+	index: number;
+	catalog: Ingredient[];
+	onSelect: (ingredient: Ingredient) => void;
+	onClear: () => void;
+}) {
+	const selected =
+		row.ingredient ?? catalog.find((item) => item.id === row.ingredientId);
+	const [query, setQuery] = useState(selected?.name ?? "");
+	const [focused, setFocused] = useState(false);
+	const results = useMemo(() => {
+		const options = [
+			...(row.ingredient ? [row.ingredient] : []),
+			...catalog.filter((item) => !row.ingredient || item.id !== row.ingredientId),
+		];
+		return options
+			.filter((item) =>
+				[item.name, ...item.aliases].some((name) =>
+					name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+				),
+			)
+			.sort((a, b) => a.name.localeCompare(b.name));
+	}, [catalog, query, row.ingredient, row.ingredientId]);
+	return (
+		<div
+			className="library-ingredient-picker"
+			onFocus={() => setFocused(true)}
+			onBlur={(event) => {
+				if (!event.currentTarget.contains(event.relatedTarget as Node))
+					setFocused(false);
+			}}
+		>
+			<label htmlFor={`menu-ingredient-${index}`}>Ingredient</label>
+			<input
+				id={`menu-ingredient-${index}`}
+				aria-label={`Ingredient ${index + 1}`}
+				required
+				value={query}
+				placeholder="Search ingredients…"
+				onKeyDown={focusFirstSuggestion}
+				onChange={(event) => {
+					setQuery(event.target.value);
+					onClear();
+					setFocused(true);
+				}}
+			/>
+			{focused && (
+				<div
+					className="library-ingredient-picker__results"
+					role="listbox"
+					aria-label="Ingredient suggestions"
+				>
+					{results.length === 0 && <small>No ingredients found.</small>}
+					{results.map((item) => (
+						<button
+							type="button"
+							role="option"
+							aria-selected={item.id === row.ingredientId}
+							key={item.id}
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={() => {
+								onSelect(item);
+								setQuery(item.name);
+								setFocused(false);
+							}}
+						>
+							<strong>
+								{item.name}
+								{item.id === row.ingredient?.id ? " · saved version" : ""}
+							</strong>
+							{item.aliases.length > 0 && (
+								<small>{item.aliases.slice(0, 2).join(" · ")}</small>
+							)}
+						</button>
+					))}
+				</div>
+			)}
+			{selected && (
+				<small className="library-ingredient-picker__basis">
+					Selected ingredient · {selected.basisAmount} {selected.unit}
+				</small>
+			)}
+			{query.trim() && !row.ingredientId && (
+				<small className="library-ingredient-picker__hint">
+					Choose an ingredient from the suggestions.
+				</small>
+			)}
+		</div>
+	);
+}
 
 const blankMenu = (): MenuDraft => ({
 	id: Date.now().toString(),
@@ -251,13 +373,29 @@ export function Library({
 
 	async function saveMenu(event: FormEvent) {
 		event.preventDefault();
-		if (!menuDraft?.name.trim() || !menuDraft.ingredients.length) return;
+		if (
+			!menuDraft?.name.trim() ||
+			!menuDraft.ingredients.length ||
+			menuDraft.ingredients.some(
+				(row) =>
+					!row.ingredientId ||
+					(!row.ingredient &&
+						!ingredients.some((item) => item.id === row.ingredientId)),
+			)
+		)
+			return;
 		setSaving(true);
 		setError("");
 		try {
+			const savedIngredients = menuDraft.ingredients.map((ingredient) => {
+				const { draftKey, ...row } = ingredient;
+				void draftKey;
+				return row;
+			});
 			await onSaveMenu({
 				...menuDraft,
 				name: menuDraft.name.trim(),
+				ingredients: savedIngredients,
 				...(menuDraft.slot === "dinner" ? { memberId: undefined } : {}),
 			});
 			setMenuDraft(null);
@@ -829,44 +967,33 @@ export function Library({
 										{menuDraft.ingredients.map((row, index) => (
 											<div
 												className="library-row"
-												key={`${row.ingredientId}-${index}`}
+												key={row.draftKey}
 											>
-												<label>
-													Ingredient
-													<select
-														aria-label={`Ingredient ${index + 1}`}
-														required
-														value={row.ingredientId}
-														onChange={(event) =>
-															setMenuDraft({
-																...menuDraft,
-																ingredients: menuDraft.ingredients.map(
-																	(item, i) =>
-																		i === index
-																			? {
-																					...item,
-																					ingredientId: event.target.value,
-																					ingredient: ingredients.find((entry) => entry.id === event.target.value),
-																				}
-																			: item,
-																),
-															})
-														}
-													>
-														<option value="">Choose ingredient</option>
-														{[
-															...(row.ingredient ? [row.ingredient] : []),
-															...ingredients.filter((item) => !row.ingredient || item.id !== row.ingredientId),
-														]
-															.sort((a, b) => a.name.localeCompare(b.name))
-															.map((item) => (
-																<option key={item.id} value={item.id}>
-																	{item.name}
-																	{item.id === row.ingredient?.id ? " · saved version" : ""}
-																</option>
-															))}
-													</select>
-												</label>
+												<MenuIngredientPicker
+													row={row}
+													index={index}
+													catalog={ingredients}
+													onSelect={(ingredient) =>
+														setMenuDraft({
+															...menuDraft,
+															ingredients: menuDraft.ingredients.map((item, i) =>
+																i === index
+																	? { ...item, ingredientId: ingredient.id, ingredient }
+																	: item,
+															),
+														})
+													}
+													onClear={() =>
+														setMenuDraft({
+															...menuDraft,
+															ingredients: menuDraft.ingredients.map((item, i) =>
+																i === index
+																	? { ...item, ingredientId: "", ingredient: undefined }
+																	: item,
+															),
+														})
+													}
+												/>
 												<label>
 													Quantity (
 													{(row.ingredient ??
@@ -883,14 +1010,13 @@ export function Library({
 														onChange={(event) =>
 															setMenuDraft({
 																...menuDraft,
-																ingredients: menuDraft.ingredients.map(
-																	(item, i) =>
-																		i === index
-																			? {
-																					...item,
-																					quantity: Number(event.target.value),
-																				}
-																			: item,
+																ingredients: menuDraft.ingredients.map((item, i) =>
+																	i === index
+																		? {
+																				...item,
+																				quantity: Number(event.target.value),
+																			}
+																		: item,
 																),
 															})
 														}
@@ -927,7 +1053,7 @@ export function Library({
 													...menuDraft,
 													ingredients: [
 														...menuDraft.ingredients,
-														{ ingredientId: "", quantity: 100 },
+														menuIngredientDraft(),
 													],
 												})
 											}
@@ -959,7 +1085,13 @@ export function Library({
 											disabled={
 												saving ||
 												!menuDraft.name.trim() ||
-												!menuDraft.ingredients.length
+												!menuDraft.ingredients.length ||
+												menuDraft.ingredients.some(
+													(row) =>
+														!row.ingredientId ||
+														(!row.ingredient &&
+															!ingredients.some((item) => item.id === row.ingredientId)),
+												),
 											}
 										>
 											{saving ? "Saving…" : "Save menu"}
@@ -1014,7 +1146,7 @@ export function Library({
 												slot: menu.slot,
 												memberId: menu.memberId,
 												ingredients: menu.ingredients.map((row) => ({
-													...row,
+													...menuIngredientDraft(row),
 												})),
 											});
 										}}

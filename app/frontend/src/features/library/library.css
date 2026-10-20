@@ -214,6 +214,58 @@
 	align-items: end;
 	margin: 10px 0;
 }
+.library-ingredient-picker {
+	position: relative;
+	display: grid;
+	min-width: 0;
+	gap: 6px;
+}
+.library-ingredient-picker label {
+	color: #444158;
+	font-size: 0.92rem;
+	font-weight: 650;
+}
+.library-ingredient-picker__results {
+	position: absolute;
+	z-index: 3;
+	top: 100%;
+	left: 0;
+	right: 0;
+	display: grid;
+	max-height: 210px;
+	overflow: auto;
+	border: 1px solid var(--app-line);
+	border-radius: 10px;
+	background: var(--app-surface);
+	box-shadow: 0 8px 20px #17251e1c;
+}
+.library-page .library-ingredient-picker__results button {
+	display: grid;
+	gap: 3px;
+	min-height: 42px;
+	padding: 8px 10px;
+	border-radius: 0;
+	border-bottom: 1px solid var(--app-line);
+	background: var(--app-surface);
+	color: var(--app-ink);
+	text-align: left;
+}
+.library-page .library-ingredient-picker__results button strong {
+	font-size: 0.82rem;
+}
+.library-page .library-ingredient-picker__results button small,
+.library-ingredient-picker__results > small,
+.library-ingredient-picker__basis {
+	color: var(--app-muted);
+	font-size: 0.72rem;
+}
+.library-ingredient-picker__hint {
+	color: #a52935;
+	font-size: 0.75rem;
+}
+.library-ingredient-picker__results > small {
+	padding: 10px;
+}
 .library-row button.danger {
 	width: 44px;
 	min-width: 44px;
@@ -360,6 +412,9 @@
 	.library-row {
 		grid-template-columns: minmax(0, 1fr) 44px;
 	}
+	.library-row .library-ingredient-picker {
+		grid-column: 1 / -1;
+	}
 	.library-row label:first-child {
 		grid-column: 1 / -1;
 	}
@@ -429,6 +484,13 @@
 :root[data-theme="dark"] .library-page select {
 	background: color-mix(in srgb, var(--app-surface) 76%, var(--app-canvas));
 	border-color: var(--app-line);
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .library-ingredient-picker label {
+	color: var(--app-ink);
+}
+:root[data-theme="dark"] .library-page .library-ingredient-picker__results button[role="option"] {
+	background: var(--app-surface);
 	color: var(--app-ink);
 }
 :root[data-theme="dark"] .library-page button:focus-visible,

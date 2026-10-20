@@ -107,11 +107,22 @@ export function App() {
 	};
 
 	const today = new Date();
-	const weekDate = today.getDay() === 0 ? addDays(today, 1) : today;
-	const weekStart = dateKey(monday(weekDate));
-	const [plannerWeekStart, setPlannerWeekStart] = useState(weekStart);
-	const [plannerFocusDate, setPlannerFocusDate] = useState(weekStart);
+	const todayKey = dateKey(
+		new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12),
+	);
+	const currentPlannerWeekStart = dateKey(monday(today));
+	const [plannerWeekStart, setPlannerWeekStart] = useState(
+		currentPlannerWeekStart,
+	);
+	const [plannerFocusDate, setPlannerFocusDate] = useState(todayKey);
 	const effectiveWeek = dateKey(addDays(monday(today), 7));
+	const navigate = (nextPage: Page) => {
+		if (nextPage === "week") {
+			setPlannerWeekStart(currentPlannerWeekStart);
+			setPlannerFocusDate(todayKey);
+		}
+		setPage(nextPage);
+	};
 	const navigation: { id: Page; label: string }[] = [
 		{ id: "today", label: "Today" },
 		{ id: "week", label: "Week" },
@@ -161,7 +172,7 @@ export function App() {
 				data={data}
 				weekStart={plannerWeekStart}
 				initialSelectedDate={plannerFocusDate}
-				currentWeekStart={weekStart}
+				currentWeekStart={currentPlannerWeekStart}
 				onWeekChange={setPlannerWeekStart}
 				onEditMeal={(meal) =>
 					openEditor(meal.date, meal.slot, meal.memberId, meal)
@@ -235,7 +246,7 @@ export function App() {
 								key={item.id}
 								className={page === item.id ? "is-current" : ""}
 								aria-current={page === item.id ? "page" : undefined}
-								onClick={() => setPage(item.id)}
+								onClick={() => navigate(item.id)}
 							>
 								{item.label}
 							</button>
@@ -267,7 +278,7 @@ export function App() {
 						key={item.id}
 						className={page === item.id ? "is-current" : ""}
 						aria-current={page === item.id ? "page" : undefined}
-						onClick={() => setPage(item.id)}
+						onClick={() => navigate(item.id)}
 					>
 						{item.label}
 					</button>

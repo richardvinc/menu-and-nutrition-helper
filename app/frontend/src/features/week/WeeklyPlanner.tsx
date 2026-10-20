@@ -298,6 +298,7 @@ export function WeeklyPlanner({
 			data-date={date}
 			className={`pk-week-day${date === today ? " is-today" : ""}${dayDrag?.date === date && dayDrag.active ? " is-dragging" : ""}${dropDate === date ? " is-drop-target" : ""}`}
 			key={date}
+			aria-current={date === today ? "date" : undefined}
 			aria-label={`${shortDate(date)}${date === today ? ", today" : ""}`}
 			onPointerDown={(event) => startDayDrag(event, date)}
 			onPointerMove={moveDayDrag}
@@ -310,6 +311,7 @@ export function WeeklyPlanner({
 		>
 			<header>
 				<strong>{shortDate(date)}</strong>
+				{date === today && <span className="pk-week-day__today">Today</span>}
 				<span>
 					{data.scheduledMeals.filter((meal) => meal.date === date).length}{" "}
 					meals
@@ -396,7 +398,8 @@ export function WeeklyPlanner({
 						return (
 							<button
 								key={date}
-								className={selectedDate === date ? "is-selected" : ""}
+								className={`${selectedDate === date ? "is-selected" : ""}${date === today ? " is-today" : ""}`}
+								aria-current={date === today ? "date" : undefined}
 								aria-pressed={selectedDate === date}
 								onClick={() => setSelectedDate(date)}
 							>
@@ -412,7 +415,9 @@ export function WeeklyPlanner({
 				<section className="pk-pocket">
 					<div className="pk-pocket__heading">
 						<div>
-							<p className="pk-week__eyebrow">SELECTED DAY</p>
+							<p className="pk-week__eyebrow">
+								{selectedDate === today ? "TODAY" : "SELECTED DAY"}
+							</p>
 							<h2>
 								{new Date(`${selectedDate}T12:00:00`).toLocaleDateString(
 									undefined,
