@@ -16,6 +16,11 @@ export interface DashboardProps {
 	data: DashboardData;
 	today?: Date;
 	onEditMeal: (meal: ScheduledMeal) => void;
+	onCreateMeal: (
+		date: string,
+		slot: ScheduledMeal["slot"],
+		memberId?: MemberId,
+	) => void;
 }
 const dayKey = (date: Date) =>
 	`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -381,6 +386,7 @@ export function Dashboard({
 	data,
 	today = new Date(),
 	onEditMeal,
+	onCreateMeal,
 }: DashboardProps) {
 	const ingredients = new Map(
 		data.ingredients.map((ingredient) => [ingredient.id, ingredient]),
@@ -501,7 +507,15 @@ export function Dashboard({
 									</>
 								) : (
 									<div className="pk-meal-card__empty">
-										<strong>Nothing planned</strong>
+										<button
+											className="pk-dashboard__meal-link"
+											type="button"
+											onClick={() =>
+												onCreateMeal(date, card.slot, card.memberId)
+											}
+										>
+											<strong>Nothing planned</strong>
+										</button>
 										<p>No {card.slot} is scheduled.</p>
 									</div>
 								)}

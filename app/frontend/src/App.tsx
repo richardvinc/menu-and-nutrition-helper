@@ -166,6 +166,9 @@ export function App() {
 					setPage("week");
 					openEditor(meal.date, meal.slot, meal.memberId, meal);
 				}}
+				onCreateMeal={(date, slot, memberId) =>
+					openEditor(date, slot, memberId)
+				}
 			/>
 		) : page === "week" ? (
 			<WeeklyPlanner
