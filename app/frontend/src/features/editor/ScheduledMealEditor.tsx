@@ -258,6 +258,13 @@ function IngredientRow({
 							` · 1 ${selected.unit} = ${selected.equivalentGrams} g`}
 					</small>
 				)}
+				{selected && (
+					<small className="pk-editor-row__calories" aria-live="polite">
+						{pretty(
+							selected.nutrition.calories * (row.quantity / selected.basisAmount),
+						)} kcal total
+					</small>
+				)}
 			</div>
 			<div className="pk-editor-row__quantity">
 				<label>Quantity</label>

@@ -225,6 +225,11 @@
 	color: var(--muted);
 	font-size: 9px;
 }
+.pk-editor-row__calories {
+	color: var(--app-ink);
+	font-size: 11px;
+	font-weight: 700;
+}
 .pk-editor-row__results,
 .pk-editor__menu-results {
 	position: absolute;
