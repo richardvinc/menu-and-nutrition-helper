@@ -881,6 +881,7 @@ export function createDatabase(
 		seedDatabase(db);
 	migrateIngredientSnapshots(db);
 	migrateLegacyWeekendReserves(db);
+	migrateWeightHistory(db);
 	return db;
 }
 
@@ -932,6 +933,28 @@ function migrateLegacyWeekendReserves(db: Database) {
 			migrated.weekStart,
 		);
 	}
+}
+
+function migrateWeightHistory(db: Database) {
+	const targets = rows<WeeklyTarget>(db, "targets");
+	const members = rows<MemberProfile>(db, "members");
+	db.transaction(() => {
+		for (const member of members) {
+			const memberTargets = targets.filter((target) => target.memberId === member.id);
+			for (const point of member.weightHistory ?? []) {
+				const target = memberTargets.find((item) => item.weekStart === point.date);
+				if (target && !finite(target.weightKg)) {
+					target.weightKg = point.weightKg;
+					put(db, "targets", `${target.memberId}|${target.weekStart}`, target, target.memberId, target.weekStart);
+				}
+			}
+			if (!memberTargets.some((target) => finite(target.weightKg)) && memberTargets.length) {
+				const latest = memberTargets.sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
+				latest.weightKg = member.currentWeightKg;
+				put(db, "targets", `${latest.memberId}|${latest.weekStart}`, latest, latest.memberId, latest.weekStart);
+			}
+		}
+	})();
 }
 
 function normalizeWeekendReserve(target: WeeklyTarget) {
@@ -1523,6 +1546,7 @@ function validTarget(t: any): t is WeeklyTarget {
 		members.has(t.memberId) &&
 		validDate(t.weekStart) &&
 		isMonday(t.weekStart) &&
+		(t.weightKg === undefined || (finite(t.weightKg) && t.weightKg >= 30 && t.weightKg <= 300)) &&
 		[
 			t.deficitPercent,
 			t.weekendReserve,
@@ -1706,6 +1730,7 @@ function replaceData(db: Database, data: AppData, normalizeTargets = true) {
 		data.calendars.forEach((x) => put(db, "calendars", x.id, x));
 		data.agendaItems.forEach((x) => put(db, "agenda_items", x.id, x));
 	})();
+	migrateWeightHistory(db);
 }
 
 function validateSQLiteBackup(bytes: Uint8Array): AppData {
@@ -2743,6 +2768,7 @@ export function createApp(db = createDatabase()) {
 				req.query.start === "today"
 					? { ...preview.proposed, weekStart: preview.current.weekStart }
 					: preview.proposed;
+			target.weightKg = req.body.weightKg;
 			const member = JSON.parse(
 				(
 					db
@@ -2751,14 +2777,6 @@ export function createApp(db = createDatabase()) {
 				).data,
 			) as MemberProfile;
 			member.currentWeightKg = req.body.weightKg;
-			member.weightHistory = [
-				...(member.weightHistory ?? []).filter(
-					(point) => point.date !== target.weekStart,
-				),
-				{ date: target.weekStart, weightKg: req.body.weightKg },
-			]
-				.sort((a, b) => a.date.localeCompare(b.date))
-				.slice(-500);
 			member.heightCm = req.body.heightCm;
 			member.sex = req.body.sex;
 			member.activityLevel = req.body.activityLevel;

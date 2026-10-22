@@ -48,12 +48,31 @@ function targetForWeek(
 		.sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
 }
 
-function WeightChart({ member }: { member: MemberProfile }) {
+function WeightChart({ member, targets }: { member: MemberProfile; targets: WeeklyTarget[] }) {
 	const today = new Date();
-	const points = member.weightHistory?.length
-		? [...member.weightHistory].sort((a, b) => a.date.localeCompare(b.date))
+	const cutoffMonth = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+	const cutoff = new Date(
+		cutoffMonth.getFullYear(),
+		cutoffMonth.getMonth(),
+		Math.min(
+			today.getDate(),
+			new Date(cutoffMonth.getFullYear(), cutoffMonth.getMonth() + 1, 0).getDate(),
+		),
+	);
+	const isoDate = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+	const todayDate = isoDate(today);
+	const cutoffDate = isoDate(cutoff);
+	const weightedTargets = targets
+		.filter(
+			(target): target is WeeklyTarget & { weightKg: number } =>
+				target.memberId === member.id && typeof target.weightKg === "number" &&
+				target.weekStart >= cutoffDate && target.weekStart <= todayDate,
+		)
+		.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+	const points = weightedTargets.length
+		? weightedTargets.map(({ weekStart: date, weightKg }) => ({ date, weightKg }))
 		: [{
-				date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`,
+				date: todayDate,
 				weightKg: member.currentWeightKg,
 			}];
 	const values = points.map((point) => point.weightKg);
@@ -86,19 +105,26 @@ function WeightChart({ member }: { member: MemberProfile }) {
 						className="weight-chart-line"
 					/>
 				)}
-				{coordinates.map((point) => (
+				{coordinates.map((point, index) => (
 					<g key={point.date}>
 						<circle cx={point.x} cy={point.y} r="5" className="weight-chart-point" />
+						<text x={point.x} y="174" textAnchor="middle" className="weight-chart-date-label">
+							{new Date(`${point.date}T00:00:00`).getDate()}/{new Date(`${point.date}T00:00:00`).getMonth() + 1}
+						</text>
+						<text
+							x={point.x}
+							y={point.y - 10}
+							textAnchor={coordinates.length === 1 || (index > 0 && index < coordinates.length - 1) ? "middle" : index === 0 ? "start" : "end"}
+							className="weight-chart-label"
+						>
+							{point.weightKg.toFixed(1)}
+						</text>
 						<title>
 							{point.date}: {point.weightKg.toFixed(1)} kg
 						</title>
 					</g>
 				))}
 			</svg>
-			<div className="weight-chart-dates">
-				<span>{points[0].date}</span>
-				{points.length > 1 && <span>{points[points.length - 1].date}</span>}
-			</div>
 		</section>
 	);
 }
@@ -298,7 +324,7 @@ export function Targets({
 			</header>
 			<div className="weight-chart-grid">
 				{members.map((item) => (
-					<WeightChart key={item.id} member={item} />
+					<WeightChart key={item.id} member={item} targets={targets} />
 				))}
 			</div>
 			<section className="target-panel">

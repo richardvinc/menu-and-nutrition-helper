@@ -69,6 +69,7 @@ export interface WeightCheckIn {
 export interface WeeklyTarget {
 	memberId: MemberId;
 	weekStart: string;
+	weightKg?: number;
 	deficitPercent: number;
 	weekendReserve: number;
 	proteinPercent: number;

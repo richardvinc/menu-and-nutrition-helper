@@ -48,9 +48,15 @@
 	stroke: var(--app-surface, #fff);
 	stroke-width: 2;
 }
-.weight-chart-dates {
+.weight-chart-label {
+	fill: var(--app-muted, #625f76);
+	font-size: 10px;
+	font-weight: 600;
+}
+.weight-chart-date-label {
 	color: var(--app-muted, #625f76);
-	font-size: 0.75rem;
+	fill: var(--app-muted, #625f76);
+	font-size: 10px;
 }
 .target-panel {
 	margin: 18px 0;
