@@ -55,6 +55,47 @@ const blankNutrition = (): Nutrition => ({
 });
 const fmt = (value: number) => Math.round(value).toLocaleString();
 
+function NutritionMetric({
+	label,
+	value,
+	target,
+	unit,
+	context,
+}: {
+	label: string;
+	value: number;
+	target?: number;
+	unit: string;
+	context?: string;
+}) {
+	const isCalories = label === "Calories";
+	return (
+		<span
+			className={`pk-week__target-metric${isCalories ? " is-calories" : ""}`}
+		>
+			<span className="pk-week__target-metric-label">{label}</span>
+			<span className="pk-week__target-metric-value">
+				{fmt(value)}
+				{target == null
+					? ` ${unit}${context ? ` · ${context}` : ""}`
+					: ` / ${fmt(target)} ${unit}`}
+			</span>
+			{isCalories && target != null && target > 0 && (
+				<span
+					className="pk-week__target-bar"
+					role="progressbar"
+					aria-label={`${label}: ${fmt(value)} of ${fmt(target)} ${unit}`}
+					aria-valuemin={0}
+					aria-valuemax={target}
+					aria-valuenow={Math.min(value, target)}
+				>
+					<span style={{ width: `${Math.min(100, (value / target) * 100)}%` }} />
+				</span>
+			)}
+		</span>
+	);
+}
+
 export function WeeklyPlanner({
 	data,
 	weekStart,
@@ -132,11 +173,10 @@ export function WeeklyPlanner({
 	const targetProgress = (date: string, meals: ScheduledMeal[]) => {
 		const weekend = [0, 6].includes(new Date(`${date}T12:00:00`).getDay());
 		return (
-			<div className="pk-pocket__targets">
-				<strong>Daily calories &amp; macro budget</strong>
-				<span>
-					Scheduled meals include snacks · {weekend ? "weekend is self-managed" : "not actual intake"}
-				</span>
+			<section className="pk-week__nutrition" aria-label="Planned nutrition">
+				<small className="pk-week__nutrition-context">
+					Planned totals · {weekend ? "weekend is self-managed" : "not actual intake"}
+				</small>
 				{data.members.map((member) => {
 					const totals = plannedNutrition(meals, member.id);
 					const target = data.targets
@@ -145,45 +185,47 @@ export function WeeklyPlanner({
 								item.memberId === member.id && item.weekStart <= weekStart,
 						)
 						.sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
+					const weekdayTarget = target && !weekend ? target : undefined;
 					return (
-						<p key={member.id}>
-							{member.name}
-							<small className="pk-pocket__metrics">
-								<span>
-									Calories {fmt(totals.calories)}
-									{target && !weekend
-										? ` / ${fmt(target.weekdayCalories)} kcal`
-										: ` kcal${weekend ? " · self-managed" : " · target unavailable"}`}
-								</span>
-								<span>
-									Protein {fmt(totals.protein)}
-									{target && !weekend
-										? ` / ${fmt(target.macroGrams.protein)} g`
-										: " g"}
-								</span>
-								<span>
-									Carbs {fmt(totals.carbs)}
-									{target && !weekend
-										? ` / ${fmt(target.macroGrams.carbs)} g`
-										: " g"}
-								</span>
-								<span>
-									Fat {fmt(totals.fat)}
-									{target && !weekend
-										? ` / ${fmt(target.macroGrams.fat)} g`
-										: " g"}
-								</span>
-								<span>
-									Fiber {fmt(totals.fiber)}
-									{target && !weekend
-										? ` / ${fmt(target.fiberGrams)} g`
-										: " g"}
-								</span>
-							</small>
-						</p>
+						<article className="pk-week__member-target" key={member.id}>
+							<strong>{member.name}</strong>
+							<div className="pk-week__target-metrics">
+								<NutritionMetric
+									label="Calories"
+									value={totals.calories}
+									target={weekdayTarget?.weekdayCalories}
+									unit="kcal"
+									context={weekend ? "self-managed" : target ? undefined : "target unavailable"}
+								/>
+								<NutritionMetric
+									label="Protein"
+									value={totals.protein}
+									target={weekdayTarget?.macroGrams.protein}
+									unit="g"
+								/>
+								<NutritionMetric
+									label="Carbs"
+									value={totals.carbs}
+									target={weekdayTarget?.macroGrams.carbs}
+									unit="g"
+								/>
+								<NutritionMetric
+									label="Fat"
+									value={totals.fat}
+									target={weekdayTarget?.macroGrams.fat}
+									unit="g"
+								/>
+								<NutritionMetric
+									label="Fiber"
+									value={totals.fiber}
+									target={weekdayTarget?.fiberGrams}
+									unit="g"
+								/>
+							</div>
+						</article>
 					);
 				})}
-			</div>
+			</section>
 		);
 	};
 	const slots = [
@@ -317,6 +359,10 @@ export function WeeklyPlanner({
 					meals
 				</span>
 			</header>
+			{targetProgress(
+				date,
+				data.scheduledMeals.filter((meal) => meal.date === date),
+			)}
 			{slots.map((slot) => {
 				const matches = data.scheduledMeals.filter(
 					(meal) =>
@@ -340,7 +386,6 @@ export function WeeklyPlanner({
 					</div>
 				);
 			})}
-			{targetProgress(date, data.scheduledMeals.filter((meal) => meal.date === date))}
 		</section>
 	);
 
@@ -432,6 +477,7 @@ export function WeeklyPlanner({
 						</div>
 						<span>{selectedMeals.length} planned</span>
 					</div>
+					{targetProgress(selectedDate, selectedMeals)}
 					<div className="pk-pocket__slots">
 						{slots.map((slot) => {
 							const matches = selectedMeals.filter(
@@ -460,7 +506,6 @@ export function WeeklyPlanner({
 							);
 						})}
 					</div>
-					{targetProgress(selectedDate, selectedMeals)}
 				</section>
 			</div>
 			<div className="pk-week__desktop" aria-label="Weekly schedule">
