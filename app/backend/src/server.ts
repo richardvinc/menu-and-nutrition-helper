@@ -1186,6 +1186,19 @@ function validAppData(x: any): x is AppData {
 				!finite(m.currentWeightKg) ||
 				m.currentWeightKg < 30 ||
 				m.currentWeightKg > 300 ||
+				(m.weightHistory !== undefined &&
+					(!Array.isArray(m.weightHistory) ||
+						m.weightHistory.length > 500 ||
+						m.weightHistory.some(
+							(point: any) =>
+								!point ||
+								!validDate(point.date) ||
+								!finite(point.weightKg) ||
+								point.weightKg < 30 ||
+								point.weightKg > 300,
+							) ||
+						new Set(m.weightHistory.map((point: any) => point.date)).size !==
+							m.weightHistory.length)) ||
 				!["inactive", "low", "active", "very", "custom"].includes(
 					m.activityLevel,
 				) ||
@@ -2738,6 +2751,14 @@ export function createApp(db = createDatabase()) {
 				).data,
 			) as MemberProfile;
 			member.currentWeightKg = req.body.weightKg;
+			member.weightHistory = [
+				...(member.weightHistory ?? []).filter(
+					(point) => point.date !== target.weekStart,
+				),
+				{ date: target.weekStart, weightKg: req.body.weightKg },
+			]
+				.sort((a, b) => a.date.localeCompare(b.date))
+				.slice(-500);
 			member.heightCm = req.body.heightCm;
 			member.sex = req.body.sex;
 			member.activityLevel = req.body.activityLevel;

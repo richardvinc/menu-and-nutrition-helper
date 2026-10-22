@@ -1,6 +1,57 @@
 .targets-page {
 	max-width: 920px;
 }
+.weight-chart-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+.weight-chart-card {
+	min-width: 0;
+	padding: 16px 18px 12px;
+	border: 1px solid var(--app-line);
+	border-radius: 18px;
+	background: var(--app-surface, #fff);
+}
+.weight-chart-heading,
+.weight-chart-dates {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+}
+.weight-chart-heading h2 {
+	margin: 0;
+	font-size: 1rem;
+}
+.weight-chart-heading strong {
+	color: var(--app-muted, #625f76);
+}
+.weight-chart-card svg {
+	display: block;
+	width: 100%;
+	height: auto;
+	margin-top: 8px;
+}
+.weight-chart-axis {
+	stroke: var(--app-line);
+	stroke-width: 1;
+}
+.weight-chart-line {
+	fill: none;
+	stroke: var(--app-purple);
+	stroke-width: 3;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+.weight-chart-point {
+	fill: var(--app-purple);
+	stroke: var(--app-surface, #fff);
+	stroke-width: 2;
+}
+.weight-chart-dates {
+	color: var(--app-muted, #625f76);
+	font-size: 0.75rem;
+}
 .target-panel {
 	margin: 18px 0;
 	padding: 24px;
@@ -150,6 +201,9 @@
 	font-weight: 650;
 }
 @media (max-width: 600px) {
+	.weight-chart-grid {
+		grid-template-columns: 1fr;
+	}
 	.target-panel {
 		padding: 16px;
 	}

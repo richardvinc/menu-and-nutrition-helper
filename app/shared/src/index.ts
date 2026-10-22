@@ -56,8 +56,14 @@ export interface MemberProfile {
 	sex: "male" | "female" | "other";
 	heightCm: number;
 	currentWeightKg: number;
+	weightHistory?: WeightCheckIn[];
 	activityLevel: "inactive" | "low" | "active" | "very" | "custom";
 	activityFactor: number;
+}
+
+export interface WeightCheckIn {
+	date: string;
+	weightKg: number;
 }
 
 export interface WeeklyTarget {

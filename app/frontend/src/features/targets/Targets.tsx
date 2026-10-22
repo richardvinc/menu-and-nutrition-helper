@@ -48,6 +48,61 @@ function targetForWeek(
 		.sort((a, b) => b.weekStart.localeCompare(a.weekStart))[0];
 }
 
+function WeightChart({ member }: { member: MemberProfile }) {
+	const today = new Date();
+	const points = member.weightHistory?.length
+		? [...member.weightHistory].sort((a, b) => a.date.localeCompare(b.date))
+		: [{
+				date: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`,
+				weightKg: member.currentWeightKg,
+			}];
+	const values = points.map((point) => point.weightKg);
+	const low = Math.min(...values);
+	const high = Math.max(...values);
+	const span = Math.max(high - low, 1);
+	const coordinates = points.map((point, index) => ({
+		x: points.length === 1 ? 300 : 24 + (index / (points.length - 1)) * 552,
+		y: 132 - ((point.weightKg - low) / span) * 96,
+		...point,
+	}));
+	return (
+		<section
+			className="weight-chart-card"
+			aria-label={`${member.name} weight history`}
+		>
+			<div className="weight-chart-heading">
+				<h2>{member.name}</h2>
+				<strong>{member.currentWeightKg.toFixed(1)} kg</strong>
+			</div>
+			<svg
+				viewBox="0 0 600 190"
+				role="img"
+				aria-label={`${member.name} weight history, ${points.length} check-in${points.length === 1 ? "" : "s"}`}
+			>
+				<line x1="24" y1="150" x2="576" y2="150" className="weight-chart-axis" />
+				{coordinates.length > 1 && (
+					<polyline
+						points={coordinates.map(({ x, y }) => `${x},${y}`).join(" ")}
+						className="weight-chart-line"
+					/>
+				)}
+				{coordinates.map((point) => (
+					<g key={point.date}>
+						<circle cx={point.x} cy={point.y} r="5" className="weight-chart-point" />
+						<title>
+							{point.date}: {point.weightKg.toFixed(1)} kg
+						</title>
+					</g>
+				))}
+			</svg>
+			<div className="weight-chart-dates">
+				<span>{points[0].date}</span>
+				{points.length > 1 && <span>{points[points.length - 1].date}</span>}
+			</div>
+		</section>
+	);
+}
+
 export function Targets({
 	members,
 	targets,
@@ -241,6 +296,11 @@ export function Targets({
 					. Current-week targets stay in place until then.
 				</p>
 			</header>
+			<div className="weight-chart-grid">
+				{members.map((item) => (
+					<WeightChart key={item.id} member={item} />
+				))}
+			</div>
 			<section className="target-panel">
 				<label>
 					Member
