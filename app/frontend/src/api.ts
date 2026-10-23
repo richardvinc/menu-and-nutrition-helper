@@ -8,6 +8,7 @@ import type {
 	ScheduledMeal,
 	TargetPreview,
 	TargetPreviewRequest,
+	WeightCheckInRequest,
 } from "@piring-kita/shared";
 
 export interface CalendarOccurrence {
@@ -264,5 +265,10 @@ export const api = {
 		request<void>(`/api/targets/apply${startToday ? "?start=today" : ""}`, {
 			method: "POST",
 			body: JSON.stringify(proposal),
+		}),
+	checkInWeight: (checkIn: WeightCheckInRequest) =>
+		request<void>("/api/targets/weight-check-in", {
+			method: "POST",
+			body: JSON.stringify(checkIn),
 		}),
 };

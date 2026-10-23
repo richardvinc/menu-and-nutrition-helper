@@ -2760,6 +2760,34 @@ export function createApp(db = createDatabase()) {
 			return fail(res, e);
 		}
 	});
+	app.post("/api/targets/weight-check-in", (req, res) => {
+		const { memberId, date, weightKg } = req.body ?? {};
+		if (
+			!members.has(memberId) ||
+			!validDate(date) ||
+			!finite(weightKg) ||
+			weightKg < 30 ||
+			weightKg > 300
+		)
+			return fail(
+				res,
+				"enter a valid check-in date and weight from 30 to 300 kg",
+			);
+		const member = rows<MemberProfile>(db, "members").find(
+			(item) => item.id === memberId,
+		);
+		if (!member) return fail(res, "member not found", 404);
+		const history = member.weightHistory ?? [];
+		if (!history.some((point) => point.date === date) && history.length >= 500)
+			return fail(res, "weight history is full");
+		member.currentWeightKg = weightKg;
+		member.weightHistory = [
+			...history.filter((point) => point.date !== date),
+			{ date, weightKg },
+		].sort((a, b) => a.date.localeCompare(b.date));
+		put(db, "members", member.id, member);
+		return res.status(204).end();
+	});
 	app.post("/api/targets/apply", (req, res) => {
 		try {
 			const preview = targetForRequest(db, req.body as TargetPreviewRequest);

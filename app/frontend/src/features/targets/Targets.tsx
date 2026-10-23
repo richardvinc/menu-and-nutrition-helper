@@ -3,6 +3,7 @@ import type {
 	TargetPreview,
 	TargetPreviewRequest,
 	WeeklyTarget,
+	WeightCheckInRequest,
 } from "@piring-kita/shared";
 import { useEffect, useMemo, useState } from "react";
 import "./targets.css";
@@ -17,6 +18,7 @@ export type TargetsProps = {
 		request: TargetPreviewRequest,
 		startToday?: boolean,
 	) => Promise<void>;
+	onWeightCheckIn: (checkIn: WeightCheckInRequest) => Promise<void>;
 };
 
 const activityFactors: Record<
@@ -50,7 +52,7 @@ function targetForWeek(
 
 function WeightChart({ member, targets }: { member: MemberProfile; targets: WeeklyTarget[] }) {
 	const today = new Date();
-	const cutoffMonth = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+	const cutoffMonth = new Date(today.getFullYear(), today.getMonth() - 2, 1);
 	const cutoff = new Date(
 		cutoffMonth.getFullYear(),
 		cutoffMonth.getMonth(),
@@ -69,12 +71,18 @@ function WeightChart({ member, targets }: { member: MemberProfile; targets: Week
 				target.weekStart >= cutoffDate && target.weekStart <= todayDate,
 		)
 		.sort((a, b) => a.weekStart.localeCompare(b.weekStart));
-	const points = weightedTargets.length
-		? weightedTargets.map(({ weekStart: date, weightKg }) => ({ date, weightKg }))
-		: [{
-				date: todayDate,
-				weightKg: member.currentWeightKg,
-			}];
+	const pointsByDate = new Map(
+		weightedTargets.map(({ weekStart: date, weightKg }) => [date, weightKg]),
+	);
+	for (const point of member.weightHistory ?? []) {
+		if (point.date >= cutoffDate && point.date <= todayDate)
+			pointsByDate.set(point.date, point.weightKg);
+	}
+	const points = pointsByDate.size
+		? [...pointsByDate]
+				.map(([date, weightKg]) => ({ date, weightKg }))
+				.sort((a, b) => a.date.localeCompare(b.date))
+		: [{ date: todayDate, weightKg: member.currentWeightKg }];
 	const values = points.map((point) => point.weightKg);
 	const low = Math.min(...values);
 	const high = Math.max(...values);
@@ -135,6 +143,7 @@ export function Targets({
 	effectiveWeek,
 	onPreview,
 	onApply,
+	onWeightCheckIn,
 }: TargetsProps) {
 	const [memberId, setMemberId] = useState<MemberProfile["id"]>(
 		members[0]?.id ?? "richard",
@@ -168,6 +177,10 @@ export function Targets({
 	const [advisory, setAdvisory] = useState("");
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
+	const [checkInBusy, setCheckInBusy] = useState(false);
+	const [checkInWeight, setCheckInWeight] = useState(member?.currentWeightKg ?? 30);
+	const [checkInError, setCheckInError] = useState("");
+	const [checkInSuccess, setCheckInSuccess] = useState("");
 
 	useEffect(() => {
 		setDraft(initial);
@@ -175,6 +188,12 @@ export function Targets({
 		setFieldErrors({});
 		setError("");
 	}, [initial]);
+
+	useEffect(() => {
+		setCheckInWeight(member?.currentWeightKg ?? 30);
+		setCheckInError("");
+		setCheckInSuccess("");
+	}, [member]);
 
 	useEffect(() => {
 		if (!draft) return;
@@ -293,6 +312,28 @@ export function Targets({
 			);
 		} finally {
 			setBusy(false);
+		}
+	}
+
+	async function saveWeightCheckIn() {
+		if (!member) return;
+		if (!Number.isFinite(checkInWeight) || checkInWeight < 30 || checkInWeight > 300) {
+			setCheckInError("Enter a weight from 30 to 300 kg.");
+			setCheckInSuccess("");
+			return;
+		}
+		setCheckInBusy(true);
+		setCheckInError("");
+		setCheckInSuccess("");
+		try {
+			const now = new Date();
+			const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+			await onWeightCheckIn({ memberId: member.id, date, weightKg: checkInWeight });
+			setCheckInSuccess(`Weight check-in saved for ${date}. Targets were not changed.`);
+		} catch (reason) {
+			setCheckInError(reason instanceof Error ? reason.message : "Could not save the weight check-in.");
+		} finally {
+			setCheckInBusy(false);
 		}
 	}
 
@@ -637,7 +678,60 @@ export function Targets({
 					</button>
 				</div>
 			</section>
-
+			<section className="target-panel" aria-labelledby="weight-check-in-heading">
+				<h2 id="weight-check-in-heading">
+					Today's weight check-in for {member.name}
+				</h2>
+				<p className="target-help">
+					Record your weight for today. This updates your stats without changing
+					your calorie or macro targets.
+				</p>
+				<div className="target-form-grid">
+					<label>
+						Weight (kg)
+						<NumberInput
+							type="number"
+							min="30"
+							max="300"
+							step="0.1"
+							value={checkInWeight}
+							aria-invalid={!!checkInError}
+							aria-describedby={
+								checkInError
+									? "check-in-weight-error"
+									: "check-in-weight-help"
+							}
+							onChange={(event) => {
+								setCheckInWeight(Number(event.target.value));
+								setCheckInError("");
+								setCheckInSuccess("");
+							}}
+						/>
+						<small id="check-in-weight-help">
+							Saved under today's local date.
+						</small>
+					</label>
+					<div className="target-actions">
+						<button
+							type="button"
+							onClick={() => void saveWeightCheckIn()}
+							disabled={checkInBusy}
+						>
+							{checkInBusy ? "Saving…" : "Save weight check-in"}
+						</button>
+					</div>
+				</div>
+				{checkInError && (
+					<p className="target-error" id="check-in-weight-error" role="alert">
+						{checkInError}
+					</p>
+				)}
+				{checkInSuccess && (
+					<p className="target-help" role="status">
+						{checkInSuccess}
+					</p>
+				)}
+			</section>
 			{error && (
 				<p className="feature-error" role="alert">
 					{error}

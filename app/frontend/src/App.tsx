@@ -227,6 +227,10 @@ export function App() {
 				onApply={(request: TargetPreviewRequest, startToday?: boolean) =>
 					run(() => api.applyTarget(request, startToday))
 				}
+				onWeightCheckIn={async (checkIn) => {
+					await api.checkInWeight(checkIn);
+					await reload();
+				}}
 			/>
 		);
 

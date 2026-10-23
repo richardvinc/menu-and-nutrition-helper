@@ -66,6 +66,10 @@ export interface WeightCheckIn {
 	weightKg: number;
 }
 
+export interface WeightCheckInRequest extends WeightCheckIn {
+	memberId: MemberId;
+}
+
 export interface WeeklyTarget {
 	memberId: MemberId;
 	weekStart: string;
